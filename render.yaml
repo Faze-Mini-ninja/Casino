@@ -1,0 +1,23 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: krush-casino
+    runtime: docker
+    plan: starter            # persistent disks need a paid plan (Starter ≈ $7/mo)
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    disk:
+      name: krush-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false          # you type it in when creating the Blueprint
+      - key: SEED_USERS
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "true"
