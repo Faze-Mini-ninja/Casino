@@ -1,15 +1,18 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
+# FREE plan: no persistent disk, so the database resets whenever the service restarts or sleeps (after ~15 min idle).
+# Accounts in SEED_USERS (and the admin) are recreated automatically on every start.
+# To keep data: change plan to "starter" and uncomment the disk block.
 services:
   - type: web
     name: krush-casino
     runtime: docker
-    plan: starter            # persistent disks need a paid plan (Starter ≈ $7/mo)
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
-    disk:
-      name: krush-data
-      mountPath: /data
-      sizeGB: 1
+    # disk:
+    #   name: krush-data
+    #   mountPath: /data
+    #   sizeGB: 1
     envVars:
       - key: ADMIN_USERNAME
         value: admin
