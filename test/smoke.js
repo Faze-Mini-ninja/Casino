@@ -31,7 +31,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.screenshot({ path: path.join(SHOTS, '00-lobby.png'), fullPage: true });
   const ids = await page.evaluate(() => Casino.games.slice().sort((a, b) => a.n - b.n).map((g) => g.id));
   const click = async (sel, n = 0) => { const l = page.locator(sel).filter({ visible: true }).nth(n); if (await l.count()) { await l.click({ timeout: 2000 }).catch(() => {}); return true; } return false; };
-  const clickText = async (t) => { const l = page.locator('button', { hasText: t }).filter({ visible: true }).first(); if (await l.count() && await l.isEnabled()) { await l.click({ timeout: 2000 }).catch(() => {}); return true; } return false; };
+  const clickText = async (t) => { const l = page.locator('button', { hasText: t }).filter({ visible: true }).first(); if (await l.count() && await l.isEnabled({ timeout: 1000 }).catch(() => false)) { await l.click({ timeout: 2000 }).catch(() => {}); return true; } return false; };
   const results = [];
   for (const id of ids) {
     const before = errors.length;
