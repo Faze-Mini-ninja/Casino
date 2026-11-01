@@ -290,6 +290,23 @@ function ensureAdmin() {
 }
 ensureAdmin();
 
+/** Create accounts listed in SEED_USERS (name:password:demo:real) if they don't exist. Existing accounts are left alone. */
+function seedUsers() {
+  for (const entry of String(cfg.SEED_USERS || '').split(',').map((x) => x.trim()).filter(Boolean)) {
+    const [username, password, demo = String(cfg.DEMO_START_CREDITS), real = '0'] = entry.split(':');
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(username || '') || !password || password.length < 8) { console.warn(`[seed] skipped invalid entry for "${username}"`); continue; }
+    if (q('SELECT 1 FROM users WHERE username = ?').get(username)) continue;
+    const salt = crypto.randomBytes(16).toString('hex');
+    tx(() => {
+      const uid = Number(q("INSERT INTO users (username, pass_hash, salt, role, created, ref_code) VALUES (?,?,?,'player',?,?)").run(username, hash(password, salt), salt, Date.now(), referrals.newCode()).lastInsertRowid);
+      credit(uid, 'demo', Math.round(Number(demo) * 100) || 0, 'seed-account');
+      credit(uid, 'real', Math.round(Number(real) * 100) || 0, 'seed-account');
+    });
+    console.log(`[seed] created account ${username} (demo ${demo}, real ${real})`);
+  }
+}
+seedUsers();
+
 if (require.main === module) {
   server.listen(cfg.PORT, cfg.HOST, () => console.log(`krush.casino on http://localhost:${cfg.PORT}  (${cfg.cluster}, chain ${cfg.CHAIN_ENABLED ? 'on' : 'off'})`));
   pay.startWatcher();
