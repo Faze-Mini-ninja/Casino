@@ -1,4 +1,4 @@
-/* Royal Edge Casino server: static files + JSON API (accounts, games, wallet, admin). No framework. */
+/* krush.casino server: static files + JSON API (accounts, games, wallet, admin). No framework. */
 'use strict';
 process.removeAllListeners('warning'); // silence node:sqlite "experimental" notice
 const http = require('http');
@@ -227,7 +227,7 @@ function ensureAdmin() {
 ensureAdmin();
 
 if (require.main === module) {
-  server.listen(cfg.PORT, cfg.HOST, () => console.log(`Royal Edge Casino on http://localhost:${cfg.PORT}  (${cfg.cluster}, chain ${cfg.CHAIN_ENABLED ? 'on' : 'off'})`));
+  server.listen(cfg.PORT, cfg.HOST, () => console.log(`krush.casino on http://localhost:${cfg.PORT}  (${cfg.cluster}, chain ${cfg.CHAIN_ENABLED ? 'on' : 'off'})`));
   pay.startWatcher();
   setInterval(() => { try { refundStaleShots(); q('DELETE FROM sessions WHERE expires < ?').run(Date.now()); } catch (e) { console.error(e); } }, 30000).unref();
 }

@@ -190,7 +190,7 @@
 
   /* ---------------- generated game art ---------------- */
   const GLYPH = { slots: '7', keno: '80', blackjack: '21', 'roulette-us': '00', 'roulette-eu': '0', 'baccarat-tie': '8:1', 'baccarat-side': '♦', baccarat: '9', craps: '11', videopoker: '♠', paigow: '♣', sicbo: '3D', bingo: 'B', plinko: '▼', dragontiger: '龍', threecard: '3', caribbean: '♥', holdem: 'A♠', letitride: '$', bigsix: '6', crash: '×', mines: '◆', limbo: '∞', dice: '%', hilo: '↕', tower: '▲', scratch: '★', fish: '≈', coinflip: '½', war: '⚔' };
-  const CAT_LABEL = { originals: 'Royal Edge Originals', table: 'Table Games', poker: 'Poker', lottery: 'Slots & Lottery' };
+  const CAT_LABEL = { originals: 'Krush Originals', table: 'Table Games', poker: 'Poker', lottery: 'Slots & Lottery' };
   C.hue = (g) => (g.n * 47 + 190) % 360;
   function motif(cat) {
     switch (cat) {
@@ -215,7 +215,7 @@
     g.cat === 'originals' ? h('span', { class: 't-badge' }, 'Original') : null,
     C.odds() ? h('span', { class: 't-edge' }, g.edge) : null,
     h('div', { class: 't-name' }, g.short),
-    h('div', { class: 't-prov' }, 'Royal Edge'),
+    h('div', { class: 't-prov' }, 'krush.casino'),
     h('div', { class: 'play' }, h('span', null, C.icon('play'))));
   C.tileEl = tileEl;
   const CAT_ORDER = ['originals', 'table', 'poker', 'lottery'];
@@ -261,7 +261,7 @@
         body.append(h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon(CAT_ICON[c]), CAT_LABEL[c]), h('a', { href: '#cat-' + c }, `View all ${gs.length}`)), h('div', { class: 'rail' }, gs.map(tileEl))));
       }
     };
-    const tabs = h('div', { class: 'tabs' }, [['', 'Lobby', 'home'], ...CAT_ORDER.map((c) => [c, CAT_LABEL[c].replace('Royal Edge ', ''), CAT_ICON[c]])].map(([k, v, ic]) =>
+    const tabs = h('div', { class: 'tabs' }, [['', 'Lobby', 'home'], ...CAT_ORDER.map((c) => [c, CAT_LABEL[c].replace('Krush ', ''), CAT_ICON[c]])].map(([k, v, ic]) =>
       h('a', { class: 'tab' + ((cat || '') === k ? ' sel' : ''), href: k ? '#cat-' + k : '#lobby' }, C.icon(ic), v)));
     const search = h('input', { class: 'search', placeholder: 'Search 30 games', oninput: (e) => { q = e.target.value.toLowerCase().trim(); render(); } });
     render();
@@ -359,7 +359,7 @@
             h('p', { class: 'muted' }, `Your deposit address for today (${w.day} UTC). A fresh address is issued every day; deposits to your older addresses are still credited for ${cfg.watchDays} days.`),
             h('div', { class: 'addr' }, w.address),
             h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => C.copy(w.address) }, 'Copy address'),
-              h('a', { class: 'btn small ghost', href: `solana:${w.address}?label=Royal%20Edge%20Casino` }, 'Open in wallet app')),
+              h('a', { class: 'btn small ghost', href: `solana:${w.address}?label=krush.casino` }, 'Open in wallet app')),
             h('p', { class: 'muted small' }, `Send SOL only (not tokens). Minimum ${cfg.minDepositSol} SOL. Deposits are credited after the transaction is finalized on-chain (usually under a minute).`),
           ] : h('p', { class: 'muted' }, 'Deposits are not enabled on this server.')),
         h('div', { class: 'panel' }, h('h3', null, 'Withdraw SOL'),
@@ -489,14 +489,14 @@
     const navKey = gm ? 'cat-' + gm.cat : hash || 'lobby';
     document.querySelectorAll('.nav-item, .bottom-nav a').forEach((x) => x.classList.toggle('active', x.getAttribute('href') === '#' + navKey || (navKey === '' && x.getAttribute('href') === '#lobby')));
     window.scrollTo(0, 0);
-    document.title = 'Royal Edge Casino';
+    document.title = 'Krush Casino';
     if (hash.startsWith('ref-')) { try { localStorage.setItem('casino.ref', hash.slice(4).toUpperCase()); } catch (e) { /* ignore */ } location.hash = S.user ? '#referrals' : '#login'; if (!S.user) setTimeout(() => { const sw = document.querySelector('.auth a'); if (sw && /Create/.test(sw.textContent)) sw.click(); }, 50); return; }
     const needLogin = ['history', 'stats', 'wallet', 'admin', 'account', 'referrals'].includes(hash) || C.games.some((g) => g.id === hash);
     if (hash === 'login') return a.appendChild(authPage());
     if (hash === 'account' && S.user) return a.appendChild(accountPage());
     if (needLogin && !S.user) { location.hash = '#login'; return; }
     const g = C.games.find((x) => x.id === hash);
-    if (g) { document.title = g.name + ' — Royal Edge Casino'; return a.appendChild(gamePage(g)); }
+    if (g) { document.title = g.name + ' — Krush Casino'; return a.appendChild(gamePage(g)); }
     const page = { history: historyPage, stats: statsPage, edges: C.odds() ? edgesPage : null, wallet: walletPage, admin: adminPage, referrals: referralsPage }[hash];
     if (page) { const el = await page(); if (location.hash.replace(/^#/, '') === hash) { a.innerHTML = ''; a.appendChild(el); } return; }
     const cat = hash.startsWith('cat-') ? hash.slice(4) : null;

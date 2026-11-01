@@ -1,4 +1,4 @@
-/* Royal Edge — theme */
+/* krush.casino — theme */
 :root {
   --bg: #0b1622; --bg2: #0e1b28; --panel: #132232; --panel2: #1a2d40; --panel3: #22384e; --line: #243a50;
   --text: #eaf0f7; --muted: #8197ad; --dim: #5d7389;
@@ -21,9 +21,9 @@ svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
 /* ---------- shell ---------- */
 .shell { display: grid; grid-template-columns: var(--sidebar) 1fr; min-height: 100vh; }
 .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--bg2); border-right: 1px solid var(--line); padding: 0 12px 20px; display: flex; flex-direction: column; gap: 18px; z-index: 60; }
-.brand { display: flex; align-items: center; gap: 10px; height: var(--top); padding: 0 8px; color: var(--text); font-weight: 800; font-size: 17px; letter-spacing: .04em; text-transform: uppercase; }
-.brand .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--brand), #1aa7ff); display: grid; place-items: center; color: var(--brand-ink); font-weight: 900; font-size: 15px; letter-spacing: 0; }
-.brand b { color: var(--brand); font-weight: 800; }
+.brand { display: flex; align-items: center; gap: 10px; height: var(--top); padding: 0 8px; color: var(--text); font-weight: 900; font-size: 20px; letter-spacing: -.02em; }
+.brand .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--brand), #1aa7ff); display: grid; place-items: center; color: var(--brand-ink); font-weight: 900; font-size: 17px; letter-spacing: 0; font-family: 'Arial Black', -apple-system, sans-serif; }
+.brand b { color: var(--brand); font-weight: 700; font-size: .78em; letter-spacing: 0; }
 .nav-group { display: flex; flex-direction: column; gap: 2px; }
 .nav-group .nav-title { color: var(--dim); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 0 10px 6px; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--muted); font-weight: 600; transition: background .15s, color .15s; }

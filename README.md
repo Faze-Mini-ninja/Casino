@@ -1,4 +1,4 @@
-# 🎰 Royal Edge Casino
+# krush.casino
 
 A web casino with 30 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
 Every bet, card and spin is decided on the server; the browser only animates the results.
