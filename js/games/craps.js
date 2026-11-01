@@ -40,29 +40,16 @@
             sp('field', B.field, 'field'))),
         h('div', { class: 'stage', style: 'min-height:0;margin-top:14px' }, dice, msg.el, rollBtn, hist), T.bar));
       async function roll() {
-        if (busy) return;
-        const wager = T.total();
-        if (!T.commit('craps')) return;
-        busy = true; T.lock(true); rollBtn.disabled = true; T.mark([]);
-        const a = L.range(1, 6), b = L.range(1, 6), t = a + b;
+        if (busy || !T.ready()) return;
+        busy = true; T.lock(true); rollBtn.disabled = true;
+        const r = await C.try(() => C.play('craps', null, { bets: T.bets }));
+        if (!r) { busy = false; T.lock(false); rollBtn.disabled = false; return; }
+        T.mark([]);
+        const [a, b] = r.result.dice, t = a + b, wager = r.wager;
         await C.rollDice(dice, [a, b], 'red');
-        let pay = 0; const winners = [], notes = [];
-        // Multi-roll bets: the stake was taken on commit; working bets stay up, so refund the
-        // stake of unresolved multi-roll bets (they are re-wagered on the next roll).
-        for (const id in T.bets) {
-          const amt = T.bets[id];
-          if (B[id]) {
-            if (B[id].test(a, b)) { const m = B[id].special ? B[id].special(a, b) : B[id].pays; pay += amt * (m + 1); winners.push(id); }
-          } else if (M[id]) {
-            const o = L.crapsMulti(id, a, b);
-            if (o === 'win') { pay += amt * (M[id].pays + 1); winners.push(id); notes.push(M[id].name + ' wins'); }
-            else if (o === null) pay += amt; // stays up: no action this roll
-            else notes.push(M[id].name + ' loses');
-          }
-        }
-        pay = C.win('craps', pay);
+        const pay = r.payout, winners = r.result.winners, notes = r.result.notes;
+        C.settle(r);
         T.mark(winners);
-        C.record('craps', wager, pay, `Rolled ${a}+${b}=${t}`);
         hist.prepend(h('span', { class: 'pill ' + (t === 7 ? 'r' : '') }, String(t)));
         while (hist.children.length > 16) hist.lastChild.remove();
         const net = pay - wager;

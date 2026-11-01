@@ -59,17 +59,20 @@
         balls = balls.filter((b) => !b.done);
         if (alive) raf = requestAnimationFrame(frame);
       }
-      function drop() {
-        const b = bet.value;
-        if (!C.bet('plinko', b)) return;
-        const path = Array.from({ length: rows }, () => L.int(2));
-        balls.push({ path, k: path.reduce((a, c) => a + c, 0), t0: performance.now(), step: 140, bet: b, mult: null, table, rows });
+      let inflight = 0;
+      async function drop() {
+        const b = bet.value, rr = rows, rk = risk, tb = table;
+        if (inflight >= 20) return;
+        inflight++;
+        const r = await C.try(() => C.play('plinko', null, { bet: b, rows: rr, risk: rk }));
+        inflight--;
+        if (!r || !alive) return;
+        balls.push({ path: r.result.path, k: r.result.k, t0: performance.now(), step: 140, bet: b, r, table: tb, rows: rr });
       }
       function land(b) {
-        const m = b.table[b.k];
-        const pay = C.win('plinko', b.bet * m);
+        const m = b.r.result.mult, pay = b.r.payout;
+        C.settle(b.r);
         flash[b.k] = performance.now();
-        C.record('plinko', b.bet, pay, `${b.rows} rows: ${m}×`);
         msg.set(`${m}× — ${pay ? 'returned ' + C.fmt(pay) : 'lost'}`, m >= 1 ? 'win' : 'lose');
         lastEl.prepend(h('span', { class: 'pill', style: `background:${slotColor(m)};color:#111` }, m + '×'));
         while (lastEl.children.length > 12) lastEl.lastChild.remove();

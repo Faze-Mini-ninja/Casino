@@ -2,3 +2,5 @@ node_modules/
 *.log
 .DS_Store
 test/screens/
+data/
+.env

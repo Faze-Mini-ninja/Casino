@@ -10,8 +10,9 @@ const SHOTS = path.join(__dirname, 'screens');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server.js'), String(PORT)], { stdio: 'ignore' });
-  await wait(500);
+  const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'casino-smoke-'));
+  const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], { stdio: 'ignore', env: { ...process.env, PORT: String(PORT), DATA_DIR: tmp, DB_FILE: path.join(tmp, 'db.sqlite'), CHAIN_ENABLED: 'false', PLAY_RATE_PER_5S: '100000' } });
+  await wait(1200);
   fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
@@ -19,7 +20,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('dialog', (d) => d.accept());
-  await page.goto(`http://localhost:${PORT}/`);
+  await page.goto(`http://localhost:${PORT}/#login`);
+  await page.click('text=New here? Create an account');
+  await page.fill('input[autocomplete=username]', 'smoketest');
+  await page.fill('input[type=password]', 'password123');
+  await page.click('button[type=submit]');
+  await page.waitForSelector('.tile');
   const tiles = await page.locator('.tile').count();
   console.log('Lobby tiles:', tiles);
   await page.screenshot({ path: path.join(SHOTS, '00-lobby.png'), fullPage: true });
@@ -41,8 +47,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
         continue;
       }
       if (id === 'paigow') { await clickText('DEAL'); await clickText('House Way'); await clickText('PLAY HAND'); await wait(200); continue; }
-      if (['mines', 'tower'].includes(id)) { await clickText('BET'); await wait(100); await click('.mtile:not(.disabled):not(.open)'); await wait(100); await clickText('CASH OUT'); await wait(100); continue; }
-      if (id === 'hilo') { await clickText('BET'); await click('.btn.green.big'); await clickText('CASH OUT'); continue; }
+      if (['mines', 'tower'].includes(id)) { await clickText('BET'); await wait(100); await wait(200); await click('.mtile:not(.disabled):not(.open)'); await wait(400); await clickText('CASH OUT'); await wait(400); continue; }
+      if (id === 'hilo') { await clickText('BET'); await wait(300); if (!(await clickText('Higher'))) await clickText('Lower'); await wait(300); await clickText('CASH OUT'); await wait(300); continue; }
       if (id === 'crash') { await clickText('BET'); await wait(2500); await clickText('CASH OUT'); await wait(3000); continue; }
       if (id === 'scratch') { await clickText('BUY TICKET'); await clickText('Reveal all'); continue; }
       if (id === 'fish') { const box = await page.locator('canvas').boundingBox(); for (let i = 0; i < 8; i++) await page.mouse.click(box.x + 100 + i * 90, box.y + 120); await wait(2500); continue; }
@@ -60,13 +66,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await wait(300);
     await page.screenshot({ path: path.join(SHOTS, `${id}.png`) });
     await page.goto(`http://localhost:${PORT}/#lobby`); await wait(150); // leave the table (flushes batched records)
-    const s = await page.evaluate((g) => ({ bal: Casino.balance(), hist: JSON.parse(localStorage.getItem('royal-edge-casino.v1')).history.filter((x) => x.g === g || (g.startsWith('baccarat') && x.g === 'baccarat')).length }), id);
+    const s = await page.evaluate(async (g) => ({ bal: Casino.balance(), hist: (await (await fetch('/api/history?mode=demo')).json()).rounds.filter((x) => x.game === g || (g.startsWith('baccarat') && x.game === 'baccarat')).length }), id);
     results.push({ id, rounds: s.hist, balanceDelta: +(s.bal - bal0).toFixed(2), errors: errors.length - before });
   }
-  for (const p of ['#history', '#stats', '#edges']) { await page.goto(`http://localhost:${PORT}/${p}`); await wait(200); await page.screenshot({ path: path.join(SHOTS, p.slice(1) + '.png'), fullPage: false }); }
+  for (const p of ['#history', '#stats', '#edges', '#wallet', '#admin']) { await page.goto(`http://localhost:${PORT}/${p}`); await wait(200); await page.screenshot({ path: path.join(SHOTS, p.slice(1) + '.png'), fullPage: false }); }
   console.table(results);
   if (errors.length) { console.log('ERRORS:'); errors.forEach((e) => console.log(' -', e)); }
-  await browser.close(); srv.kill();
+  await browser.close(); srv.kill(); fs.rmSync(tmp, { recursive: true, force: true });
   const bad = results.filter((r) => r.errors || !r.rounds);
   if (tiles !== 30 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
   console.log('SMOKE OK');

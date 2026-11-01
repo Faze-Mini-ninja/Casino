@@ -1,13 +1,21 @@
 {
   "name": "royal-edge-casino",
   "version": "1.0.0",
-  "description": "Play-money web casino with 30 games and published house edges",
+  "description": "Web casino with 30 games, demo credits and Solana (SOL) deposits/withdrawals",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "test": "node test/rtp.js",
-    "test:quick": "node test/rtp.js --quick",
-    "smoke": "node test/smoke.js"
+    "start": "node server/index.js",
+    "test": "node test/rtp.js && node test/api.js",
+    "test:quick": "node test/rtp.js --quick && node test/api.js",
+    "test:api": "node test/api.js",
+    "smoke": "node test/smoke.js",
+    "gen-seed": "node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\""
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@solana/web3.js": "^1.99.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
 }

@@ -37,26 +37,27 @@
         h('div', { class: 'rright' }, h('div', { class: 'felt b6' }, L.BIG6.map((s) => T.spot(s.id, [h('b', null, s.label), h('small', null, `${s.pays}:1 • ${s.count} slots`)], 'b6spot', ''))),
           h('div', { class: 'stage', style: 'min-height:0;margin-top:12px' }, msg.el, spinBtn, hist), T.bar)));
       root.querySelectorAll('.b6spot').forEach((e) => { e.style.background = S[e.dataset.id].color + '55'; });
-      function spin() {
-        if (busy) return;
-        if (!T.commit('bigsix')) return;
-        busy = true; T.lock(true); spinBtn.disabled = true; T.mark([]); msg.set('Spinning…');
-        const k = L.int(54);
+      async function spin() {
+        if (busy || !T.ready()) return;
+        busy = true; T.lock(true); spinBtn.disabled = true;
+        const r = await C.try(() => C.play('bigsix', null, { bets: T.bets }));
+        if (!r) { busy = false; T.lock(false); spinBtn.disabled = false; return; }
+        T.mark([]); msg.set('Spinning…');
+        const k = r.result.index;
         const target = (((-(k + 0.5) * seg) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const cur = ((rot % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const start = rot, end = rot + Math.PI * 8 + (((target - cur) + Math.PI * 2) % (Math.PI * 2)), t0 = performance.now(), dur = 5000;
         const stepf = (t) => {
           if (!alive) return;
           const p = Math.min(1, (t - t0) / dur); rot = start + (end - start) * (1 - Math.pow(1 - p, 4)); draw();
-          if (p < 1) raf = requestAnimationFrame(stepf); else done(pattern[k]);
+          if (p < 1) raf = requestAnimationFrame(stepf); else done(pattern[k], r);
         };
         raf = requestAnimationFrame(stepf);
       }
-      function done(id) {
-        const wager = T.total();
-        const pay = C.win('bigsix', T.bets[id] ? T.bets[id] * (S[id].pays + 1) : 0);
+      function done(id, r) {
+        const pay = r.payout;
+        C.settle(r);
         T.mark([id]);
-        C.record('bigsix', wager, pay, 'Wheel: ' + S[id].label);
         hist.prepend(h('span', { class: 'pill', style: `background:${S[id].color};color:#111` }, S[id].label));
         while (hist.children.length > 14) hist.lastChild.remove();
         msg.set(`${S[id].label} — ` + (pay ? `win ${C.fmt(pay)}` : 'no win'), pay ? 'win' : 'lose');

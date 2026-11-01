@@ -49,11 +49,13 @@
         for (let i = 3; i < d.length; i += 64) if (d[i] === 0) clear++;
         if (clear / (d.length / 64) > 0.62) reveal();
       }
-      function buy() {
+      async function buy() {
         if (st && !st.done) return C.toast('Finish scratching this ticket first', 'err');
-        if (!C.bet('scratch', price)) return;
-        const prize = L.scratchOutcome();
-        st = { price, prize, cells: L.scratchCard(prize), done: false };
+        buyBtn.disabled = true;
+        const r = await C.try(() => C.play('scratch', null, { price }));
+        buyBtn.disabled = false;
+        if (!r) return;
+        st = { price, prize: r.result.prize, cells: r.result.cells, done: false, r };
         grid.innerHTML = '';
         st.cells.forEach((v) => grid.appendChild(h('div', { class: 'sc-cell', 'data-v': v }, v + '×')));
         cover(); revBtn.disabled = false; buyBtn.disabled = true; priceSel.sel.disabled = true;
@@ -62,9 +64,9 @@
       function reveal() {
         if (!st || st.done) return;
         st.done = true; cv.style.opacity = 0;
-        const pay = C.win('scratch', st.price * st.prize);
+        const pay = st.r.payout;
+        C.settle(st.r);
         if (st.prize) grid.querySelectorAll(`[data-v="${st.prize}"]`).forEach((c) => c.classList.add('hit'));
-        C.record('scratch', st.price, pay, st.prize ? `Matched 3 × ${st.prize}×` : 'No match');
         msg.set(st.prize ? `Three ${st.prize}× — you win ${C.fmt(pay)}!` : 'No match — better luck next ticket', st.prize ? 'win' : 'lose');
         revBtn.disabled = true; buyBtn.disabled = false; priceSel.sel.disabled = false;
       }

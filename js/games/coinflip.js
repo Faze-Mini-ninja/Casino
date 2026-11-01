@@ -22,16 +22,17 @@
       async function flip(call) {
         if (busy) return;
         const b = bet.value;
-        if (!C.bet('coinflip', b)) return;
         busy = true; hb.disabled = tb.disabled = true; msg.set(' ');
-        const res = L.int(2) ? 'H' : 'T';
+        const r = await C.try(() => C.play('coinflip', null, { bet: b, call }));
+        if (!r) { busy = false; hb.disabled = tb.disabled = false; return; }
+        const res = r.result.res;
         rot += 1800 + ((res === 'H' ? 0 : 180) - (rot % 360) + 360) % 360;
         coin.style.transform = `rotateY(${rot}deg)`;
         await C.sleep(1500);
         const win = res === call;
-        const pay = C.win('coinflip', win ? b * M : 0);
+        const pay = r.payout;
+        C.settle(r);
         streak = win ? streak + 1 : 0; paintStreak();
-        C.record('coinflip', b, pay, `Called ${call}, landed ${res}`);
         msg.set(`${res === 'H' ? 'Heads' : 'Tails'} — ` + (win ? `win ${C.fmt(pay)}` : 'lose'), win ? 'win' : 'lose');
         hist.prepend(h('span', { class: 'pill ' + (res === 'H' ? '' : 'bl') }, res));
         while (hist.children.length > 20) hist.lastChild.remove();

@@ -8,8 +8,8 @@
       <p><b>Perfect Pairs</b> — your first two cards: Perfect pair (same suit) ${L.PERFECT_PAIRS.perfect}:1, Colored pair ${L.PERFECT_PAIRS.colored}:1, Mixed pair ${L.PERFECT_PAIRS.mixed}:1.<br>
       <b>21+3</b> — your two cards + dealer up-card as a 3-card poker hand: Suited trips ${L.P21_3.suitedTrips}:1, Straight flush ${L.P21_3.straightFlush}:1, Three of a kind ${L.P21_3.trips}:1, Straight ${L.P21_3.straight}:1, Flush ${L.P21_3.flush}:1.</p>`,
     edges: [['Main bet (basic strategy)', '1:1, BJ 3:2', '≈0.5%'], ['Perfect Pairs', '20/10/5 : 1', '≈21%'], ['21+3', '100/40/25/9/4 : 1', '≈17%']],
+    round: 'blackjack',
     mount(root) {
-      const shoe = new L.Shoe(6, 0.75);
       const main = C.betInput({ value: 10, label: 'Main bet' });
       const pp = C.betInput({ value: 0, label: 'Perfect Pairs' });
       const t3 = C.betInput({ value: 0, label: '21+3' });
@@ -22,126 +22,49 @@
       const hitB = btn('Hit', 'green', () => act('hit')), standB = btn('Stand', 'red', () => act('stand')),
         dblB = btn('Double', 'blue', () => act('double')), splitB = btn('Split', 'ghost', () => act('split'));
       const actions = h('div', { class: 'controls' }, hitB, standB, dblB, splitB);
-      let st = null; // round state
-      let alive = true;
+      let busy = false, alive = true;
       root.appendChild(h('div', { class: 'layout' },
-        h('div', { class: 'side' }, main.el, pp.el, t3.el, h('div', { class: 'muted', style: 'font-size:12px' }, 'Set a side bet to 0 to skip it.'), h('div', { class: 'stat-line' }, 'Cards left in shoe', h('b', { id: 'bj-left' }, ''))),
+        h('div', { class: 'side' }, main.el, pp.el, t3.el, h('div', { class: 'muted', style: 'font-size:12px' }, 'Set a side bet to 0 to skip it. Every hand is dealt from a freshly shuffled 6-deck shoe.')),
         h('div', { class: 'stage' },
           h('div', { class: 'felt' }, dealerLbl, dealerEl, h('div', { style: 'height:20px' }), handsEl, sideEl),
           msg.el, h('div', { class: 'controls' }, dealBtn), actions)));
-      const leftEl = root.querySelector('#bj-left');
       showActions(false);
-      updLeft();
-      function updLeft() { leftEl.textContent = shoe.left; }
       function showActions(on) { actions.style.display = on ? '' : 'none'; dealBtn.style.display = on ? 'none' : ''; [main, pp, t3].forEach((b) => b.disable(on)); }
-      function render(revealHole) {
+      function render(v) {
         dealerEl.innerHTML = '';
-        st.dealer.forEach((c, i) => dealerEl.appendChild(C.cardEl(c, { hidden: i === 1 && !revealHole })));
-        const dv = revealHole ? L.bjValue(st.dealer).total : L.bjValue([st.dealer[0]]).total;
-        dealerLbl.innerHTML = `Dealer <span class="tag">${dv}</span>`;
+        v.dealer.forEach((c) => dealerEl.appendChild(C.cardEl(c, { hidden: !c })));
+        dealerLbl.innerHTML = `Dealer <span class="tag">${v.dealerTotal}</span>`;
         handsEl.innerHTML = '';
-        st.hands.forEach((hd, i) => {
-          const v = L.bjValue(hd.cards);
-          handsEl.appendChild(h('div', { class: 'bj-hand' + (i === st.cur && !st.over ? ' active' : '') },
-            h('div', { class: 'cards' }, hd.cards.map((c) => C.cardEl(c))),
-            h('div', { class: 'hand-label' }, `Hand ${st.hands.length > 1 ? i + 1 : ''}`, h('span', { class: 'tag' }, (v.soft && v.total < 21 ? 'soft ' : '') + v.total), h('span', { class: 'tag' }, 'Bet ' + C.fmt(hd.bet)), hd.result ? h('span', { class: 'tag' }, hd.result) : null)));
-        });
-        updLeft();
+        v.hands.forEach((hd, i) => handsEl.appendChild(h('div', { class: 'bj-hand' + (i === v.cur && !v.over ? ' active' : '') },
+          h('div', { class: 'cards' }, hd.cards.map((c) => C.cardEl(c))),
+          h('div', { class: 'hand-label' }, `Hand ${v.hands.length > 1 ? i + 1 : ''}`, h('span', { class: 'tag' }, (hd.soft && hd.total < 21 ? 'soft ' : '') + hd.total), h('span', { class: 'tag' }, 'Bet ' + C.fmt(hd.bet / 100)), hd.result ? h('span', { class: 'tag' }, hd.result) : null))));
+        sideEl.textContent = (v.sideNotes || []).join(' • ');
+        dblB.disabled = !v.canDouble; splitB.disabled = !v.canSplit;
+      }
+      async function finish(r) {
+        render(r.view); showActions(false);
+        C.settle(r);
+        const net = C.net(r);
+        msg.set(net > 0 ? `You win ${C.fmt(net)}` : net === 0 ? 'Push — even' : `You lose ${C.fmt(-net)}`, net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
       }
       async function deal() {
-        const b = main.value, pb = pp.value, tb = t3.value;
-        if (!(b > 0)) return C.toast('Main bet required', 'err');
-        if (b + pb + tb > C.balance()) return C.toast('Insufficient balance', 'err');
-        if (!C.bet('blackjack', b + pb + tb)) return;
-        if (shoe.checkShuffle()) C.toast('Shuffling a fresh 6-deck shoe');
-        st = { dealer: [], hands: [{ cards: [], bet: b }], cur: 0, over: false, wager: b + pb + tb, paid: 0, notes: [] };
-        msg.set(' '); sideEl.textContent = '';
-        const P = st.hands[0].cards;
-        P.push(shoe.draw()); st.dealer.push(shoe.draw()); P.push(shoe.draw()); st.dealer.push(shoe.draw());
-        render(false);
-        // side bets
-        const sides = [];
-        if (pb > 0) { const r = L.perfectPairs(P[0], P[1]); if (r.pays > 0) { st.paid += C.win('blackjack', pb * (r.pays + 1)); sides.push(`Perfect Pairs: ${r.name} (${r.pays}:1)`); } else sides.push('Perfect Pairs: lose'); }
-        if (tb > 0) { const r = L.twentyOnePlus3([P[0], P[1], st.dealer[0]]); if (r.pays > 0) { st.paid += C.win('blackjack', tb * (r.pays + 1)); sides.push(`21+3: ${r.name} (${r.pays}:1)`); } else sides.push('21+3: lose'); }
-        sideEl.textContent = sides.join(' • ');
-        const dBJ = L.isBJ(st.dealer), pBJ = L.isBJ(P);
-        const up = st.dealer[0].r;
-        if ((up === 14 || (up >= 10 && up <= 13)) && dBJ) { await C.sleep(400); return finish(pBJ ? 'push' : 'Dealer blackjack'); }
-        if (pBJ) { await C.sleep(300); return finish('bj'); }
-        showActions(true); updButtons();
-      }
-      function updButtons() {
-        const hd = st.hands[st.cur];
-        const two = hd.cards.length === 2;
-        dblB.disabled = !two || C.balance() < hd.bet || hd.splitAces;
-        splitB.disabled = !(two && st.hands.length === 1 && hd.cards[0].r === hd.cards[1].r) || C.balance() < hd.bet;
-        // treat 10-value cards as splittable only if same rank (standard casino rule variant)
+        if (busy) return; busy = true;
+        const r = await C.try(() => C.play('blackjack', 'start', { bet: main.value, pp: pp.value, t3: t3.value }));
+        busy = false; if (!r || !alive) return;
+        msg.set(' ');
+        if (r.done) { const v = r.view; render({ ...v, dealer: [v.dealer[0], null], dealerTotal: '?' }); await C.sleep(600); return finish(r); }
+        render(r.view); showActions(true);
       }
       async function act(a) {
-        if (!st || st.over) return;
-        const hd = st.hands[st.cur];
-        if (a === 'hit') {
-          hd.cards.push(shoe.draw()); render(false);
-          const v = L.bjValue(hd.cards).total;
-          if (v > 21) { hd.result = 'Bust'; return next(); }
-          if (v === 21) return next();
-          updButtons();
-        } else if (a === 'stand') next();
-        else if (a === 'double') {
-          if (!C.bet('blackjack', hd.bet)) return;
-          st.wager += hd.bet; hd.bet *= 2; hd.cards.push(shoe.draw()); render(false);
-          if (L.bjValue(hd.cards).total > 21) hd.result = 'Bust';
-          next();
-        } else if (a === 'split') {
-          if (!C.bet('blackjack', hd.bet)) return;
-          st.wager += hd.bet;
-          const c2 = hd.cards.pop();
-          const nh = { cards: [c2], bet: hd.bet };
-          const aces = c2.r === 14;
-          hd.cards.push(shoe.draw()); nh.cards.push(shoe.draw());
-          st.hands.push(nh);
-          if (aces) { hd.splitAces = nh.splitAces = true; render(false); st.cur = 1; return next(); }
-          render(false); updButtons();
-          if (L.bjValue(hd.cards).total === 21) next();
+        if (busy) return; busy = true;
+        const r = await C.try(() => C.play('blackjack', a, {}));
+        busy = false; if (!r || !alive) return;
+        if (r.done) { // reveal dealer cards one at a time
+          const v = r.view, cards = v.dealer;
+          for (let n = 2; n <= cards.length; n++) { render({ ...v, dealer: cards.slice(0, n), dealerTotal: L.bjValue(cards.slice(0, n)).total, hands: v.hands.map((x) => ({ ...x, result: '' })) }); showActions(false); await C.sleep(500); if (!alive) return; }
+          return finish(r);
         }
-      }
-      function next() {
-        st.cur++;
-        if (st.cur >= st.hands.length) return dealerPlay();
-        render(false); updButtons();
-        if (L.bjValue(st.hands[st.cur].cards).total === 21) next();
-      }
-      async function dealerPlay() {
-        showActions(false); dealBtn.disabled = true;
-        st.cur = st.hands.length;
-        render(true);
-        const live = st.hands.some((hd) => L.bjValue(hd.cards).total <= 21);
-        while (live && L.bjValue(st.dealer).total < 17) {
-          await C.sleep(550); if (!alive) return;
-          st.dealer.push(shoe.draw()); render(true);
-        }
-        await C.sleep(250);
-        finish();
-      }
-      function finish(special) {
-        st.over = true; showActions(false); dealBtn.disabled = false;
-        const dv = L.bjValue(st.dealer).total;
-        let mainPay = 0;
-        if (special === 'bj') { mainPay = st.hands[0].bet * 2.5; st.hands[0].result = 'Blackjack! 3:2'; }
-        else if (special === 'push') { mainPay = st.hands[0].bet; st.hands[0].result = 'Push (both BJ)'; }
-        else if (special) { st.hands[0].result = special; }
-        else st.hands.forEach((hd) => {
-          const v = L.bjValue(hd.cards).total;
-          if (v > 21) hd.result = 'Bust';
-          else if (dv > 21 || v > dv) { hd.result = 'Win'; mainPay += hd.bet * 2; }
-          else if (v === dv) { hd.result = 'Push'; mainPay += hd.bet; }
-          else hd.result = 'Lose';
-        });
-        st.paid += C.win('blackjack', mainPay);
-        render(true);
-        const net = st.paid - st.wager;
-        msg.set(net > 0 ? `You win ${C.fmt(net)}` : net === 0 ? 'Push — even' : `You lose ${C.fmt(-net)}`, net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
-        C.record('blackjack', st.wager, st.paid, st.hands.map((x) => x.result).join(', ') + ` vs dealer ${dv}`);
+        render(r.view);
       }
       return () => { alive = false; };
     },

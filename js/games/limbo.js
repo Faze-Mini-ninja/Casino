@@ -25,16 +25,17 @@
       async function play() {
         if (busy) return;
         const b = bet.value, t = target();
-        if (!C.bet('limbo', b)) return;
         busy = true; btn.disabled = true; big.style.color = '';
-        const r = L.limboResult();
+        const res = await C.try(() => C.play('limbo', null, { bet: b, target: t }));
+        if (!res) { busy = false; btn.disabled = false; return; }
+        const r = res.result.r;
         const steps = 18;
         for (let i = 1; i <= steps; i++) { if (!alive) return; big.textContent = (1 + (r - 1) * Math.pow(i / steps, 3)).toFixed(2) + '×'; await C.sleep(22); }
         big.textContent = r.toFixed(2) + '×';
-        const win = r >= t;
+        const win = res.result.win;
         big.style.color = win ? 'var(--green)' : 'var(--red)';
-        const pay = C.win('limbo', win ? b * t : 0);
-        C.record('limbo', b, pay, `Result ${r}× vs target ${t}×`);
+        const pay = res.payout;
+        C.settle(res);
         msg.set(win ? `Win! ${C.fmt(pay)}` : `Needed ${t.toFixed(2)}×`, win ? 'win' : 'lose');
         hist.prepend(h('span', { class: 'pill ' + (win ? 'g' : 'r') }, r.toFixed(2) + '×'));
         while (hist.children.length > 16) hist.lastChild.remove();

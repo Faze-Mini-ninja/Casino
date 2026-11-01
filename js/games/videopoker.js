@@ -5,44 +5,45 @@
     blurb: 'Jacks or Better with a short 6/5 paytable.',
     rules: '<p>Single-deck draw poker. You are dealt 5 cards, click cards to HOLD, then draw replacements. Paid on the final hand. This is a "6/5" Jacks or Better table with a reduced 250× royal — about 93.5% RTP with perfect strategy (a full-pay 9/6 machine is 99.5%). Typical play loses more.</p>',
     edges: L.VP_PAYS.map(([n, p]) => [n, p + '× bet', '']).concat([['Overall (optimal strategy)', '', '≈6.5%']]),
+    round: 'videopoker',
     mount(root) {
       const bet = C.betInput({ value: 5 });
       const msg = C.msg();
       const cardsEl = h('div', { class: 'cards vp-cards' });
       const pt = h('div', { class: 'pays-list vp-pt' }, L.VP_PAYS.map(([n, p]) => h('div', { 'data-n': n }, h('span', null, n), h('b', null, p + '×'))));
-      let hand = [], held = [false, false, false, false, false], deck = null, phase = 'idle', b = 0;
+      let hand = [], held = [false, false, false, false, false], phase = 'idle', busy = false;
       const btn = h('button', { class: 'btn big', onclick: () => (phase === 'drawn' ? draw() : deal()) }, 'DEAL');
       root.appendChild(h('div', { class: 'layout' },
         h('div', { class: 'side' }, bet.el, h('h3', null, 'Paytable'), pt),
-        h('div', { class: 'stage' }, h('div', { class: 'felt vp-felt' }, cardsEl), msg.el, btn, h('div', { class: 'muted', style: 'font-size:12px' }, 'Click cards to hold them before drawing.'))));
+        h('div', { class: 'stage' }, h('div', { class: 'felt vp-felt' }, cardsEl), msg.el, btn, h('div', { class: 'muted', style: 'font-size:12px' }, 'Tap cards to hold them before drawing.'))));
       render();
       function render(win) {
         cardsEl.innerHTML = '';
         for (let i = 0; i < 5; i++) {
           const c = hand[i];
           const el = h('div', { class: 'vp-slot' }, C.cardEl(c, { hidden: !c, cls: (phase === 'drawn' ? 'clickable' : '') + (held[i] ? ' sel' : '') }), h('div', { class: 'vp-hold' }, held[i] ? 'HELD' : ' '));
-          el.onclick = () => { if (phase !== 'drawn') return; held[i] = !held[i]; render(); };
+          el.onclick = () => { if (phase !== 'drawn') return; held[i] = !held[i]; render(win); };
           cardsEl.appendChild(el);
         }
         pt.querySelectorAll('div').forEach((d) => d.classList.toggle('hit', d.dataset.n === win));
       }
-      function deal() {
-        b = bet.value;
-        if (!C.bet('videopoker', b)) return;
-        deck = L.shuffle(L.newDeck(1)); hand = deck.splice(0, 5); held = [false, false, false, false, false];
+      async function deal() {
+        if (busy) return; busy = true;
+        const r = await C.try(() => C.play('videopoker', 'start', { bet: bet.value }));
+        busy = false; if (!r) return;
+        hand = r.view.hand; held = [false, false, false, false, false];
         phase = 'drawn'; bet.disable(true); btn.textContent = 'DRAW';
-        const r = L.vpPay(hand);
-        msg.set(r.pays ? `Dealt: ${r.name}` : 'Choose cards to hold', r.pays ? 'push' : '');
-        render(r.pays ? r.name : null);
+        msg.set(r.view.dealt ? `Dealt: ${r.view.dealt}` : 'Choose cards to hold', r.view.dealt ? 'push' : '');
+        render(r.view.dealt);
       }
-      function draw() {
-        for (let i = 0; i < 5; i++) if (!held[i]) hand[i] = deck.shift();
-        phase = 'idle'; bet.disable(false); btn.textContent = 'DEAL';
-        const r = L.vpPay(hand);
-        const pay = C.win('videopoker', b * r.pays);
-        C.record('videopoker', b, pay, r.name);
-        msg.set(r.pays ? `${r.name} — WIN ${C.fmt(pay)}` : `${r.name} — no win`, r.pays ? 'win' : 'lose');
-        render(r.pays ? r.name : null);
+      async function draw() {
+        if (busy) return; busy = true;
+        const r = await C.try(() => C.play('videopoker', 'draw', { holds: held }));
+        busy = false; if (!r) return;
+        hand = r.view.hand; phase = 'idle'; bet.disable(false); btn.textContent = 'DEAL';
+        C.settle(r);
+        msg.set(r.view.pays ? `${r.view.name} — WIN ${C.fmt(r.payout)}` : `${r.view.name} — no win`, r.view.pays ? 'win' : 'lose');
+        render(r.view.pays ? r.view.name : null);
       }
     },
   });

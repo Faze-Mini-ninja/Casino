@@ -6,16 +6,15 @@
     blurb: 'Climb 8 floors picking safe tiles. Cash out any time.',
     rules: `<p>Each floor hides traps. Pick a safe tile to climb; hit a trap and the bet is lost. Cash out after any floor. Difficulty: Easy 4 tiles/1 trap, Medium 3/1, Hard 2/1, Expert 3/2. Multiplier for floor k = ${(1 - E).toFixed(2)} ÷ P(safe)^k — a flat ${(E * 100).toFixed(0)}% house edge.</p>`,
     edges: Object.keys(L.TOWER).map((d) => [d[0].toUpperCase() + d.slice(1), Array.from({ length: FLOORS }, (_, k) => L.towerMult(d, k + 1) + '×').join(' → '), (E * 100).toFixed(2) + '%']),
+    round: 'tower',
     mount(root) {
       const bet = C.betInput({ value: 10 });
-      let diff = 'medium', st = null;
+      let diff = 'medium', st = null, busy = false;
       const dSel = C.select('Difficulty', [['easy', 'Easy (4 tiles, 1 trap)'], ['medium', 'Medium (3, 1)'], ['hard', 'Hard (2, 1)'], ['expert', 'Expert (3, 2)']], diff, (v) => { diff = v; build(); });
       const msg = C.msg();
       const towerEl = h('div', { class: 'tower' });
       const btn = h('button', { class: 'btn big', onclick: () => (st ? cashOut() : start()) }, 'BET');
-      root.appendChild(h('div', { class: 'layout' },
-        h('div', { class: 'side' }, bet.el, dSel.el),
-        h('div', { class: 'stage' }, towerEl, msg.el, btn)));
+      root.appendChild(h('div', { class: 'layout' }, h('div', { class: 'side' }, bet.el, dSel.el), h('div', { class: 'stage' }, towerEl, msg.el, btn)));
       let rows = [];
       function build() {
         const t = L.TOWER[diff];
@@ -27,45 +26,39 @@
         }
       }
       build();
-      function setActive() {
-        rows.forEach((cells, f) => cells.forEach((c) => { if (!c.classList.contains('open')) c.className = 'mtile' + (st && f === st.floor ? '' : ' disabled'); }));
-      }
-      function start() {
-        const b = bet.value;
-        if (!C.bet('tower', b)) return;
-        const t = L.TOWER[diff];
-        build();
-        st = { b, floor: 0, traps: Array.from({ length: FLOORS }, () => new Set(L.shuffle(Array.from({ length: t.cols }, (_, i) => i)).slice(0, t.bombs))) };
+      const setActive = () => rows.forEach((cells, f) => cells.forEach((c) => { if (!c.classList.contains('open')) c.className = 'mtile' + (st && f === st.floor ? '' : ' disabled'); }));
+      async function start() {
+        if (busy) return; busy = true;
+        const r = await C.try(() => C.play('tower', 'start', { bet: bet.value, diff }));
+        busy = false; if (!r) return;
+        build(); st = { b: bet.value, floor: 0 };
         bet.disable(true); dSel.sel.disabled = true; btn.textContent = 'CASH OUT'; btn.className = 'btn big green'; btn.disabled = true;
         msg.set('Pick a tile on the bottom floor'); setActive();
       }
-      function revealAll() {
-        rows.forEach((cells, f) => cells.forEach((c, i) => { if (!c.classList.contains('open')) { c.className = 'mtile open ghost ' + (st.traps[f].has(i) ? 'bomb' : 'gem'); c.textContent = st.traps[f].has(i) ? '💀' : '⭐'; } }));
-      }
-      function pick(f, c) {
-        if (!st || f !== st.floor) return;
+      const revealAll = (traps) => rows.forEach((cells, f) => cells.forEach((c, i) => { if (!c.classList.contains('open')) { const t = traps[f].includes(i); c.className = 'mtile open ghost ' + (t ? 'bomb' : 'gem'); c.textContent = t ? '💀' : '⭐'; } }));
+      async function pick(f, c) {
+        if (!st || busy || f !== st.floor) return; busy = true;
+        const r = await C.try(() => C.play('tower', 'pick', { c }));
+        busy = false; if (!r) return;
         const cell = rows[f][c];
-        if (st.traps[f].has(c)) {
-          cell.className = 'mtile open bomb'; cell.textContent = '💀'; revealAll();
-          msg.set('Trap! Bet lost', 'lose'); C.record('tower', st.b, 0, `${diff}: fell on floor ${f + 1}`); return end();
+        if (r.done && r.view.traps && r.view.traps[f].includes(c)) {
+          cell.className = 'mtile open bomb'; cell.textContent = '💀'; revealAll(r.view.traps); C.settle(r);
+          msg.set('Trap! Bet lost', 'lose'); return end();
         }
         cell.className = 'mtile open gem'; cell.textContent = '⭐';
-        st.floor++; btn.disabled = false;
-        const m = L.towerMult(diff, st.floor);
-        msg.set(`Floor ${st.floor}: ${m.toFixed(2)}× = ${C.fmt(st.b * m)}`);
-        if (st.floor === FLOORS) return cashOut();
+        st.floor++;
+        if (r.done) return cashed(r);
+        btn.disabled = false;
+        msg.set(`Floor ${st.floor}: ${r.view.mult.toFixed(2)}× = ${C.fmt(st.b * r.view.mult)}`);
         setActive();
       }
-      function cashOut() {
-        if (!st || !st.floor) return;
-        const m = L.towerMult(diff, st.floor), pay = C.win('tower', st.b * m);
-        revealAll();
-        msg.set(`Cashed out at floor ${st.floor}: ${m.toFixed(2)}× — ${C.fmt(pay)}`, 'win');
-        C.record('tower', st.b, pay, `${diff}: floor ${st.floor}, ${m}×`);
-        end();
+      async function cashOut() {
+        if (!st || busy || !st.floor) return; busy = true;
+        const r = await C.try(() => C.play('tower', 'cashout', {}));
+        busy = false; if (r) cashed(r);
       }
+      function cashed(r) { revealAll(r.view.traps); C.settle(r); msg.set(`Cashed out at floor ${st.floor}: ${r.view.mult.toFixed(2)}× — ${C.fmt(r.payout)}`, 'win'); end(); }
       function end() { st = null; bet.disable(false); dSel.sel.disabled = false; btn.textContent = 'BET'; btn.className = 'btn big'; btn.disabled = false; setActive(); }
-      return () => { if (st) { if (st.floor) cashOut(); else { C.win('tower', st.b); C.record('tower', st.b, st.b, 'Refunded (no picks)'); } } };
     },
   });
   const css = document.createElement('style');

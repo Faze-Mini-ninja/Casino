@@ -37,11 +37,12 @@
       async function play() {
         if (busy) return;
         const b = bet.value, total = C.r2(b * nCards);
-        if (!C.bet('bingo', total)) return;
         busy = true; playBtn.disabled = true; bet.disable(true); ncSel.sel.disabled = true;
-        cards = cards.map(() => ({ grid: L.bingoCard() }));
+        const r = await C.try(() => C.play('bingo', null, { bet: b, cards: nCards }));
+        if (!r) { busy = false; playBtn.disabled = false; bet.disable(false); ncSel.sel.disabled = false; return; }
+        cards = r.result.cards.map((grid) => ({ grid }));
         called.innerHTML = ''; msg.set('Calling…');
-        const draw = L.bingoDraw(), drawn = new Set();
+        const draw = r.result.draw, drawn = new Set();
         for (const n of draw) {
           if (!alive) return;
           drawn.add(n); ball.textContent = letter(n) + '-' + n;
@@ -49,10 +50,8 @@
           paint(drawn, cards.map((cd) => L.bingoLines(cd.grid, drawn)));
           await C.sleep(110);
         }
-        const per = cards.map((cd) => L.bingoLines(cd.grid, drawn).length);
-        let pay = 0; per.forEach((k) => (pay += b * L.bingoPay(k)));
-        pay = C.win('bingo', pay);
-        C.record('bingo', total, pay, `Lines: ${per.join(', ')}`);
+        const per = r.result.lines, pay = r.payout;
+        C.settle(r);
         msg.set(pay ? `BINGO! ${per.reduce((a, x) => a + x, 0)} line(s) — win ${C.fmt(pay)}` : 'No lines this time', pay > total ? 'win' : pay ? 'push' : 'lose');
         busy = false; playBtn.disabled = false; bet.disable(false); ncSel.sel.disabled = false;
       }

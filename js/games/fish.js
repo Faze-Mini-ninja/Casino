@@ -11,7 +11,7 @@
       const W = 960, H = 540;
       const cv = h('canvas', { width: W, height: H, class: 'fish-cv' });
       const ctx = cv.getContext('2d');
-      const sess = { shots: 0, wager: 0, pay: 0, unrec: { w: 0, p: 0, n: 0 } };
+      const sess = { shots: 0, wager: 0, pay: 0 };
       const statEl = h('div');
       const autoChk = h('input', { type: 'checkbox' });
       let fish = [], bullets = [], fx = [], alive = true, raf = 0, last = performance.now(), aim = [W / 2, H / 2], autoT = 0;
@@ -21,7 +21,6 @@
         h('div', { class: 'stage' }, cv)));
       const paintStats = () => { statEl.innerHTML = `<div class="stat-line">Shots <b>${sess.shots}</b></div><div class="stat-line">Session spent <b>${C.fmt(sess.wager)}</b></div><div class="stat-line">Session won <b>${C.fmt(sess.pay)}</b></div><div class="stat-line">Net <b class="${sess.pay - sess.wager >= 0 ? 'pos' : 'neg'}">${C.fmt(sess.pay - sess.wager)}</b></div>`; };
       paintStats();
-      const flush = () => { const u = sess.unrec; if (u.n) { C.record('fish', u.w, u.p, `${u.n} shots`); sess.unrec = { w: 0, p: 0, n: 0 }; } };
       function spawn() {
         const t = L.weighted(L.FISH);
         const left = L.random() < 0.5;
@@ -29,14 +28,32 @@
       }
       for (let i = 0; i < 10; i++) { spawn(); fish[i].x = L.random() * W; }
       const cannon = [W / 2, H - 10];
+      let pendingShots = 0;
       function shoot(tx, ty) {
         const b = bet.value;
-        if (!C.bet('fish', b)) { autoChk.checked = false; return; }
-        sess.shots++; sess.wager += b; sess.unrec.w += b; sess.unrec.n++;
+        if (pendingShots >= 12) return; // wait for the server to catch up
+        if (b > C.balance()) { autoChk.checked = false; return C.toast('Insufficient balance', 'err'); }
         const ang = Math.atan2(ty - cannon[1], tx - cannon[0]), sp = 520;
-        bullets.push({ x: cannon[0], y: cannon[1], vx: Math.cos(ang) * sp, vy: Math.min(-40, Math.sin(ang) * sp), b, age: 0 });
-        if (sess.unrec.n >= 25) flush();
-        paintStats();
+        const bullet = { x: cannon[0], y: cannon[1], vx: Math.cos(ang) * sp, vy: Math.min(-40, Math.sin(ang) * sp), b, age: 0 };
+        pendingShots++;
+        bullet.shot = C.play('fish', 'shoot', { bet: b }).then((r) => { sess.shots++; sess.wager += b; paintStats(); return r.shotId; })
+          .catch(() => { bullet.done = true; autoChk.checked = false; return null; })
+          .finally(() => { pendingShots--; });
+        bullets.push(bullet);
+      }
+      async function resolveHit(b, f) {
+        const id = await b.shot; if (id == null) return;
+        const r = await C.try(() => C.play('fish', 'hit', { shotId: id, m: f.t.m }));
+        if (!r || !r.caught) return;
+        sess.pay += r.payout; paintStats();
+        if (!alive) return;
+        f.dead = true;
+        fx.push({ x: f.x, y: f.y, text: '+' + C.fmt(r.payout), t: 1.2, big: f.t.m >= 30 });
+      }
+      async function refundShot(b) {
+        const id = await b.shot; if (id == null) return;
+        const r = await C.try(() => C.play('fish', 'expire', { shotId: id }));
+        if (r) { sess.wager -= b.b; paintStats(); }
       }
       const toCanvas = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
       cv.addEventListener('pointerdown', (e) => { aim = toCanvas(e); shoot(...aim); });
@@ -63,16 +80,8 @@
           if (b.x < 4 || b.x > W - 4) { b.vx *= -1; b.x = Math.max(4, Math.min(W - 4, b.x)); }
           if (b.y < 4 || b.y > H - 4) { b.vy *= -1; b.y = Math.max(4, Math.min(H - 4, b.y)); }
           const f = fish.find((q) => !q.dead && Math.hypot(q.x - b.x, q.y + Math.sin(q.ph) * 6 - b.y) < q.t.size);
-          if (f) {
-            b.done = true; f.hit = 0.1;
-            if (L.fishCatch(f.t.m)) {
-              f.dead = true;
-              const pay = C.win('fish', b.b * f.t.m);
-              sess.pay += pay; sess.unrec.p += pay;
-              fx.push({ x: f.x, y: f.y, text: '+' + C.fmt(pay), t: 1.2, big: f.t.m >= 30 });
-              paintStats();
-            }
-          } else if (b.age > 8) { b.done = true; C.win('fish', b.b); sess.pay += b.b; sess.unrec.p += b.b; paintStats(); }
+          if (f) { b.done = true; f.hit = 0.1; resolveHit(b, f); }
+          else if (b.age > 8) { b.done = true; refundShot(b); }
         }
         bullets = bullets.filter((b) => !b.done);
         // draw
@@ -92,8 +101,7 @@
       raf = requestAnimationFrame(frame);
       return () => {
         alive = false; cancelAnimationFrame(raf);
-        bullets.forEach((b) => { C.win('fish', b.b); sess.unrec.p += b.b; }); // refund in-flight shots
-        flush();
+        bullets.forEach((b) => refundShot(b)); // refund shots still in the water
       };
     },
   });

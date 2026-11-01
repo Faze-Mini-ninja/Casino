@@ -26,10 +26,12 @@
       async function spin() {
         if (spinning || !alive) return;
         const b = bet.value;
-        if (!C.bet('slots', b)) { auto = false; autoBtn.textContent = 'Auto Spin'; return; }
-        spinning = true; spinBtn.disabled = true; bet.disable(true); msg.set('Spinning…');
+        spinning = true; spinBtn.disabled = true; bet.disable(true);
+        const r = await C.try(() => C.play('slots', null, { bet: b }));
+        if (!r) { spinning = false; spinBtn.disabled = false; bet.disable(false); auto = false; autoBtn.textContent = 'Auto Spin'; return; }
+        msg.set('Spinning…');
         table.querySelectorAll('div').forEach((d) => d.classList.remove('hit'));
-        const line = L.slotSpin();
+        const line = r.result.line;
         const timers = reels.map((r) => setInterval(() => r.cells.forEach((c) => (c.textContent = L.pick(SYMS))), 60));
         reels.forEach((r) => r.el.classList.add('blur'));
         for (let i = 0; i < 3; i++) {
@@ -37,8 +39,8 @@
           clearInterval(timers[i]); reels[i].el.classList.remove('blur');
           reels[i].cells[0].textContent = L.pick(SYMS); reels[i].cells[1].textContent = line[i]; reels[i].cells[2].textContent = L.pick(SYMS);
         }
-        const m = L.slotPay(line), pay = C.win('slots', b * m);
-        C.record('slots', b, pay, line.join(''));
+        const m = r.result.mult, pay = r.payout;
+        C.settle(r);
         if (m > 0) {
           msg.set(m === 1 ? 'Two cherries — stake back' : `WIN ${C.fmt(pay)}  (${m}×)`, 'win');
           const key = m === 1 ? 'two' : line[0];

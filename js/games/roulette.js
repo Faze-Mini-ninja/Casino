@@ -57,11 +57,13 @@
           h('div', { class: 'rleft' }, cv, msg.el, spinBtn, h('div', { class: 'muted center', style: 'font-size:12px' }, 'Recent results'), hist),
           h('div', { class: 'rright' }, h('div', { class: 'felt rtable' }, grid, dozens, evens,
             american ? h('div', { class: 'revens' }, out('top5', 'Top Line 0·00·1·2·3 (6:1)')) : null), T.bar)));
-        function spin() {
-          if (busy) return;
-          if (!T.commit(id)) return;
-          busy = true; T.lock(true); spinBtn.disabled = true; msg.set('No more bets…'); T.mark([]);
-          const k = L.int(wheel.length);
+        async function spin() {
+          if (busy || !T.ready()) return;
+          busy = true; T.lock(true); spinBtn.disabled = true;
+          const r = await C.try(() => C.play(id, null, { bets: T.bets }));
+          if (!r) { busy = false; T.lock(false); spinBtn.disabled = false; return; }
+          msg.set('No more bets…'); T.mark([]);
+          const k = r.result.index;
           const target = ((-(k + 0.5) * seg) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
           const curMod = ((rot % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
           const delta = ((target - curMod) + Math.PI * 2) % (Math.PI * 2);
@@ -70,20 +72,15 @@
             if (!alive) return;
             const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
             rot = start + (end - start) * e; draw();
-            if (p < 1) raf = requestAnimationFrame(step); else done(k);
+            if (p < 1) raf = requestAnimationFrame(step); else done(k, r);
           };
           raf = requestAnimationFrame(step);
         }
-        function done(k) {
+        function done(k, r) {
           const n = wheel[k]; resultIdx = k; busy = false; draw();
-          let pay = 0; const winners = [];
-          for (const bid in T.bets) {
-            if (L.rouletteCovers(bid).some((x) => String(x) === String(n))) { pay += T.bets[bid] * (L.roulettePays(bid) + 1); winners.push(bid); }
-          }
-          const wager = T.total();
-          pay = C.win(id, pay);
-          T.mark(['n:' + n, ...winners]);
-          C.record(id, wager, pay, 'Result ' + n);
+          const pay = r.payout;
+          C.settle(r);
+          T.mark(['n:' + n, ...r.result.winners]);
           const c = colorOf(n);
           hist.prepend(h('span', { class: 'pill ' + c }, String(n)));
           while (hist.children.length > 14) hist.lastChild.remove();

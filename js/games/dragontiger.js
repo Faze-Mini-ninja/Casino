@@ -6,7 +6,6 @@
     rules: '<p>8 decks. One card to Dragon, one to Tiger; the higher card wins (Ace is low, King high). <b>On a tie, Dragon and Tiger bets lose in full</b> (many casinos only take half). Odd/Even bets lose when the card is a 7.</p>',
     edges: [['Dragon / Tiger', '1:1', '≈7.47%'], ['Tie', '8:1', '≈32.8%'], ['Suited Tie', '50:1', '≈13.9%'], ['Dragon/Tiger Odd or Even (7 loses)', '1:1', '7.69%']],
     mount(root) {
-      const shoe = new L.Shoe(8, 0.8);
       const T = C.chipTable();
       const msg = C.msg();
       const dEl = h('div', { class: 'cards dt-card' }, C.cardEl(null, { hidden: true })), tEl = h('div', { class: 'cards dt-card' }, C.cardEl(null, { hidden: true }));
@@ -21,21 +20,17 @@
           h('div', { class: 'dt-side' }, h('div', { class: 'dt-title tig' }, '🐯 TIGER'), tEl, sp('tiger', 'TIGER', '1:1', 'big tig'), h('div', { class: 'dt-two' }, sp('tOdd', 'Odd', '1:1'), sp('tEven', 'Even', '1:1')))),
         h('div', { class: 'stage', style: 'min-height:0' }, msg.el, btn, hist), T.bar));
       async function deal() {
-        if (busy) return;
-        if (!T.commit('dragontiger')) return;
-        busy = true; T.lock(true); btn.disabled = true; T.mark([]);
-        if (shoe.checkShuffle()) C.toast('New 8-deck shoe');
-        const d = shoe.draw(), t = shoe.draw();
+        if (busy || !T.ready()) return;
+        busy = true; T.lock(true); btn.disabled = true;
+        const r = await C.try(() => C.play('dragontiger', null, { bets: T.bets }));
+        if (!r) { busy = false; T.lock(false); btn.disabled = false; return; }
+        T.mark([]);
+        const { d, t } = r.result;
         dEl.innerHTML = ''; tEl.innerHTML = '';
         await C.sleep(250); dEl.appendChild(C.cardEl(d)); await C.sleep(450); tEl.appendChild(C.cardEl(t)); await C.sleep(250);
-        let pay = 0; const win = [];
-        for (const id in T.bets) { const m = L.dtReturn(id, d, t); if (m) { pay += T.bets[id] * m; win.push(id); } }
-        const wager = T.total();
-        pay = C.win('dragontiger', pay);
-        T.mark(win);
-        const dr = L.dtRank(d), tr = L.dtRank(t);
-        const res = dr > tr ? 'Dragon' : tr > dr ? 'Tiger' : 'Tie';
-        C.record('dragontiger', wager, pay, `${L.cardStr(d)} vs ${L.cardStr(t)}: ${res}`);
+        const pay = r.payout, wager = r.wager, res = r.result.res;
+        C.settle(r);
+        T.mark(r.result.winners);
         hist.prepend(h('span', { class: 'pill ' + (res === 'Dragon' ? 'r' : res === 'Tiger' ? 'bl' : 'g') }, res[0]));
         while (hist.children.length > 24) hist.lastChild.remove();
         msg.set(`${res}${res === 'Tie' ? '!' : ' wins'} — ` + (pay ? `pays ${C.fmt(pay)}` : 'no win'), pay > wager ? 'win' : pay ? 'push' : 'lose');

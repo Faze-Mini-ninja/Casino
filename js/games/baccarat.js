@@ -1,6 +1,5 @@
 (function () {
   const C = Casino, L = Lib, h = C.h;
-  const shoe = new L.Shoe(8, 0.8);
   const bead = [];
   const EDGES = [['Player', '1:1', '1.24%'], ['Banker', '0.95:1 (5% commission)', '1.06%'], ['Tie', '8:1', '14.36%'], ['Player Pair', '11:1', '10.36%'], ['Banker Pair', '11:1', '10.36%'],
     ['Either Pair', '5:1', '≈13.7%'], ['Perfect Pair', '25:1', '≈11%'], ['Dragon 7 (Banker wins w/ 3-card 7)', '40:1', '≈7.6%'], ['Panda 8 (Player wins w/ 3-card 8)', '25:1', '≈10.2%']];
@@ -24,11 +23,12 @@
       msg.el, h('div', { class: 'controls' }, dealBtn), T.bar,
       h('div', { class: 'center muted', style: 'margin-top:10px;font-size:12px' }, 'Bead plate'), beadEl));
     async function deal() {
-      if (busy) return;
-      if (!T.commit('baccarat')) return;
-      busy = true; T.lock(true); dealBtn.disabled = true; T.mark([]); msg.set(' ');
-      if (shoe.checkShuffle()) C.toast('New 8-deck shoe');
-      const r = L.bacDeal(shoe);
+      if (busy || !T.ready()) return;
+      busy = true; T.lock(true); dealBtn.disabled = true;
+      const res = await C.try(() => C.play('baccarat', null, { bets: T.bets }));
+      if (!res) { busy = false; T.lock(false); dealBtn.disabled = false; return; }
+      T.mark([]); msg.set(' ');
+      const r = res.result;
       pEl.innerHTML = ''; bEl.innerHTML = ''; pLbl.textContent = 'PLAYER'; bLbl.textContent = 'BANKER';
       const order = [[pEl, r.P[0]], [bEl, r.B[0]], [pEl, r.P[1]], [bEl, r.B[1]]];
       for (const [el, c] of order) { await C.sleep(350); if (!alive) return; el.appendChild(C.cardEl(c)); }
@@ -37,16 +37,12 @@
       if (r.P[2]) { await C.sleep(650); pEl.appendChild(C.cardEl(r.P[2])); showT({ p: 3, b: 2 }); }
       if (r.B[2]) { await C.sleep(650); bEl.appendChild(C.cardEl(r.B[2])); showT({ p: 3, b: 3 }); }
       await C.sleep(300);
-      let pay = 0; const winners = [];
-      for (const id in T.bets) { const m = L.bacReturn(id, r); if (m > 0) { pay += T.bets[id] * m; if (m > 1) winners.push(id); } }
-      const wager = T.total();
-      pay = C.win('baccarat', pay);
-      T.mark(winners);
-      const outcome = r.pt > r.bt ? 'P' : r.bt > r.pt ? 'B' : 'T';
+      C.settle(res);
+      T.mark(r.winners);
+      const outcome = r.outcome;
       bead.push(outcome); paintBead();
       const label = outcome === 'P' ? `Player wins ${r.pt}–${r.bt}` : outcome === 'B' ? `Banker wins ${r.bt}–${r.pt}` : `Tie ${r.pt}–${r.bt}`;
-      C.record('baccarat', wager, pay, label);
-      const net = pay - wager;
+      const net = C.net(res);
       msg.set(`${label} • ` + (net > 0 ? `+${C.fmt(net)}` : net === 0 ? 'even' : `−${C.fmt(-net)}`), net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
       busy = false; T.lock(false); dealBtn.disabled = false;
     }

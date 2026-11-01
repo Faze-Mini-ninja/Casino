@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Royal Edge Casino — 30 games (play money)</title>
+  <title>Royal Edge Casino</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -12,17 +12,20 @@
     <a href="#lobby" class="logo">🎰 <span>Royal Edge</span> Casino</a>
     <nav>
       <a href="#lobby">Lobby</a>
+      <a href="#wallet">Wallet</a>
       <a href="#history">History</a>
       <a href="#stats">Stats</a>
       <a href="#edges">House Edges</a>
+      <a href="#admin" id="nav-admin" style="display:none">Admin</a>
     </nav>
+    <div class="modes" id="modebox" style="display:none"><button data-mode="demo">Demo</button><button data-mode="real">Real SOL</button></div>
     <div class="wallet">
-      <span class="bal-label">Balance</span>
-      <span id="balance" class="balance">0.00</span>
-      <button id="refill" class="btn small gold" title="Free play-money top-up">+ Credits</button>
+      <div class="bal-wrap"><span id="balance" class="balance">0.00</span><span id="balance-sol" class="bal-sol"></span></div>
+      <button id="refill" class="btn small ghost" title="Free demo credits">+ Demo</button>
     </div>
+    <div class="userbox" id="userbox"></div>
   </header>
-  <div class="disclaimer">Play-money only — credits have no cash value and cannot be bought or withdrawn. 18+. The house edge is real: in the long run the casino always wins.</div>
+  <div class="disclaimer">18+ only. Gamble responsibly — the house edge means you will lose over time. Never deposit more than you can afford to lose.</div>
   <main id="app"></main>
   <div id="toasts"></div>
 

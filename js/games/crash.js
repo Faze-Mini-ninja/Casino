@@ -6,22 +6,23 @@
     blurb: 'Cash out before the rocket crashes.',
     rules: `<p>The multiplier climbs from 1.00× until it crashes at a random point. Cash out any time before the crash to win your bet × the current multiplier. Crash point distribution: P(crash ≥ m) = ${(1 - E).toFixed(2)} / m, so every cash-out strategy returns ${((1 - E) * 100).toFixed(0)}% (${(E * 100).toFixed(0)}% house edge). About ${(E * 100).toFixed(0)}% of rounds crash instantly at 1.00×.</p>`,
     edges: [['Any cash-out target', 'target ×', (E * 100).toFixed(2) + '%']],
+    round: 'crash',
     mount(root) {
       const bet = C.betInput({ value: 10 });
-      const autoIn = h('input', { type: 'number', min: '1.01', step: '0.01', value: '2.00', class: 'bet-amt' });
+      const autoIn = h('input', { type: 'number', min: '1.01', step: '0.01', value: '2.00', class: 'bet-amt', inputmode: 'decimal' });
       const msg = C.msg();
       const hist = h('div', { class: 'history-strip' });
       const W = 720, H = 380;
       const cv = h('canvas', { width: W, height: H, class: 'crash-cv' });
       const ctx = cv.getContext('2d');
-      let alive = true, raf = 0, st = null;
-      const btn = h('button', { class: 'btn big', onclick: () => (st && st.flying ? cashOut() : start()) }, 'BET');
+      let alive = true, raf = 0, st = null, poll = 0;
+      const btn = h('button', { class: 'btn big', onclick: () => (st && st.flying && !st.cashed ? cashOut() : start()) }, 'BET');
       const autoChk = h('input', { type: 'checkbox', checked: true });
       root.appendChild(h('div', { class: 'layout' },
         h('div', { class: 'side' }, bet.el, h('div', { class: 'field' }, h('label', null, h('span', null, 'Auto cash-out '), autoChk), autoIn),
-          h('div', { class: 'muted', style: 'font-size:12px' }, 'Untick auto cash-out to cash out manually.')),
+          h('div', { class: 'muted', style: 'font-size:12px' }, 'Untick auto cash-out to cash out manually. The server times the round, so a slow connection can make a manual cash-out land a little later.')),
         h('div', { class: 'stage' }, cv, msg.el, btn, hist)));
-      const RATE = 0.15; // e^(RATE * seconds)
+      const RATE = 0.15;
       const multAt = (ms) => Math.floor(Math.exp(RATE * ms / 1000) * 100) / 100;
       function draw(m, t, crashed) {
         ctx.clearRect(0, 0, W, H);
@@ -39,44 +40,51 @@
         ctx.textAlign = 'left';
       }
       draw(1, 0, false);
-      function start() {
-        const b = bet.value;
+      async function start() {
+        if (st) return;
         const auto = autoChk.checked ? Math.max(1.01, Math.floor(+autoIn.value * 100) / 100) : null;
-        if (!C.bet('crash', b)) return;
-        st = { b, auto, cp: L.crashPoint(), t0: performance.now(), flying: true, cashed: 0 };
-        bet.disable(true); autoIn.disabled = true; btn.textContent = 'CASH OUT'; btn.className = 'btn big green';
-        msg.set(' ');
+        btn.disabled = true;
+        const r = await C.try(() => C.play('crash', 'start', { bet: bet.value, auto }));
+        btn.disabled = false; if (!r || !alive) return;
+        st = { b: bet.value, t0: performance.now(), flying: true, cashed: 0, cp: null };
+        bet.disable(true); autoIn.disabled = true; autoChk.disabled = true; msg.set(' ');
+        if (r.done) return end(r);
+        btn.textContent = 'CASH OUT'; btn.className = 'btn big green';
         raf = requestAnimationFrame(tick);
+        poll = setInterval(status, 350);
       }
       function tick(now) {
         if (!alive || !st) return;
         const t = now - st.t0; let m = multAt(t);
-        if (st.auto && !st.cashed && m >= st.auto && st.auto <= st.cp) cashOut(st.auto);
-        if (m >= st.cp) { m = st.cp; draw(m, Math.log(Math.max(1, st.cp)) / RATE * 1000, true); return end(); }
+        if (st.cp != null && m >= st.cp) { draw(st.cp, Math.log(Math.max(1, st.cp)) / RATE * 1000, true); return finishAnim(); }
         draw(m, t, false);
         raf = requestAnimationFrame(tick);
       }
-      function cashOut(at) {
-        if (!st || !st.flying || st.cashed) return;
-        const m = at || multAt(performance.now() - st.t0);
-        if (m >= st.cp) return; // too late
-        st.cashed = m;
-        const pay = C.win('crash', st.b * m);
-        msg.set(`Cashed out at ${m.toFixed(2)}× — +${C.fmt(pay - st.b)}`, 'win');
-        btn.disabled = true;
+      async function status() { if (!st || st.cp != null || st.busy) return; st.busy = true; const r = await C.try(() => C.play('crash', 'status', {})); if (st) st.busy = false; if (r && r.done) end(r); }
+      async function cashOut() {
+        if (!st || st.cashed || st.busy) return; st.busy = true;
+        const r = await C.try(() => C.play('crash', 'cashout', {}));
+        if (st) st.busy = false; if (r && r.done) end(r);
       }
-      function end() {
-        st.flying = false;
+      function end(r) {
+        clearInterval(poll);
+        if (!st) return;
+        st.cp = r.view.cp; st.cashed = r.view.cashed; st.r = r;
+        C.settle(r);
+        if (st.cashed) {
+          msg.set(`Cashed out at ${st.cashed.toFixed(2)}× — +${C.fmt(r.payout - r.wager)}`, 'win'); btn.disabled = true;
+          setTimeout(() => { if (st && st.r === r && raf) { draw(st.cp, Math.log(st.cp) / RATE * 1000, true); finishAnim(); } }, 3000); // don't make the player wait for a huge crash point
+        }
+        if (!raf || st.cp <= 1) { draw(st.cp, 0, true); finishAnim(); }
+      }
+      function finishAnim() {
+        cancelAnimationFrame(raf); raf = 0;
         if (!st.cashed) msg.set(`Crashed at ${st.cp.toFixed(2)}× — lost ${C.fmt(st.b)}`, 'lose');
-        C.record('crash', st.b, st.cashed ? L.round2(st.b * st.cashed) : 0, `Crash ${st.cp.toFixed(2)}×${st.cashed ? ', cashed ' + st.cashed.toFixed(2) + '×' : ''}`);
         hist.prepend(h('span', { class: 'pill ' + (st.cp >= 2 ? 'g' : 'r') }, st.cp.toFixed(2) + '×'));
         while (hist.children.length > 16) hist.lastChild.remove();
-        st = null; bet.disable(false); autoIn.disabled = false; btn.disabled = false; btn.textContent = 'BET'; btn.className = 'btn big';
+        st = null; bet.disable(false); autoIn.disabled = false; autoChk.disabled = false; btn.disabled = false; btn.textContent = 'BET'; btn.className = 'btn big';
       }
-      return () => {
-        alive = false; cancelAnimationFrame(raf);
-        if (st && st.flying) C.record('crash', st.b, st.cashed ? L.round2(st.b * st.cashed) : 0, `Left during round (crash ${st.cp.toFixed(2)}×)`);
-      };
+      return () => { alive = false; cancelAnimationFrame(raf); clearInterval(poll); };
     },
   });
   const css = document.createElement('style');

@@ -35,15 +35,16 @@
       async function roll() {
         if (busy) return;
         const b = bet.value, ch = chance(), m = L.diceMult(ch);
-        if (!C.bet('dice', b)) return;
         busy = true; btn.disabled = true;
-        const r = L.int(10000) / 100;
+        const res = await C.try(() => C.play('dice', null, { bet: b, target, over }));
+        if (!res) { busy = false; btn.disabled = false; return; }
+        const r = res.result.r;
         marker.style.left = r + '%'; marker.textContent = r.toFixed(2); marker.style.opacity = 1;
         await C.sleep(350);
-        const win = over ? r >= target : r < target;
+        const win = res.result.win;
         marker.className = 'dice-marker ' + (win ? 'w' : 'l');
-        const pay = C.win('dice', win ? b * m : 0);
-        C.record('dice', b, pay, `Rolled ${r.toFixed(2)} (${over ? 'over' : 'under'} ${target})`);
+        const pay = res.payout;
+        C.settle(res);
         msg.set(win ? `${r.toFixed(2)} — win ${C.fmt(pay)}` : `${r.toFixed(2)} — lose`, win ? 'win' : 'lose');
         hist.prepend(h('span', { class: 'pill ' + (win ? 'g' : 'r') }, r.toFixed(2)));
         while (hist.children.length > 16) hist.lastChild.remove();

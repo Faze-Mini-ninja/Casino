@@ -27,18 +27,17 @@
           h('div', { class: 'sb-row6' }, nums.map((n) => sp('single:' + n, dieMini(n), '1/2/3 : 1')))),
         h('div', { class: 'stage', style: 'min-height:0;margin-top:14px' }, dice, msg.el, rollBtn, hist), T.bar));
       async function roll() {
-        if (busy) return;
-        if (!T.commit('sicbo')) return;
-        busy = true; T.lock(true); rollBtn.disabled = true; T.mark([]);
-        const d = [L.range(1, 6), L.range(1, 6), L.range(1, 6)];
+        if (busy || !T.ready()) return;
+        busy = true; T.lock(true); rollBtn.disabled = true;
+        const r = await C.try(() => C.play('sicbo', null, { bets: T.bets }));
+        if (!r) { busy = false; T.lock(false); rollBtn.disabled = false; return; }
+        T.mark([]);
+        const d = r.result.dice;
         await C.rollDice(dice, d);
-        let pay = 0; const win = [];
-        for (const id in T.bets) { const m = L.sicboReturn(id, d); if (m) { pay += T.bets[id] * m; win.push(id); } }
-        const wager = T.total();
-        pay = C.win('sicbo', pay);
-        T.mark(win);
+        const pay = r.payout, wager = r.wager;
+        C.settle(r);
+        T.mark(r.result.winners);
         const t = d[0] + d[1] + d[2], triple = d[0] === d[1] && d[1] === d[2];
-        C.record('sicbo', wager, pay, d.join('-') + ' = ' + t);
         hist.prepend(h('span', { class: 'pill ' + (triple ? 'g' : t <= 10 ? '' : 'r') }, `${d.join('')} ${t}`));
         while (hist.children.length > 12) hist.lastChild.remove();
         msg.set(`${d.join(' · ')} = ${t}${triple ? ' TRIPLE!' : t <= 10 ? ' Small' : ' Big'} — ` + (pay ? `pays ${C.fmt(pay)}` : 'no win'), pay > wager ? 'win' : pay ? 'push' : 'lose');

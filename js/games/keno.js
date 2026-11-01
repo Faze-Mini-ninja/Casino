@@ -45,9 +45,11 @@
         if (busy) return;
         if (!picks.size) return C.toast('Pick at least one number', 'err');
         const b = bet.value;
-        if (!C.bet('keno', b)) return;
-        busy = true; playBtn.disabled = true; bet.disable(true); resetDraw(); msg.set('Drawing…');
-        const draw = L.kenoDraw();
+        busy = true; playBtn.disabled = true; bet.disable(true);
+        const r = await C.try(() => C.play('keno', null, { bet: b, picks: [...picks] }));
+        if (!r) { busy = false; playBtn.disabled = false; bet.disable(false); return; }
+        resetDraw(); msg.set('Drawing…');
+        const draw = r.result.draw;
         let hits = 0;
         for (const n of draw) {
           if (!alive) return;
@@ -55,9 +57,8 @@
           if (picks.has(n)) { cells[n].classList.add('hit'); hits++; }
           await C.sleep(70);
         }
-        const m = (L.KENO_PAYS[picks.size] || {})[hits] || 0;
-        const pay = C.win('keno', b * m);
-        C.record('keno', b, pay, `${hits}/${picks.size} hits`);
+        const m = r.result.mult, pay = r.payout;
+        C.settle(r);
         paint(hits);
         msg.set(m ? `${hits} hits — WIN ${C.fmt(pay)} (${m}×)` : `${hits} hit${hits === 1 ? '' : 's'} — no win`, m ? 'win' : 'lose');
         busy = false; playBtn.disabled = false; bet.disable(false);
