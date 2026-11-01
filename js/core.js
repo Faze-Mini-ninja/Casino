@@ -316,15 +316,16 @@
     const pass = h('input', { type: 'password', placeholder: 'Password (8+ characters)', autocomplete: 'current-password' });
     let saved = ''; try { saved = localStorage.getItem('casino.ref') || ''; } catch (e) { /* ignore */ }
     const ref = h('input', { placeholder: 'Referral code (optional)', autocapitalize: 'characters', autocomplete: 'off', value: saved, style: 'display:none' });
+    const invite = h('input', { placeholder: 'Invite code', autocomplete: 'off', style: 'display:none' });
     const title = h('h2', null, 'Log in');
     const btn = h('button', { class: 'btn big', type: 'submit' }, 'Log in');
-    const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; ref.style.display = mode === 'login' ? 'none' : ''; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');
+    const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; ref.style.display = mode === 'login' ? 'none' : ''; invite.style.display = mode === 'login' || !S.config.inviteOnly ? 'none' : ''; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');
     const form = h('form', { class: 'panel auth', onsubmit: async (e) => {
       e.preventDefault(); btn.disabled = true;
-      const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim() }));
+      const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim(), inviteCode: mode === 'login' ? undefined : invite.value.trim() }));
       btn.disabled = false;
       if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : 'Account created — 10,000 demo credits added', 'win'); location.hash = '#lobby'; }
-    } }, title, user, pass, ref, btn, sw,
+    } }, title, user, pass, invite, ref, btn, sw,
     h('p', { class: 'muted small' }, 'You must be 18+ and allowed to gamble where you live. Gambling can be addictive — set limits and never deposit more than you can afford to lose.'));
     return h('div', { class: 'auth-wrap' }, form);
   }

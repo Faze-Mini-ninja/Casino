@@ -49,13 +49,14 @@ function readJson(req) {
 }
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
-const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS, referralShare: referrals.SHARE });
+const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
 const routes = {
   'POST /api/register': async (req, res, body, ip) => {
     need(!limited('reg:' + ip, 5, 3600000), 429, 'Too many sign-ups from this network, try later');
+    if (cfg.REGISTRATION_CODE) need(String(body.inviteCode || '').trim() === cfg.REGISTRATION_CODE, 403, 'Sign-up is invite-only — enter the invite code you were given');
     const username = String(body.username || '').trim(), password = String(body.password || '');
     need(/^[A-Za-z0-9_]{3,20}$/.test(username), 400, 'Username: 3–20 letters, numbers or _');
     need(password.length >= 8 && password.length <= 200, 400, 'Password must be at least 8 characters');
@@ -197,6 +198,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'");
   const url = new URL(req.url, 'http://x');
   const ip = (cfg.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '') || req.socket.remoteAddress;
+  if (url.pathname === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
   if (!url.pathname.startsWith('/api/')) return serveStatic(req, res, decodeURIComponent(url.pathname));
   const h = routes[`${req.method} ${url.pathname}`];
   if (!h) return send(res, 404, { error: 'Not found' });

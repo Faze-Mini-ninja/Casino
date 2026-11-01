@@ -56,6 +56,7 @@ module.exports = {
   WATCH_INTERVAL_MS: num('WATCH_INTERVAL_MS', 15000),
   CHAIN_ENABLED: env('CHAIN_ENABLED', 'true') === 'true',
   PLAY_RATE_PER_5S: num('PLAY_RATE_PER_5S', 40), // max game actions per player per 5 seconds
+  REGISTRATION_CODE: env('REGISTRATION_CODE', ''), // if set, sign-up requires this code (private testing)
   ADMIN_USERNAME: env('ADMIN_USERNAME', ''), // this account is created/updated at startup and is the admin
   ADMIN_PASSWORD: env('ADMIN_PASSWORD', ''),
   REFERRAL_SHARE: num('REFERRAL_SHARE', 0.10), // referrers earn this share of the house's expected profit on referrals' real bets (max 0.5)

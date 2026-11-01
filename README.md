@@ -17,6 +17,17 @@ cp .env.example .env      # optional — defaults are fine for devnet
 npm start                 # http://localhost:8080
 ```
 
+### Put it online (to test with friends)
+The repo includes a `Dockerfile`, so any Docker host works. On **Railway**:
+1. railway.app → **New Project → Deploy from GitHub repo** → pick this repo, and set the branch under *Settings → Source*.
+2. **Add a Volume** to the service, mounted at `/data`. It holds the database and the devnet seed.
+3. **Variables:** `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `REGISTRATION_CODE` (the invite code you give testers),
+   `COOKIE_SECURE=true`, `TRUST_PROXY=true`.
+4. *Settings → Networking → Generate Domain*, then share that URL. Later, add `krush.casino` as a custom domain there.
+
+Render and Fly.io work the same way: Docker deploy, a persistent disk at `/data`, and the same variables.
+The health check is at `/healthz`.
+
 ### Signing in
 Players register and sign in with a **username and password** (Account page: change password, log out).
 Set your own admin login in `.env`. The account is created at startup, or has its password reset if it already exists:
