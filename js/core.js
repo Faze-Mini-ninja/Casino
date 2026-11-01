@@ -180,7 +180,7 @@
       grid.innerHTML = '';
       C.games.slice().sort((a, b) => a.n - b.n)
         .filter((g) => (filter === 'all' || g.cat === filter) && (!q || g.name.toLowerCase().includes(q)))
-        .forEach((g) => grid.appendChild(h('a', { class: 'tile', href: '#/game/' + g.id },
+        .forEach((g) => grid.appendChild(h('a', { class: 'tile', href: '#' + g.id },
           h('div', { class: 'tile-icon' }, g.icon),
           h('div', { class: 'tile-name' }, g.name),
           h('div', { class: 'tile-blurb' }, g.blurb),
@@ -205,7 +205,7 @@
         g.edges ? h('table', { class: 'edge-table' }, h('tr', null, h('th', null, 'Bet'), h('th', null, 'Pays'), h('th', null, 'House edge')),
           g.edges.map(([b, p, e]) => h('tr', null, h('td', null, b), h('td', null, p), h('td', null, e)))) : null));
     const page = h('div', { class: 'game-page' },
-      h('div', { class: 'game-head' }, h('a', { href: '#/', class: 'btn small ghost' }, '← Lobby'),
+      h('div', { class: 'game-head' }, h('a', { href: '#lobby', class: 'btn small ghost' }, '← Lobby'),
         h('h2', null, g.icon + ' ' + g.name), h('span', { class: 'edge-pill' }, 'House edge ' + g.edge)),
       root, info);
     setTimeout(() => { cleanup = g.mount(root, g) || null; }, 0);
@@ -238,7 +238,7 @@
         kpi('Net result', C.fmt(tot.won - tot.wagered)), kpi('Your RTP', tot.wagered ? ((tot.won / tot.wagered) * 100).toFixed(2) + '%' : '—'), kpi('Free top-ups', S.refills)),
       rowsEl.length ? h('table', { class: 'data' }, h('tr', null, ['Game', 'Rounds', 'Wagered', 'Returned', 'Net', 'Your RTP', 'House edge'].map((x) => h('th', null, x))), rowsEl)
         : h('p', { class: 'muted' }, 'Play some games to see statistics.'),
-      h('p', null, h('button', { class: 'btn danger', onclick: () => { if (confirm('Reset balance, history and stats?')) { C.resetAll(); route(); } } }, 'Reset account')));
+      h('p', null, h('button', { class: 'btn danger', onclick: (e) => { const b = e.currentTarget; if (b.dataset.armed) { C.resetAll(); route(); C.toast('Account reset'); } else { b.dataset.armed = '1'; b.textContent = 'Click again to confirm reset'; setTimeout(() => { delete b.dataset.armed; b.textContent = 'Reset account'; }, 4000); } } }, 'Reset account')));
   }
   const kpi = (l, v) => h('div', { class: 'kpi' }, h('div', { class: 'kpi-v' }, String(v)), h('div', { class: 'kpi-l' }, l));
 
@@ -246,17 +246,18 @@
     return h('div', { class: 'panel' }, h('h2', null, 'House edge by game'),
       h('p', { class: 'muted' }, 'House edge = expected loss per unit wagered. Figures are computed from this casino\'s own payout tables (run "npm test" to re-verify by exact enumeration / simulation). Where a game has many bets, the range covers all of them.'),
       h('table', { class: 'data' }, h('tr', null, ['#', 'Game', 'House edge', 'Notes'].map((x) => h('th', null, x))),
-        C.games.slice().sort((a, b) => a.n - b.n).map((g) => h('tr', null, h('td', null, g.n), h('td', null, h('a', { href: '#/game/' + g.id }, g.icon + ' ' + g.name)), h('td', null, h('b', null, g.edge)), h('td', { class: 'muted' }, g.blurb)))));
+        C.games.slice().sort((a, b) => a.n - b.n).map((g) => h('tr', null, h('td', null, g.n), h('td', null, h('a', { href: '#' + g.id }, g.icon + ' ' + g.name)), h('td', null, h('b', null, g.edge)), h('td', { class: 'muted' }, g.blurb)))));
   }
 
   function route() {
     if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
-    const hash = location.hash.replace(/^#\/?/, '');
+    // plain #name routing: #lobby, #history, #stats, #edges, #<game-id> (legacy #/game/<id> also accepted)
+    const hash = location.hash.replace(/^#\/?/, '').replace(/^game\//, '');
     const a = app(); a.innerHTML = '';
-    document.querySelectorAll('.topbar nav a').forEach((x) => x.classList.toggle('active', x.getAttribute('href') === '#/' + hash.split('/')[0] || (hash === '' && x.getAttribute('href') === '#/')));
+    document.querySelectorAll('.topbar nav a').forEach((x) => x.classList.toggle('active', x.getAttribute('href') === '#' + (hash || 'lobby')));
     window.scrollTo(0, 0);
-    if (hash.startsWith('game/')) {
-      const g = C.games.find((x) => x.id === hash.slice(5));
+    {
+      const g = C.games.find((x) => x.id === hash);
       if (g) { document.title = g.name + ' — Royal Edge Casino'; return a.appendChild(gamePage(g)); }
     }
     document.title = 'Royal Edge Casino';

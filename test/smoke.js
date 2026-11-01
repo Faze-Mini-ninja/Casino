@@ -30,7 +30,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const id of ids) {
     const before = errors.length;
     const bal0 = await page.evaluate(() => Casino.balance());
-    await page.goto(`http://localhost:${PORT}/#/game/${id}`);
+    await page.goto(`http://localhost:${PORT}/#${id}`);
     await wait(300);
     for (let round = 0; round < 3; round++) {
       if (await page.locator('.spot').count()) { await click('.spot', 1); await click('.spot', 3); }
@@ -59,11 +59,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     }
     await wait(300);
     await page.screenshot({ path: path.join(SHOTS, `${id}.png`) });
-    await page.goto(`http://localhost:${PORT}/#/`); await wait(150); // leave the table (flushes batched records)
+    await page.goto(`http://localhost:${PORT}/#lobby`); await wait(150); // leave the table (flushes batched records)
     const s = await page.evaluate((g) => ({ bal: Casino.balance(), hist: JSON.parse(localStorage.getItem('royal-edge-casino.v1')).history.filter((x) => x.g === g || (g.startsWith('baccarat') && x.g === 'baccarat')).length }), id);
     results.push({ id, rounds: s.hist, balanceDelta: +(s.bal - bal0).toFixed(2), errors: errors.length - before });
   }
-  for (const p of ['#/history', '#/stats', '#/edges']) { await page.goto(`http://localhost:${PORT}/${p}`); await wait(200); await page.screenshot({ path: path.join(SHOTS, p.slice(2) + '.png'), fullPage: false }); }
+  for (const p of ['#history', '#stats', '#edges']) { await page.goto(`http://localhost:${PORT}/${p}`); await wait(200); await page.screenshot({ path: path.join(SHOTS, p.slice(1) + '.png'), fullPage: false }); }
   console.table(results);
   if (errors.length) { console.log('ERRORS:'); errors.forEach((e) => console.log(' -', e)); }
   await browser.close(); srv.kill();
