@@ -11,7 +11,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
   const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'casino-smoke-'));
-  const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], { stdio: 'ignore', env: { ...process.env, PORT: String(PORT), DATA_DIR: tmp, DB_FILE: path.join(tmp, 'db.sqlite'), CHAIN_ENABLED: 'false', PLAY_RATE_PER_5S: '100000' } });
+  const srv = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], { stdio: 'ignore', env: { ...process.env, PORT: String(PORT), DATA_DIR: tmp, DB_FILE: path.join(tmp, 'db.sqlite'), CHAIN_ENABLED: 'false', PLAY_RATE_PER_5S: '100000', ADMIN_USERNAME: '', ADMIN_PASSWORD: '', REGISTRATION_CODE: '' } });
   await wait(1200);
   fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await chromium.launch();
