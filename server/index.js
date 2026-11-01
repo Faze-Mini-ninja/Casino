@@ -112,6 +112,11 @@ const routes = {
     need(u, 401, 'Please log in'); need(!limited('play:' + u.id, cfg.PLAY_RATE_PER_5S, 5000), 429, 'Slow down');
     return play(u.id, body);
   },
+  'GET /api/feed': async () => {
+    const mask = (n) => (n.length <= 3 ? n[0] + '**' : n.slice(0, 2) + '*'.repeat(Math.min(5, n.length - 3)) + n.slice(-1));
+    const rows = q("SELECT r.game, r.mode, r.wager, r.payout, r.updated AS t, u.username FROM rounds r JOIN users u ON u.id = r.user_id WHERE r.status = 'done' AND r.wager > 0 AND r.game != 'fish' ORDER BY r.id DESC LIMIT 15").all();
+    return { bets: rows.map((x) => ({ game: x.game, mode: x.mode, wager: C2(x.wager), payout: C2(x.payout), t: x.t, user: mask(x.username) })) };
+  },
   'POST /api/abandon': async (req, res, body, ip, u) => { need(u, 401, 'Please log in'); return abandon(u.id, String(body.game || '')) || { ok: true }; },
   'POST /api/demo/refill': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in');

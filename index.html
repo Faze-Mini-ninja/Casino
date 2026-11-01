@@ -8,27 +8,62 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <a href="#lobby" class="logo">🎰 <span>Royal Edge</span> Casino</a>
-    <nav>
-      <a href="#lobby">Lobby</a>
-      <a href="#wallet">Wallet</a>
-      <a href="#history">History</a>
-      <a href="#stats">Stats</a>
-      <a href="#edges" class="odds-only">House Edges</a>
-      <a href="#referrals">Refer &amp; Earn</a>
-      <a href="#account">Account</a>
-      <a href="#admin" id="nav-admin" style="display:none">Admin</a>
-    </nav>
-    <div class="modes" id="modebox" style="display:none"><button data-mode="demo">Demo</button><button data-mode="real">Real SOL</button></div>
-    <div class="wallet">
-      <div class="bal-wrap"><span id="balance" class="balance">0.00</span><span id="balance-sol" class="bal-sol"></span></div>
-      <button id="refill" class="btn small ghost" title="Free demo credits">+ Demo</button>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <a href="#lobby" class="brand"><span class="mark">R</span><span class="name">Royal<b>Edge</b></span></a>
+      <nav class="nav-group" data-nav>
+        <div class="nav-title">Casino</div>
+        <a class="nav-item" href="#lobby" data-i="home">Lobby</a>
+        <a class="nav-item" href="#cat-originals" data-i="zap">Originals</a>
+        <a class="nav-item" href="#cat-table" data-i="target">Table Games</a>
+        <a class="nav-item" href="#cat-poker" data-i="cards">Poker</a>
+        <a class="nav-item" href="#cat-lottery" data-i="ticket">Slots &amp; Lottery</a>
+      </nav>
+      <nav class="nav-group" data-nav>
+        <div class="nav-title">Account</div>
+        <a class="nav-item" href="#wallet" data-i="wallet">Wallet</a>
+        <a class="nav-item" href="#referrals" data-i="users">Refer &amp; Earn</a>
+        <a class="nav-item" href="#history" data-i="clock">Bet History</a>
+        <a class="nav-item" href="#stats" data-i="chart">Statistics</a>
+        <a class="nav-item" href="#account" data-i="user">Settings</a>
+        <a class="nav-item odds-only" href="#edges" data-i="info">House Edges</a>
+        <a class="nav-item" href="#admin" id="nav-admin" data-i="shield" style="display:none">Admin</a>
+      </nav>
+      <div class="side-foot"><span class="age">18+</span>Gamble responsibly. Never deposit more than you can afford to lose.</div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+    <div class="main-col">
+      <header class="topbar">
+        <button class="burger" id="burger" aria-label="Menu"></button>
+        <a href="#lobby" class="brand"><span class="mark">R</span><span class="name">Royal<b>Edge</b></span></a>
+        <div class="top-center">
+          <div class="wallet" id="walletbox" style="display:none">
+            <button class="bal-btn" id="bal-btn"><span class="cur demo" id="cur-ico">D</span><span id="balance" class="balance">0.00</span><span class="chev" id="chev"></span></button>
+            <a href="#wallet" class="btn" id="wallet-btn">Wallet</a>
+            <div class="cur-menu" id="cur-menu">
+              <button class="cur-row" data-mode="real"><span class="cur sol">◎</span><span>SOL<span class="sub">Real money</span></span><span class="amt" id="amt-real">0.00</span></button>
+              <button class="cur-row" data-mode="demo"><span class="cur demo">D</span><span>Demo<span class="sub">Free play credits</span></span><span class="amt" id="amt-demo">0.00</span></button>
+              <button class="btn small ghost refill" id="refill">Get free demo credits</button>
+            </div>
+          </div>
+          <span id="balance-sol" style="display:none"></span>
+        </div>
+        <div class="top-right" id="userbox"></div>
+      </header>
+      <main id="app"></main>
+      <footer class="site-foot">
+        <div><span class="age">18+</span>Royal Edge. Play responsibly. Gambling can be addictive.</div>
+        <div class="muted">Results are generated on our servers with a cryptographic RNG.</div>
+      </footer>
     </div>
-    <div class="userbox" id="userbox"></div>
-  </header>
-  <div class="disclaimer">18+ only. Gamble responsibly — the house edge means you will lose over time. Never deposit more than you can afford to lose.</div>
-  <main id="app"></main>
+  </div>
+  <nav class="bottom-nav" id="bottom-nav">
+    <a href="#lobby" data-i="home">Lobby</a>
+    <a href="#cat-originals" data-i="zap">Originals</a>
+    <a href="#wallet" data-i="wallet">Wallet</a>
+    <a href="#referrals" data-i="users">Refer</a>
+    <a href="#account" data-i="user">Account</a>
+  </nav>
   <div id="toasts"></div>
 
   <script src="js/lib.js"></script>

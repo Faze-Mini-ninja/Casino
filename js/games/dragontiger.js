@@ -15,9 +15,9 @@
       const btn = h('button', { class: 'btn big', onclick: () => deal() }, 'DEAL');
       root.appendChild(h('div', null,
         h('div', { class: 'felt dt' },
-          h('div', { class: 'dt-side' }, h('div', { class: 'dt-title drag' }, '🐉 DRAGON'), dEl, sp('dragon', 'DRAGON', '1:1', 'big drag'), h('div', { class: 'dt-two' }, sp('dOdd', 'Odd', '1:1'), sp('dEven', 'Even', '1:1'))),
+          h('div', { class: 'dt-side' }, h('div', { class: 'dt-title drag' }, 'DRAGON'), dEl, sp('dragon', 'DRAGON', '1:1', 'big drag'), h('div', { class: 'dt-two' }, sp('dOdd', 'Odd', '1:1'), sp('dEven', 'Even', '1:1'))),
           h('div', { class: 'dt-mid' }, sp('tie', 'TIE', '8:1', 'big tie'), sp('suitedTie', 'SUITED TIE', '50:1')),
-          h('div', { class: 'dt-side' }, h('div', { class: 'dt-title tig' }, '🐯 TIGER'), tEl, sp('tiger', 'TIGER', '1:1', 'big tig'), h('div', { class: 'dt-two' }, sp('tOdd', 'Odd', '1:1'), sp('tEven', 'Even', '1:1')))),
+          h('div', { class: 'dt-side' }, h('div', { class: 'dt-title tig' }, 'TIGER'), tEl, sp('tiger', 'TIGER', '1:1', 'big tig'), h('div', { class: 'dt-two' }, sp('tOdd', 'Odd', '1:1'), sp('tEven', 'Even', '1:1')))),
         h('div', { class: 'stage', style: 'min-height:0' }, msg.el, btn, hist), T.bar));
       async function deal() {
         if (busy || !T.ready()) return;
