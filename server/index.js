@@ -12,6 +12,11 @@ const pay = require('./payments');
 const { hotWallet } = require('./wallet');
 const referrals = require('./referrals');
 
+/* ---------- schema additions: disabled accounts, admin audit log ---------- */
+try { q('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0').run(); } catch { /* exists */ }
+require('./db').db.exec('CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY, admin_id INTEGER NOT NULL, action TEXT NOT NULL, target_id INTEGER, detail TEXT, ts INTEGER NOT NULL)');
+const audit = (admin, action, target, detail) => q('INSERT INTO admin_log (admin_id, action, target_id, detail, ts) VALUES (?,?,?,?,?)').run(admin.id, action, target ?? null, detail || '', Date.now());
+
 /* ---------- auth ---------- */
 const hash = (pw, salt) => crypto.scryptSync(pw, salt, 64, { N: 16384 }).toString('hex');
 const SESSION_DAYS = 30;
@@ -24,7 +29,7 @@ function userFrom(req) {
   const m = /(?:^|;\s*)sid=([0-9a-f]{64})/.exec(req.headers.cookie || '');
   if (!m) return null;
   const s = q('SELECT * FROM sessions WHERE token = ? AND expires > ?').get(m[1], Date.now());
-  return s ? q('SELECT id, username, role, created FROM users WHERE id = ?').get(s.user_id) : null;
+  return s ? q('SELECT id, username, role, created FROM users WHERE id = ? AND disabled = 0').get(s.user_id) || null : null;
 }
 
 /* ---------- rate limiting ---------- */
@@ -81,6 +86,7 @@ const routes = {
     const u = q('SELECT * FROM users WHERE username = ?').get(String(body.username || '').trim());
     const ok = u && crypto.timingSafeEqual(Buffer.from(hash(String(body.password || ''), u.salt), 'hex'), Buffer.from(u.pass_hash, 'hex'));
     need(ok, 401, 'Wrong username or password');
+    need(!u.disabled, 403, 'This account has been disabled');
     createSession(res, u.id);
     return me(u);
   },
@@ -161,6 +167,62 @@ const routes = {
       playerBalancesSol: solOf(liab), days, house, sweeps: q('SELECT s.*, a.address FROM sweeps s JOIN deposit_addresses a ON a.id = s.address_id ORDER BY s.id DESC LIMIT 20').all().map((s) => ({ ...s, sol: s.lamports / 1e9 })),
       watcher: pay.watcherStatus(), users: q('SELECT COUNT(*) n FROM users').get().n,
       referrals: (() => { const t = referrals.totals(); return { share: referrals.SHARE, referredPlayers: t.referred, pendingSol: solOf(t.pending / 1000), paidSol: solOf(t.paid / 1000) }; })() };
+  },
+  /* ----- admin: user management ----- */
+  'GET /api/admin/users': async (req, res, body, ip, u, url) => {
+    need(u && u.role === 'admin', 403, 'Admins only');
+    const term = '%' + String(url.searchParams.get('q') || '').trim() + '%';
+    const rows = q(`SELECT u.id, u.username, u.role, u.demo_units, u.real_units, u.created, u.disabled, r.username AS referrer,
+      (SELECT COALESCE(SUM(c.lamports),0) FROM chain_txs c WHERE c.user_id = u.id AND c.kind = 'deposit') AS dep_lamports
+      FROM users u LEFT JOIN users r ON r.id = u.referred_by WHERE u.username LIKE ? ORDER BY u.id DESC LIMIT 100`).all(term);
+    const log = q('SELECT l.*, a.username AS admin, t.username AS target FROM admin_log l JOIN users a ON a.id = l.admin_id LEFT JOIN users t ON t.id = l.target_id ORDER BY l.id DESC LIMIT 30').all();
+    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), realSol: solOf(x.real_units), created: x.created, disabled: !!x.disabled, referrer: x.referrer, depositedSol: x.dep_lamports / 1e9 })), log };
+  },
+  'POST /api/admin/users/create': async (req, res, body, ip, u) => {
+    need(u && u.role === 'admin', 403, 'Admins only');
+    const username = String(body.username || '').trim(), password = String(body.password || '');
+    need(/^[A-Za-z0-9_]{3,20}$/.test(username), 400, 'Username: 3–20 letters, numbers or _');
+    need(password.length >= 8 && password.length <= 200, 400, 'Password must be at least 8 characters');
+    need(!q('SELECT 1 FROM users WHERE username = ?').get(username), 409, 'That username is taken');
+    const demo = Math.round(Number(body.demo ?? cfg.DEMO_START_CREDITS) * 100), real = Math.round(Number(body.real || 0) * 100);
+    need(Number.isInteger(demo) && demo >= 0 && Number.isInteger(real) && real >= 0, 400, 'Balances must be 0 or more');
+    const salt = crypto.randomBytes(16).toString('hex');
+    const id = tx(() => {
+      const uid = Number(q("INSERT INTO users (username, pass_hash, salt, role, created, ref_code) VALUES (?,?,?,'player',?,?)").run(username, hash(password, salt), salt, Date.now(), referrals.newCode()).lastInsertRowid);
+      credit(uid, 'demo', demo, 'admin-create', 'admin:' + u.username); credit(uid, 'real', real, 'admin-create', 'admin:' + u.username);
+      audit(u, 'create-user', uid, `demo ${demo / 100}, real ${real / 100}`);
+      return uid;
+    });
+    return { ok: true, id };
+  },
+  'POST /api/admin/users/adjust': async (req, res, body, ip, u) => {
+    need(u && u.role === 'admin', 403, 'Admins only');
+    const t = q('SELECT * FROM users WHERE id = ?').get(Number(body.id)); need(t, 404, 'User not found');
+    need(body.mode === 'demo' || body.mode === 'real', 400, 'Choose demo or real');
+    const units = Math.round(Number(body.amount) * 100);
+    need(Number.isInteger(units) && units !== 0 && Math.abs(units) <= 1e12, 400, 'Enter a non-zero amount');
+    const note = String(body.note || '').slice(0, 200);
+    try {
+      tx(() => { (units > 0 ? credit : (a, m, x, r, f) => require('./db').debit(a, m, x, r, f))(t.id, body.mode, Math.abs(units), units > 0 ? 'admin-credit' : 'admin-debit', 'admin:' + u.username + (note ? ': ' + note : ''));
+        audit(u, units > 0 ? 'add-balance' : 'remove-balance', t.id, `${body.mode} ${units / 100}${note ? ' — ' + note : ''}`); });
+    } catch (e) { if (e instanceof BalanceError) throw new HttpError(400, 'That would make the balance negative'); throw e; }
+    return { ok: true, balances: balances(t.id) };
+  },
+  'POST /api/admin/users/password': async (req, res, body, ip, u) => {
+    need(u && u.role === 'admin', 403, 'Admins only');
+    const t = q('SELECT * FROM users WHERE id = ?').get(Number(body.id)); need(t, 404, 'User not found');
+    const pw = String(body.password || ''); need(pw.length >= 8 && pw.length <= 200, 400, 'Password must be at least 8 characters');
+    const salt = crypto.randomBytes(16).toString('hex');
+    tx(() => { q('UPDATE users SET pass_hash = ?, salt = ? WHERE id = ?').run(hash(pw, salt), salt, t.id); q('DELETE FROM sessions WHERE user_id = ?').run(t.id); audit(u, 'reset-password', t.id, ''); });
+    return { ok: true };
+  },
+  'POST /api/admin/users/disable': async (req, res, body, ip, u) => {
+    need(u && u.role === 'admin', 403, 'Admins only');
+    const t = q('SELECT * FROM users WHERE id = ?').get(Number(body.id)); need(t, 404, 'User not found');
+    need(t.id !== u.id, 400, 'You cannot disable your own account');
+    const off = body.disabled ? 1 : 0;
+    tx(() => { q('UPDATE users SET disabled = ? WHERE id = ?').run(off, t.id); if (off) q('DELETE FROM sessions WHERE user_id = ?').run(t.id); audit(u, off ? 'disable' : 'enable', t.id, ''); });
+    return { ok: true };
   },
   'GET /api/admin/withdrawals': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');

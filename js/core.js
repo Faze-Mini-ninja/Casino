@@ -378,29 +378,103 @@
     return wrap;
   }
 
+  let adminTab = 'users';
   async function adminPage() {
-    const wrap = h('div', { class: 'panel' }, h('p', { class: 'muted' }, 'Loading…'));
-    const [o, ws] = await Promise.all([C.try(() => C.api('GET', '/api/admin/overview')), C.try(() => C.api('GET', '/api/admin/withdrawals'))]);
+    const wrap = h('div', { class: 'wallet-page' }, h('p', { class: 'muted' }, 'Loading…'));
+    const [o, ws, us] = await Promise.all([C.try(() => C.api('GET', '/api/admin/overview')), C.try(() => C.api('GET', '/api/admin/withdrawals')), C.try(() => C.api('GET', '/api/admin/users'))]);
     wrap.innerHTML = '';
-    if (!o || !ws) return wrap;
-    const act = async (id, action) => { if (await C.try(() => C.api('POST', '/api/admin/withdrawal', { id, action }))) { C.toast('Done', 'win'); route(); } };
+    if (!o || !ws || !us) return wrap;
     const tbl = (cols, rows) => (rows.length ? h('table', { class: 'data' }, h('tr', null, cols.map((c) => h('th', null, c))), rows) : h('p', { class: 'muted' }, 'None.'));
-    wrap.append(h('h2', null, 'Admin'),
-      h('div', { class: 'kpis' }, kpi('Network', o.cluster), kpi('Hot wallet', typeof o.hotSol === 'number' ? C.fmtSol(o.hotSol) + ' SOL' : 'unavailable'), kpi('Player balances (liability)', C.fmtSol(o.playerBalancesSol) + ' SOL'), kpi('Users', o.users), kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.fmtSol(o.referrals.pendingSol)} owed · ${C.fmtSol(o.referrals.paidSol)} paid SOL`),
-        kpi('Watcher', o.watcher.lastError ? 'error' : o.watcher.lastRun ? 'ok ' + new Date(o.watcher.lastRun).toLocaleTimeString() : 'not run')),
-      o.watcher.lastError ? h('div', { class: 'notice err' }, 'Cannot reach Solana RPC: ' + o.watcher.lastError) : null,
-      typeof o.hotSol === 'string' ? h('div', { class: 'notice err small' }, o.hotSol) : null,
-      h('p', { class: 'muted small' }, 'Hot wallet: ', h('span', { class: 'mono' }, o.hotWallet), h('br'), 'Treasury: ', h('span', { class: 'mono' }, o.treasury), ` — sweeps go to the hot wallet until it holds ${o.hotFloatSol} SOL, then to treasury.`),
-      h('h3', null, 'Withdrawals'),
-      tbl(['#', 'User', 'SOL', 'To', 'Status', 'Actions'], ws.withdrawals.map((x) => h('tr', null, h('td', null, x.id), h('td', null, x.username), h('td', null, C.fmtSol(x.sol)), h('td', { class: 'mono' }, x.dest.slice(0, 6) + '…' + x.dest.slice(-4)),
+    const short = (a) => a.slice(0, 6) + '…' + a.slice(-4);
+    const body = h('div', { class: 'wallet-page' });
+    const tabs = h('div', { class: 'tabs' }, [['users', 'Users', 'users'], ['overview', 'Overview', 'chart'], ['withdrawals', 'Withdrawals', 'wallet'], ['log', 'Admin log', 'clock']].map(([k, v, ic]) =>
+      h('button', { class: 'tab' + (adminTab === k ? ' sel' : ''), onclick: () => { adminTab = k; route(); } }, C.icon(ic), v, k === 'withdrawals' && ws.withdrawals.some((x) => x.status === 'pending') ? h('span', { class: 'badge' }, String(ws.withdrawals.filter((x) => x.status === 'pending').length)) : null)));
+    wrap.append(h('div', { class: 'admin-head' }, h('h2', null, 'Admin'), tabs), body);
+
+    if (adminTab === 'users') {
+      // create account
+      const nu = h('input', { placeholder: 'Username' }), np = h('input', { placeholder: 'Password (8+)', type: 'text', autocomplete: 'off' });
+      const nd = h('input', { type: 'number', step: '0.01', min: '0', value: '10000', placeholder: 'Demo credits' }), nr = h('input', { type: 'number', step: '0.01', min: '0', value: '0', placeholder: 'Real credits' });
+      const createBtn = h('button', { class: 'btn', onclick: async () => {
+        createBtn.disabled = true;
+        const r = await C.try(() => C.api('POST', '/api/admin/users/create', { username: nu.value.trim(), password: np.value, demo: +nd.value, real: +nr.value }));
+        createBtn.disabled = false; if (r) { C.toast(`Account ${nu.value.trim()} created`, 'win'); route(); }
+      } }, 'Create account');
+      // search + table
+      const search = h('input', { placeholder: 'Search users…', style: 'width:100%' });
+      const list = h('div');
+      const editor = h('div');
+      const paintList = (users) => {
+        list.innerHTML = '';
+        list.append(tbl(['User', 'Demo', 'Real (credits)', 'Real (SOL)', 'Deposited', 'Referred by', 'Joined', ''], users.map((x) => h('tr', { class: x.disabled ? 'off' : '' },
+          h('td', null, h('b', null, x.username), x.role === 'admin' ? h('span', { class: 'tag-s approved', style: 'margin-left:6px' }, 'admin') : null, x.disabled ? h('span', { class: 'tag-s failed', style: 'margin-left:6px' }, 'disabled') : null),
+          h('td', null, C.fmt(x.demo)), h('td', null, C.fmt(x.real)), h('td', null, C.fmtSol(x.realSol)), h('td', null, x.depositedSol ? C.fmtSol(x.depositedSol) + ' SOL' : '—'),
+          h('td', { class: 'muted' }, x.referrer || '—'), h('td', { class: 'muted' }, new Date(x.created).toLocaleDateString()),
+          h('td', null, h('button', { class: 'btn small ghost', onclick: () => openEditor(x) }, 'Manage'))))));
+      };
+      function openEditor(x) {
+        const amt = h('input', { type: 'number', step: '0.01', placeholder: 'Amount (credits)' });
+        const mode = h('select', null, h('option', { value: 'real' }, 'Real balance (SOL)'), h('option', { value: 'demo' }, 'Demo balance'));
+        const note = h('input', { placeholder: 'Note (optional, saved in the log)' });
+        const solHint = h('div', { class: 'sol-hint' });
+        const upd = () => { solHint.textContent = mode.value === 'real' && +amt.value ? `≈ ${C.fmtSol(C.solOf(Math.abs(+amt.value)))} SOL` : ''; };
+        amt.oninput = upd; mode.onchange = upd;
+        const adjust = async (sign) => {
+          const a = Math.abs(+amt.value); if (!a) return C.toast('Enter an amount', 'err');
+          const r = await C.try(() => C.api('POST', '/api/admin/users/adjust', { id: x.id, mode: mode.value, amount: sign * a, note: note.value }));
+          if (r) { C.toast(`${sign > 0 ? 'Added' : 'Removed'} ${C.fmt(a)} ${mode.value} credits ${sign > 0 ? 'to' : 'from'} ${x.username}`, 'win'); if (x.id === S.user.id) setUnits(r.balances); route(); }
+        };
+        const pw = h('input', { placeholder: 'New password (8+)', type: 'text', autocomplete: 'off' });
+        editor.innerHTML = '';
+        editor.append(h('div', { class: 'panel editor' },
+          h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, `Manage ${x.username}`), h('button', { class: 'btn small ghost', onclick: () => (editor.innerHTML = '') }, 'Close')),
+          h('div', { class: 'muted small' }, `Demo ${C.fmt(x.demo)} · Real ${C.fmt(x.real)} credits (${C.fmtSol(x.realSol)} SOL)`),
+          h('div', { class: 'ed-grid' },
+            h('div', { class: 'field' }, h('label', null, 'Wallet'), mode), h('div', { class: 'field' }, h('label', null, 'Amount (credits)'), amt, solHint), h('div', { class: 'field' }, h('label', null, 'Note'), note)),
+          h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => adjust(1) }, 'Add balance'), h('button', { class: 'btn red', onclick: () => adjust(-1) }, 'Remove balance')),
+          h('div', { class: 'muted small' }, 'Real balance can be withdrawn as SOL from the hot wallet. Every change is written to the ledger and the admin log.'),
+          h('hr'),
+          h('div', { class: 'row' }, pw, h('button', { class: 'btn small ghost', onclick: async () => { if (await C.try(() => C.api('POST', '/api/admin/users/password', { id: x.id, password: pw.value }))) { C.toast('Password reset — user signed out everywhere', 'win'); pw.value = ''; } } }, 'Reset password'),
+            x.id !== S.user.id ? h('button', { class: 'btn small ' + (x.disabled ? '' : 'red'), onclick: async () => { if (await C.try(() => C.api('POST', '/api/admin/users/disable', { id: x.id, disabled: !x.disabled }))) { C.toast(x.disabled ? 'Account enabled' : 'Account disabled', 'win'); route(); } } }, x.disabled ? 'Enable account' : 'Disable account') : null)));
+        editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      let t;
+      search.oninput = () => { clearTimeout(t); t = setTimeout(async () => { const r = await C.try(() => C.api('GET', '/api/admin/users?q=' + encodeURIComponent(search.value))); if (r) paintList(r.users); }, 250); };
+      paintList(us.users);
+      body.append(
+        h('div', { class: 'panel' }, h('h3', null, 'Create account'), h('div', { class: 'ed-grid c4' },
+          h('div', { class: 'field' }, h('label', null, 'Username'), nu), h('div', { class: 'field' }, h('label', null, 'Password'), np),
+          h('div', { class: 'field' }, h('label', null, 'Demo credits'), nd), h('div', { class: 'field' }, h('label', null, 'Real credits'), nr)), h('div', { class: 'row', style: 'margin-top:12px' }, createBtn,
+          h('span', { class: 'muted small' }, `1 SOL = ${(S.config.creditsPerSol || 1000).toLocaleString()} credits`))),
+        editor,
+        h('div', { class: 'panel' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' }, h('h3', { style: 'margin:0' }, `Users (${us.users.length})`), h('div', { style: 'width:min(320px,100%)' }, search)), h('div', { class: 'tbl-wrap' }, list)));
+    }
+
+    if (adminTab === 'overview') {
+      body.append(
+        h('div', { class: 'kpis' }, kpi('Network', o.cluster), kpi('Hot wallet', typeof o.hotSol === 'number' ? C.fmtSol(o.hotSol) + ' SOL' : 'unavailable'), kpi('Player balances (owed)', C.fmtSol(o.playerBalancesSol) + ' SOL'), kpi('Users', o.users),
+          kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.fmtSol(o.referrals.pendingSol)} owed · ${C.fmtSol(o.referrals.paidSol)} paid`),
+          kpi('Watcher', o.watcher.lastError ? 'error' : o.watcher.lastRun ? 'ok ' + new Date(o.watcher.lastRun).toLocaleTimeString() : 'not run')),
+        o.watcher.lastError ? h('div', { class: 'notice err' }, 'Cannot reach Solana RPC: ' + o.watcher.lastError) : null,
+        h('div', { class: 'panel' }, h('p', { class: 'muted small', style: 'margin-top:0' }, 'Hot wallet: ', h('span', { class: 'mono' }, o.hotWallet), h('br'), 'Treasury: ', h('span', { class: 'mono' }, o.treasury), ` — sweeps fill the hot wallet up to ${o.hotFloatSol} SOL, then go to treasury.`),
+          h('h3', null, 'Daily deposit wallets'),
+          tbl(['Day (UTC)', 'Addresses issued', 'Deposits', 'SOL in'], o.days.map((d) => h('tr', null, h('td', null, d.day), h('td', null, d.addresses), h('td', null, d.deposits), h('td', null, C.fmtSol(d.sol))))),
+          h('h3', { style: 'margin-top:18px' }, 'Recent sweeps'),
+          tbl(['Time', 'From', 'SOL', 'To', 'Status'], o.sweeps.map((s) => h('tr', null, h('td', null, new Date(s.ts).toLocaleString()), h('td', { class: 'mono' }, short(s.address)), h('td', null, C.fmtSol(s.sol)), h('td', { class: 'mono' }, short(s.dest)), h('td', null, s.status)))),
+          h('h3', { style: 'margin-top:18px' }, 'House results (real money)'),
+          tbl(['Game', 'Rounds', 'Wagered SOL', 'Paid SOL', 'House SOL'], o.house.map((r) => h('tr', null, h('td', null, names()[r.game] || r.game), h('td', null, r.rounds), h('td', null, C.fmtSol(r.wageredSol)), h('td', null, C.fmtSol(r.paidSol)), h('td', { class: r.houseSol >= 0 ? 'pos' : 'neg' }, C.fmtSol(r.houseSol)))))));
+    }
+
+    if (adminTab === 'withdrawals') {
+      const act = async (id, action) => { if (await C.try(() => C.api('POST', '/api/admin/withdrawal', { id, action }))) { C.toast('Done', 'win'); route(); } };
+      body.append(h('div', { class: 'panel' }, tbl(['#', 'User', 'SOL', 'To', 'Requested', 'Status', 'Actions'], ws.withdrawals.map((x) => h('tr', null, h('td', null, x.id), h('td', null, x.username), h('td', null, C.fmtSol(x.sol)), h('td', { class: 'mono' }, short(x.dest)), h('td', { class: 'muted' }, new Date(x.created).toLocaleString()),
         h('td', null, h('span', { class: 'tag-s ' + x.status }, x.status), x.note ? h('div', { class: 'muted small' }, x.note) : null),
-        h('td', null, x.status === 'pending' ? h('button', { class: 'btn small green', onclick: () => act(x.id, 'approve') }, 'Approve') : null, ' ', ['pending', 'approved'].includes(x.status) ? h('button', { class: 'btn small red', onclick: () => act(x.id, 'reject') }, 'Reject') : null)))),
-      h('h3', null, 'Daily deposit wallets'),
-      tbl(['Day (UTC)', 'Addresses issued', 'Deposits', 'SOL in'], o.days.map((d) => h('tr', null, h('td', null, d.day), h('td', null, d.addresses), h('td', null, d.deposits), h('td', null, C.fmtSol(d.sol))))),
-      h('h3', null, 'Recent sweeps'),
-      tbl(['Time', 'From', 'SOL', 'To', 'Status'], o.sweeps.map((s) => h('tr', null, h('td', null, new Date(s.ts).toLocaleString()), h('td', { class: 'mono' }, s.address.slice(0, 6) + '…'), h('td', null, C.fmtSol(s.sol)), h('td', { class: 'mono' }, s.dest.slice(0, 6) + '…'), h('td', null, s.status)))),
-      h('h3', null, 'House results (real money)'),
-      tbl(['Game', 'Rounds', 'Wagered SOL', 'Paid SOL', 'House SOL'], o.house.map((r) => h('tr', null, h('td', null, names()[r.game] || r.game), h('td', null, r.rounds), h('td', null, C.fmtSol(r.wageredSol)), h('td', null, C.fmtSol(r.paidSol)), h('td', { class: r.houseSol >= 0 ? 'pos' : 'neg' }, C.fmtSol(r.houseSol))))));
+        h('td', null, x.status === 'pending' ? h('button', { class: 'btn small', onclick: () => act(x.id, 'approve') }, 'Approve') : null, ' ', ['pending', 'approved'].includes(x.status) ? h('button', { class: 'btn small red', onclick: () => act(x.id, 'reject') }, 'Reject') : null))))));
+    }
+
+    if (adminTab === 'log') {
+      body.append(h('div', { class: 'panel' }, tbl(['Time', 'Admin', 'Action', 'User', 'Details'], us.log.map((l) => h('tr', null, h('td', { class: 'muted' }, new Date(l.ts).toLocaleString()), h('td', null, l.admin), h('td', null, l.action), h('td', null, l.target || '—'), h('td', { class: 'muted' }, l.detail))))));
+    }
     return wrap;
   }
 

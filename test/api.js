@@ -96,6 +96,22 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
   cookie = ''; r = await api('POST', '/api/login', { username: 'owner', password: 'owner-password-1' });
   ok(r.user && r.user.role === 'admin', 'configured admin can sign in');
   ok((await api('GET', '/api/admin/overview'))._status === 200, 'admin sees admin overview');
+  // admin user management
+  ok((await api('POST', '/api/admin/users/create', { username: 'Brandon', password: 'brandon123', demo: 10000, real: 10000 })).ok, 'admin creates Brandon with 10,000 real credits');
+  const bl = (await api('GET', '/api/admin/users?q=Brandon')).users[0];
+  ok(bl && bl.real === 10000 && bl.demo === 10000 && bl.realSol === 10, 'Brandon has 10,000 real (10 SOL) + 10,000 demo');
+  ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'real', amount: 250, note: 'test top-up' })).balances.real === 1025000, 'admin adds 250 real credits');
+  ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'real', amount: -999999 }))._status === 400, 'cannot remove more than the balance');
+  ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'demo', amount: -500 })).balances.demo === 950000, 'admin removes 500 demo credits');
+  ok((await api('GET', '/api/admin/users')).log.some((l) => l.action === 'add-balance' && l.target === 'Brandon'), 'balance changes are in the admin log');
+  const { q: qq } = require('../server/db');
+  ok(qq("SELECT SUM(delta) s FROM ledger WHERE user_id = ? AND mode = 'real'").get(bl.id).s === 1025000, 'Brandon real ledger reconciles');
+  ok((await api('POST', '/api/admin/users/disable', { id: bl.id, disabled: true })).ok, 'admin disables Brandon');
+  const saved = cookie; cookie = '';
+  ok((await api('POST', '/api/login', { username: 'Brandon', password: 'brandon123' }))._status === 403, 'disabled account cannot sign in');
+  cookie = saved; await api('POST', '/api/admin/users/disable', { id: bl.id, disabled: false });
+  cookie = ''; ok((await api('POST', '/api/login', { username: 'Brandon', password: 'brandon123' })).balances.real === 1025000, 'Brandon signs in after re-enable');
+  ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'real', amount: 100 }))._status === 403, 'players cannot use admin tools');
   server.close(); fs.rmSync(dir, { recursive: true, force: true });
   console.log(fails ? `API TEST FAILED (${fails})` : 'API TEST OK'); process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

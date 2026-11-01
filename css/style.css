@@ -320,3 +320,13 @@ button, .spot, .chip, .mtile, .kcell, .tile, canvas, .card.clickable { touch-act
 .side .controls.side-action .btn, .side > .btn.big.side-action { width: 100%; min-width: 0; }
 .side .btn.ghost, .side .btn.small.ghost { background: var(--panel3); } .side .btn.ghost:hover { background: #2c4660; }
 body .crash-cv { background: var(--bg); }
+.admin-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.admin-head h2 { margin: 0; }
+.badge { background: var(--red); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 800; padding: 1px 6px; margin-left: 4px; }
+.ed-grid { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; margin: 12px 0; }
+.ed-grid.c4 { grid-template-columns: repeat(4, 1fr); }
+.editor { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--brand); }
+.editor hr { border: 0; border-top: 1px solid var(--line); width: 100%; margin: 8px 0; }
+.tbl-wrap { overflow-x: auto; }
+table.data tr.off td { opacity: .5; }
+@media (max-width: 900px) { .ed-grid, .ed-grid.c4 { grid-template-columns: 1fr; } }
