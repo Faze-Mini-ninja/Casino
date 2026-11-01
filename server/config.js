@@ -58,7 +58,7 @@ module.exports = {
   PLAY_RATE_PER_5S: num('PLAY_RATE_PER_5S', 40), // max game actions per player per 5 seconds
   ADMIN_USERNAME: env('ADMIN_USERNAME', ''), // this account is created/updated at startup and is the admin
   ADMIN_PASSWORD: env('ADMIN_PASSWORD', ''),
-  REFERRAL_SHARE: num('REFERRAL_SHARE', 0.25), // referrers earn this share of the house's expected profit on referrals' real bets (max 0.5)
+  REFERRAL_SHARE: num('REFERRAL_SHARE', 0.15), // referrers earn this share of the house's expected profit on referrals' real bets (max 0.5)
   SHOW_ODDS: env('SHOW_ODDS', 'false') === 'true', // show house edges / RTP / win probabilities to players
   TRUST_PROXY: env('TRUST_PROXY', 'false') === 'true', // set true behind a reverse proxy (for per-IP rate limits)
   COOKIE_SECURE: env('COOKIE_SECURE', cluster === 'mainnet-beta' ? 'true' : 'false') === 'true',

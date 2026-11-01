@@ -33,7 +33,7 @@ probabilities or "1 in X" odds, and the House Edges page is hidden. Set `SHOW_OD
 ### Referrals
 Every account has a referral link (`…/#ref-CODE`) on the **Refer & Earn** page. Players who sign up through it,
 or enter the code before their first real-money bet, are linked to the referrer for good.
-The referrer earns `REFERRAL_SHARE` (default 25%, max 50%) of the house's **theoretical** profit on those players'
+The referrer earns `REFERRAL_SHARE` (default 15%, max 50%) of the house's **theoretical** profit on those players'
 real-money bets: stake × that bet's house edge. It's paid win or lose, so it doesn't swing with luck. Hold'em pays a
 share of the rake the player contributed to. Commission builds up and is claimed into the referrer's real balance in one click.
 Every edge used is exact or slightly under, so referring your own second account only earns back part of the
