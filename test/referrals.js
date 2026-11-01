@@ -2,7 +2,7 @@
 'use strict';
 const os = require('os'), path = require('path'), fs = require('fs');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'casino-ref-'));
-Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PLAY_RATE_PER_5S: '100000', REFERRAL_SHARE: '0.15' });
+Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PLAY_RATE_PER_5S: '100000', REFERRAL_SHARE: '0.10' });
 const { server } = require('../server/index.js');
 const { q, credit } = require('../server/db');
 const { theoOf } = require('../server/theo');
@@ -21,7 +21,7 @@ function client() {
   const A = client(), B = client(), X = client();
   await A('POST', '/api/register', { username: 'alice', password: 'password123' });
   const ra = await A('GET', '/api/referrals');
-  ok(/^[A-Z2-9]{7}$/.test(ra.code) && ra.share === 0.15, 'referrer gets a 7-character code, share 15%');
+  ok(/^[A-Z2-9]{7}$/.test(ra.code) && ra.share === 0.1, 'referrer gets a 7-character code, share 10%');
   ok((await X('POST', '/api/register', { username: 'xx1', password: 'password123', refCode: 'NOPE123' }))._status === 400, 'unknown code rejected at sign-up');
   await B('POST', '/api/register', { username: 'bob', password: 'password123', refCode: ra.code.toLowerCase() });
   ok((await B('GET', '/api/referrals')).referredBy === 'alice', 'bob is linked to alice (code is case-insensitive)');
@@ -44,15 +44,15 @@ function client() {
   for (let k = 0; k < 15; k++) for (const [game, action, params] of plays) {
     const r = await B('POST', '/api/play', { game, action, params, mode: 'real' });
     if (r._status !== 200) { ok(false, game + ': ' + r.error); continue; }
-    expected += Math.floor(theoOf(game, params, Math.round(r.wager * 100)) * 0.15 * 1000);
+    expected += Math.floor(theoOf(game, params, Math.round(r.wager * 100)) * 0.1 * 1000);
   }
   // a multi-step round (blackjack with side bets) also accrues at settlement
   let r = await B('POST', '/api/play', { game: 'blackjack', action: 'start', params: { bet: 10, pp: 2, t3: 2 }, mode: 'real' });
   while (!r.done) r = await B('POST', '/api/play', { game: 'blackjack', action: 'stand', params: {}, mode: 'real' });
-  expected += Math.floor(theoOf('blackjack', { bet: 10, pp: 2, t3: 2 }, Math.round(r.wager * 100)) * 0.15 * 1000);
+  expected += Math.floor(theoOf('blackjack', { bet: 10, pp: 2, t3: 2 }, Math.round(r.wager * 100)) * 0.1 * 1000);
   const ref = await A('GET', '/api/referrals');
   const pendingMilli = q("SELECT ref_pending_milli m FROM users WHERE username = 'alice'").get().m;
-  ok(pendingMilli === expected, `commission = 15% of theoretical profit (${pendingMilli} vs ${expected} milli-units)`);
+  ok(pendingMilli === expected, `commission = 10% of theoretical profit (${pendingMilli} vs ${expected} milli-units)`);
   ok(ref.referrals.length === 1 && ref.referrals[0].name !== 'bob' && ref.referrals[0].rounds === 121, 'referral list shows masked name and round count');
   ok((await B('POST', '/api/referrals/code', { code: ra.code }))._status === 400, 'cannot add a code after real-money play');
 
