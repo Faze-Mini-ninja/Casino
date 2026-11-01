@@ -40,5 +40,5 @@
   };
   // Newer games keep player-facing rules (no edges or probabilities) in their own definition.
   Casino.HOWTO_FROM_RULES = new Set(['pump', 'penalty', 'darts', 'race', 'cups', 'rps', 'redblack', 'colors', 'miniroulette', 'andarbahar', 'chuckaluck', 'crownanchor', 'uo7', 'duel',
-    'casinoholdem', 'pokerdice', 'fruits', 'gems', 'sevens', 'pick3']);
+    'casinoholdem', 'pokerdice', 'pick3', ...Lib.SLOT_IDS]);
 })();

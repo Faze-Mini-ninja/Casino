@@ -98,6 +98,9 @@
     scissors() { return svg('<circle cx="28" cy="74" r="14" fill="none" stroke="#e53935" stroke-width="7"/><circle cx="72" cy="74" r="14" fill="none" stroke="#e53935" stroke-width="7"/><path d="M36 64 L76 8 M64 64 L24 8" stroke="#90a4ae" stroke-width="7" stroke-linecap="round"/><circle cx="50" cy="40" r="4" fill="#455a64"/>'); },
   };
   C.art = (name, ...args) => (A[name] ? A[name](...args) : '');
+  C.hasArt = (name) => !!A[name];
+  C.addArt = (more) => Object.assign(A, more);
+  C.artKit = { id, lg, rg, svg, shine, gem };
   C.artEl = (name, cls = '', ...args) => { const s = document.createElement('span'); s.className = 'artw ' + cls; s.innerHTML = C.art(name, ...args); return s; };
   /** Rasterised copy for canvas drawing (cached). */
   const imgs = {};

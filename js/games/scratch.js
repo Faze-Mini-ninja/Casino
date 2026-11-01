@@ -15,7 +15,7 @@
       const grid = h('div', { class: 'sc-grid' });
       const cv = h('canvas', { width: W, height: H, class: 'sc-cover' });
       const ctx = cv.getContext('2d');
-      const ticket = h('div', { class: 'sc-ticket' }, h('div', { class: 'sc-title' }, '💰 TRIPLE TREASURE 💰'), h('div', { class: 'sc-area' }, grid, cv), h('div', { class: 'sc-sub' }, 'Match 3 amounts to win that multiplier'));
+      const ticket = h('div', { class: 'sc-ticket' }, h('div', { class: 'sc-title' }, C.artEl('coinHeads', 'sc-ic'), 'TRIPLE TREASURE', C.artEl('coinHeads', 'sc-ic')), h('div', { class: 'sc-area' }, grid, cv), h('div', { class: 'sc-sub' }, 'Match 3 amounts to win that multiplier'));
       const buyBtn = h('button', { class: 'btn big', onclick: () => buy() }, 'BUY TICKET');
       const revBtn = h('button', { class: 'btn ghost', onclick: () => reveal() }, 'Reveal all');
       root.appendChild(h('div', { class: 'layout' },
@@ -75,7 +75,7 @@
   });
   const css = document.createElement('style');
   css.textContent = `.sc-ticket{background:linear-gradient(135deg,#7b2cbf,#c33c54);padding:16px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.5);width:min(400px,100%)}
-  .sc-title{text-align:center;font-weight:900;font-size:20px;margin-bottom:10px;letter-spacing:.05em}.sc-sub{text-align:center;font-size:12px;margin-top:8px;opacity:.85}
+  .sc-title{display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Luckiest Guy','Lilita One',sans-serif;font-weight:400;font-size:24px;margin-bottom:10px;letter-spacing:.04em;color:#b71c1c}.sc-title .sc-ic{width:28px;height:28px}.sc-sub{text-align:center;font-size:12px;margin-top:8px;opacity:.85}
   .sc-area{position:relative;width:100%;aspect-ratio:1}.sc-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#fff8e1;border-radius:10px;padding:6px}
   .sc-cell{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:8px;color:#7b2cbf;font-weight:900;font-size:26px;border:2px dashed #e0c4ff}
   .sc-cell.hit{background:var(--gold);color:#000;border-color:#000;animation:pulse 1s infinite}

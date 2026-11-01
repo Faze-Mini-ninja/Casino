@@ -72,7 +72,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       if (id === 'plinko') { await clickText('DROP BALL'); await wait(2500); continue; }
       const main = page.locator('.btn.big').filter({ visible: true }).first();
       if (await main.count()) await main.click({ timeout: 2000 }).catch(() => {});
-      await wait(['roulette-us', 'roulette-eu'].includes(id) ? 4600 : id === 'bigsix' ? 5300 : id === 'bingo' ? 4000 : id === 'colors' ? 4200 : id === 'miniroulette' ? 3600 : id === 'andarbahar' ? 4200 : ['fruits', 'gems', 'sevens'].includes(id) ? 2400 : id === 'keno' ? 1800 : 1600);
+      await wait(['roulette-us', 'roulette-eu'].includes(id) ? 4600 : id === 'bigsix' ? 5300 : id === 'bingo' ? 4000 : id === 'colors' ? 4200 : id === 'miniroulette' ? 3600 : id === 'andarbahar' ? 4200 : ['fruits', 'gems', 'sevens', 'pharaoh', 'ocean', 'goldrush', 'dragon', 'candy', 'neon', 'clover', 'cosmic'].includes(id) ? 2600 : id === 'keno' ? 1800 : 1600);
     }
     await wait(300);
     await page.screenshot({ path: path.join(SHOTS, `${id}.png`) });
@@ -85,6 +85,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   if (errors.length) { console.log('ERRORS:'); errors.forEach((e) => console.log(' -', e)); }
   await browser.close(); srv.kill(); fs.rmSync(tmp, { recursive: true, force: true });
   const bad = results.filter((r) => r.errors || !r.rounds);
-  if (tiles !== 53 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
+  if (tiles !== 61 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
   console.log('SMOKE OK');
 })().catch((e) => { console.error(e); process.exit(1); });

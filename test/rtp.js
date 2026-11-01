@@ -179,7 +179,13 @@ report('Mini Roulette', 'all bets', 12 / 13, 'exact');
 { let u = 0, sv = 0, o = 0; for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) { const t = a + b; if (t < 7) u += 2 / 36; else if (t === 7) sv += 5 / 36; else o += 2 / 36; } report('Under/Over 7', 'under', u); report('Under/Over 7', 'seven', sv); report('Under/Over 7', 'over', o); }
 { const p = Array(13).fill(0); for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) p[a + b] += 1 / 36; const tie = p.reduce((s, x) => s + x * x, 0); report('Dice Duel', 'player', (1 - tie) / 2 * 2); report('Dice Duel', 'tie (7:1)', tie * 8); }
 { let r = 0; for (let i = 0; i < 7776; i++) { let x = i; const d = []; for (let k = 0; k < 5; k++) { d.push(x % 6 + 1); x = Math.floor(x / 6); } const k = L.pokerDice(d); if (k >= 0) r += L.POKERDICE[k][1] / 7776; } report('Poker Dice', 'one roll', r, 'exact'); }
-for (const id of ['fruits', 'gems', 'sevens']) report(L.SLOT_THEMES[id].name, 'all lines', L.slotTable(id).rtp, 'exact');
+for (const id of L.SLOT_IDS) {
+  const t = L.slotTable(id);
+  report(t.name, (t.mode === 'ways' ? t.rows === 4 ? '1024 ways' : '243 ways' : t.lines.length + ' lines') + (t.free ? ', incl. free spins' : ''), t.rtp, 'exact');
+  // cross-check the spin engine against the exact figure
+  const n = QUICK ? 40000 : 400000; let tot = 0; for (let i = 0; i < n; i++) tot += L.slotSpin2(id).mult;
+  const sim = tot / n; if (Math.abs(sim - t.rtp) > (QUICK ? 0.08 : 0.03)) { console.log('  SLOT ENGINE MISMATCH', id, sim, t.rtp); process.exitCode = 1; }
+}
 { // Casino Hold'em: call with pair or better / any ace / any flush or straight draw-ish simplification: call unless high card without an ace
   const n = N(4e5); let net = 0, wag = 0;
   for (let i = 0; i < n; i++) {

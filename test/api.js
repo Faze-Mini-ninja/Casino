@@ -36,7 +36,7 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
     darts: { bet: 3, risk: 'high' }, race: { bet: 4, horse: 2 }, cups: { bet: 3, cups: 5, pick: 1 }, rps: { bet: 3, hand: 'paper' }, colors: { bets: { red: 3, green: 1 } },
     pick3: { bet: 1, mode: 'box', digits: [1, 1, 7] }, miniroulette: { bets: { 'n:0': 1, red: 3, c2: 2, high: 1 } }, andarbahar: { bets: { andar: 3, bahar: 2 } },
     chuckaluck: { bets: { 3: 2, 6: 1 } }, crownanchor: { bets: { crown: 2, heart: 1 } }, uo7: { bets: { under: 2, seven: 1 } }, duel: { bets: { player: 3, tie: 1 } },
-    pokerdice: { bet: 4 }, fruits: { bet: 5 }, gems: { bet: 5 }, sevens: { bet: 5 },
+    pokerdice: { bet: 4 }, ...Object.fromEntries(require('../js/lib.js').SLOT_IDS.map((id) => [id, { bet: 5 }])),
   };
   // input validation on the new games
   ok((await play('pick3', null, { bet: 1, mode: 'box', digits: [4, 4, 4] }))._status === 400, 'pick3 box with a triple rejected');

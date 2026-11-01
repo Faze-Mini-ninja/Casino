@@ -9,7 +9,8 @@
     "test:quick": "node test/rtp.js --quick && node test/api.js && node test/referrals.js && node test/social.js",
     "test:api": "node test/api.js",
     "smoke": "node test/smoke.js",
-    "gen-seed": "node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\""
+    "gen-seed": "node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"",
+    "covers": "node tools/build-covers.js"
   },
   "license": "MIT",
   "dependencies": {

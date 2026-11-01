@@ -6,6 +6,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY index.html ./
 COPY css ./css
 COPY js ./js
+COPY fonts ./fonts
+COPY img ./img
 COPY server ./server
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080 HOST=0.0.0.0
 VOLUME /data

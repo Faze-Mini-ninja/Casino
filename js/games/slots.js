@@ -8,7 +8,7 @@
     n: 1, id: 'slots', name: 'Slots', icon: '🎰', cat: 'lottery', edge: '20.2%',
     blurb: 'Classic 3-reel fruit machine with a 200× jackpot.',
     rules: '<p>Three reels, one payline (the middle row). Line up three matching symbols, or any two cherries. Reel strips are weighted: cherries are common, 7s are rare. RTP 79.78% (exact).</p>',
-    edges: [['7️⃣ 7️⃣ 7️⃣', '200×', ''], ['⭐ ⭐ ⭐', '80×', ''], ['🔔 🔔 🔔', '40×', ''], ['🍊 🍊 🍊', '20×', ''], ['🍋 🍋 🍋', '12×', ''], ['🍒 🍒 🍒', '5×', ''], ['Any two 🍒', '1× (stake back)', ''], ['Overall', '', '20.22%']],
+    edges: [['Three 7s', '200×', ''], ['Three stars', '80×', ''], ['Three bells', '40×', ''], ['Three oranges', '20×', ''], ['Three lemons', '12×', ''], ['Three cherries', '5×', ''], ['Any two cherries', '1× (stake back)', ''], ['Overall', '', '20.22%']],
     mount(root) {
       const bet = C.betInput({ value: 10 });
       const msg = C.msg();

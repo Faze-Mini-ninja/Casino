@@ -173,11 +173,11 @@
   };
 
   /* ---------------- registry & pages ---------------- */
-  C.CATS = { table: 'Table Games', cards: 'Card & Poker', dice: 'Dice & Wheels', lottery: 'Slots & Lottery', originals: 'Originals' };
+  C.CATS = { table: 'Table Games', cards: 'Card & Poker', dice: 'Dice & Wheels', lottery: 'Lottery & Instant', slots: 'Slots', originals: 'Originals' };
   // Lobby grouping and short display names (game files keep their own detailed names)
   const RECAT = { 'roulette-us': 'table', 'roulette-eu': 'table', blackjack: 'table', baccarat: 'table', 'baccarat-tie': 'table', 'baccarat-side': 'table', craps: 'table', sicbo: 'table', bigsix: 'table', dragontiger: 'table', war: 'table',
-    videopoker: 'poker', paigow: 'poker', threecard: 'poker', caribbean: 'poker', holdem: 'poker', letitride: 'poker', slots: 'lottery', keno: 'lottery', bingo: 'lottery', scratch: 'lottery', reddog: 'table',
-    miniroulette: 'table', andarbahar: 'table', chuckaluck: 'table', crownanchor: 'table', uo7: 'table', duel: 'table', casinoholdem: 'poker', pokerdice: 'poker', fruits: 'lottery', gems: 'lottery', sevens: 'lottery', pick3: 'lottery' };
+    videopoker: 'poker', paigow: 'poker', threecard: 'poker', caribbean: 'poker', holdem: 'poker', letitride: 'poker', slots: 'slots', keno: 'lottery', bingo: 'lottery', scratch: 'lottery', reddog: 'table',
+    miniroulette: 'table', andarbahar: 'table', chuckaluck: 'table', crownanchor: 'table', uo7: 'table', duel: 'table', casinoholdem: 'poker', pokerdice: 'poker', pick3: 'lottery', ...Object.fromEntries(L.SLOT_IDS.map((id) => [id, 'slots'])) };
   const SHORT = { blackjack: 'Blackjack', 'roulette-us': 'American Roulette', 'roulette-eu': 'European Roulette', baccarat: 'Baccarat', 'baccarat-tie': 'Baccarat Tie', 'baccarat-side': 'Baccarat Bonus',
     craps: 'Craps', paigow: 'Pai Gow', bigsix: 'Big Six', threecard: 'Three Card Poker', caribbean: 'Caribbean Stud', holdem: "Hold'em", bingo: 'Bingo', scratch: 'Scratch Cards', war: 'Casino War', videopoker: 'Video Poker', reddog: 'Red Dog',
     race: 'Horse Race', rps: 'Rock Paper Scissors', redblack: 'Red or Black', miniroulette: 'Mini Roulette', andarbahar: 'Andar Bahar', crownanchor: 'Crown & Anchor', uo7: 'Under / Over 7', casinoholdem: "Casino Hold'em" };
@@ -217,6 +217,7 @@
     sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
     ticket2: '<path d="M4 4h16v12H8l-4 4z"/><path d="M8 9h8M8 12h5"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
+    slot: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16M15 4v16"/><path d="M5 12h2M11 12h2M17 12h2" stroke-width="2.4"/>',
   };
   C.icon = (name, cls = '') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'i ' + cls); s.innerHTML = ICONS[name] || ''; return s; };
   const iconize = (root = document) => root.querySelectorAll('[data-i]').forEach((el) => { if (!el.querySelector('svg')) el.prepend(C.icon(el.dataset.i)); });
@@ -226,7 +227,7 @@
     pump: '↑', penalty: '⚽', darts: '◎', race: '1st', cups: '?', rps: '✌', redblack: '♥♠', colors: '×14', miniroulette: '12', andarbahar: 'A|B', chuckaluck: '⚂', crownanchor: '♛', uo7: '7', duel: 'VS', casinoholdem: 'A♥', pokerdice: '⚄', fruits: '', gems: '', sevens: '777', pick3: '3' };
   // illustrated tiles: games whose thumbnail shows a drawn symbol instead of a glyph
   const TILE_ART = { slots: ['seven'], fruits: ['cherry'], gems: ['g-purple'], sevens: ['seven'], mines: ['gem'], crash: ['rocket'], coinflip: ['coinHeads'], tower: ['star'], cups: ['cup'], rps: ['scissors'], pump: ['balloon', '#e53935'], crownanchor: ['crown'], scratch: ['star'], penalty: ['ball'] };
-  const CAT_LABEL = { originals: 'Krush Originals', table: 'Table Games', poker: 'Poker', lottery: 'Slots & Lottery' };
+  const CAT_LABEL = { originals: 'Krush Originals', slots: 'Slots', table: 'Table Games', poker: 'Poker', lottery: 'Lottery & Instant' };
   C.hue = (g) => (g.n * 47 + 190) % 360;
   function motif(cat) {
     switch (cat) {
@@ -246,22 +247,29 @@
       ${TILE_ART[g.id] && C.art ? C.art(...TILE_ART[g.id]).replace('<svg ', '<svg x="110" y="18" width="180" height="180" ') : `<text x="280" y="120" text-anchor="end" font-family="-apple-system,Segoe UI,Arial" font-weight="900" font-size="${(GLYPH[g.id] || '').length > 2 ? 80 : 110}" fill="#fff" fill-opacity=".9" style="paint-order:stroke" stroke="rgba(0,0,0,.12)" stroke-width="6">${GLYPH[g.id] || ''}</text>`}
       <rect y="250" width="300" height="150" fill="url(#${id}s)"/><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-opacity="0"/><stop offset="1" stop-opacity=".45"/></linearGradient></svg>`;
   };
-  const tileEl = (g) => h('a', { class: 'tile' + (C.closed(g) ? ' closed' : ''), href: '#' + g.id },
-    h('div', { class: 'art', html: C.tileArt(g) }),
-    g.cat === 'originals' ? h('span', { class: 't-badge' }, 'Original') : null,
-    C.odds() ? h('span', { class: 't-edge' }, g.edge) : null,
-    h('div', { class: 't-name' }, g.short),
-    h('div', { class: 't-prov' }, 'krush.casino'),
-    C.closed(g) ? h('div', { class: 't-closed' }, 'Maintenance') : h('div', { class: 'play' }, h('span', null, C.icon('play'))));
+  /** Lobby tile: the rendered cover image (img/covers/<id>.webp); falls back to drawn art + name if the image is missing. */
+  const tileEl = (g) => {
+    const t = h('a', { class: 'tile has-cover' + (C.closed(g) ? ' closed' : ''), href: '#' + g.id, 'aria-label': g.name, title: g.name },
+      h('img', { class: 'cover', src: `img/covers/${g.id}.webp`, alt: g.name, loading: 'lazy', decoding: 'async', draggable: 'false',
+        onerror: (e) => { e.target.replaceWith(h('div', { class: 'art', html: C.tileArt(g) })); t.classList.remove('has-cover'); } }),
+      g.cat === 'originals' ? h('span', { class: 't-badge' }, 'Original') : null,
+      C.odds() ? h('span', { class: 't-edge' }, g.edge) : null,
+      h('div', { class: 't-name' }, g.short),
+      h('div', { class: 't-prov' }, 'krush.casino'),
+      C.closed(g) ? h('div', { class: 't-closed' }, 'Maintenance') : h('div', { class: 'play' }, h('span', null, C.icon('play'))));
+    return t;
+  };
   C.tileEl = tileEl;
-  const CAT_ORDER = ['originals', 'table', 'poker', 'lottery'];
-  const CAT_ICON = { originals: 'zap', table: 'target', poker: 'cards', lottery: 'ticket' };
+  const CAT_ORDER = ['originals', 'slots', 'table', 'poker', 'lottery'];
+  const CAT_ICON = { originals: 'zap', slots: 'slot', table: 'target', poker: 'cards', lottery: 'ticket' };
   const sorted = () => C.games.slice().sort((a, b) => a.n - b.n);
 
-  function promo(kicker, title, text, cta, href, from, to, deco) {
-    return h('a', { class: 'promo', href, style: `background:linear-gradient(120deg, ${from}, ${to})` },
+  function promo(kicker, title, text, cta, href, from, to, deco, covers) {
+    return h('a', { class: 'promo' + (covers ? ' with-covers' : ''), href, style: `background:linear-gradient(120deg, ${from}, ${to})` },
       h('div', null, h('div', { class: 'kicker' }, kicker), h('h3', null, title), h('p', null, text)),
-      h('span', { class: 'btn small' }, cta), h('span', { html: `<svg class="deco" viewBox="0 0 24 24">${ICONS[deco]}</svg>` }));
+      h('span', { class: 'btn small' }, cta),
+      covers ? h('div', { class: 'promo-covers' }, covers.map((id) => h('img', { src: `img/covers/${id}.webp`, alt: '', loading: 'lazy', onerror: (e) => e.target.remove() })))
+        : h('span', { html: `<svg class="deco" viewBox="0 0 24 24">${ICONS[deco]}</svg>` }));
   }
 
   const byServerId = () => Object.fromEntries(C.games.map((g) => [g.statId || g.round || g.id, g]));
@@ -269,7 +277,7 @@
     const g = byServerId()[b.game] || { name: b.game, short: b.game, n: 0, id: '' };
     const m = b.wager ? b.payout / b.wager : 0, cur = b.mode === 'real' ? ' ◎' : '', win = b.payout > b.wager;
     return h('tr', { class: opts.fresh ? 'fresh' : '' },
-      h('td', null, h('a', { class: 'g-cell', href: '#' + (g.id || '') }, h('span', { class: 'dot', style: `background:hsl(${C.hue(g)},70%,45%)` }), g.short || g.name)),
+      h('td', null, h('a', { class: 'g-cell', href: '#' + (g.id || '') }, g.id ? h('img', { class: 'g-thumb', src: `img/covers/${g.id}.webp`, alt: '', loading: 'lazy', onerror: (e) => e.target.replaceWith(h('span', { class: 'dot', style: `background:hsl(${C.hue(g)},70%,45%)` })) }) : h('span', { class: 'dot' }), g.short || g.name)),
       h('td', { class: 'hide-m muted' }, opts.userLink && b.userId ? h('a', { href: '#admin-player-' + b.userId }, b.user) : b.user),
       h('td', { class: 'hide-m muted' }, new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
       h('td', { class: 'r hide-m' }, C.fmt(b.wager) + cur), h('td', { class: 'r' + (m >= 10 ? ' big-mult' : '') }, m.toFixed(2) + '×'),
@@ -313,7 +321,7 @@
       S.user ? promo('Deposit', 'Top up with SOL', 'Send SOL to your personal address. It hits your balance as soon as the network confirms it.', 'Deposit', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
         : promo('New here', '10,000 free credits to start', 'Play every game without depositing. Switch to SOL whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
       promo('Affiliates', 'Bring friends, get paid', `You earn ${pct}% commission on every real bet your friends place. Withdraw it whenever you like.`, 'Get my link', S.user ? '#referrals' : '#login', '#f97316', '#db2777', 'users'),
-      promo('New games', 'Pump. Penalty. Darts.', '20 new games just landed: video slots, Horse Race, Andar Bahar, Casino Hold\'em and more.', 'Play now', '#cat-originals', '#2563eb', '#16a34a', 'zap'));
+      promo('New slots', '8 new video slots', 'Free spins, 243 and 1024 ways, and a cabinet for every theme.', 'Play now', '#cat-slots', '#1d4ed8', '#7c3aed', 'slot', ['candy', 'pharaoh', 'dragon']));
     const feed = h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon('activity'), 'Latest bets')));
     if (!cat) feedEl().then((f) => feed.append(f));
     return h('div', { class: 'lobby' }, promos, h('div', { class: 'lobby-bar' }, h('div', { class: 'search-wrap' }, C.icon('search'), search), tabs), body, cat ? null : feed);
@@ -498,7 +506,7 @@
     return h('div', { class: 'panel' }, h('h2', null, 'House edge by game'),
       h('p', { class: 'muted' }, 'House edge = expected loss per unit wagered, computed from this casino\'s own payout tables (verified by exact enumeration or simulation).'),
       h('table', { class: 'data' }, h('tr', null, ['#', 'Game', 'House edge', 'Notes'].map((x) => h('th', null, x))),
-        C.games.slice().sort((a, b) => a.n - b.n).map((g) => h('tr', null, h('td', null, g.n), h('td', null, h('a', { href: '#' + g.id }, g.icon + ' ' + g.name)), h('td', null, h('b', null, g.edge)), h('td', { class: 'muted' }, g.blurb)))));
+        C.games.slice().sort((a, b) => a.n - b.n).map((g) => h('tr', null, h('td', null, g.n), h('td', null, h('a', { href: '#' + g.id, class: 'edge-game' }, h('img', { src: `img/covers/${g.id}.webp`, alt: '', loading: 'lazy', onerror: (e) => e.target.remove() }), g.name)), h('td', null, h('b', null, g.edge)), h('td', { class: 'muted' }, g.blurb)))));
   }
 
   async function route() {
@@ -592,6 +600,7 @@
   }
 
   C.start = async () => {
+    document.querySelectorAll('[data-games-count]').forEach((e) => { e.textContent = C.games.length; });
     iconize();
     document.getElementById('burger').append(C.icon('menu'));
     document.getElementById('chat-btn').append(C.icon('chat'));

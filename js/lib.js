@@ -456,7 +456,8 @@
   /* ---- 21-26, 29: "original" style games ---- */
   // House edges for the parametric games. The server can change these live (admin → Games); rounds lock the edge at start.
   L.EDGE = { crash: 0.08, mines: 0.1, limbo: 0.08, dice: 0.06, hilo: 0.06, tower: 0.1, coinflip: 0.1, fish: 0.2, wheel: 0.07, cases: 0.1,
-    pump: 0.08, penalty: 0.07, darts: 0.08, race: 0.1, cups: 0.07, rps: 0.06, redblack: 0.05, fruits: 0.12, gems: 0.12, sevens: 0.15 };
+    pump: 0.08, penalty: 0.07, darts: 0.08, race: 0.1, cups: 0.07, rps: 0.06, redblack: 0.05, fruits: 0.12, gems: 0.12, sevens: 0.15,
+    pharaoh: 0.1, ocean: 0.1, goldrush: 0.12, dragon: 0.1, candy: 0.12, neon: 0.12, clover: 0.12, cosmic: 0.1 };
   L.DEFAULT_EDGE = { ...L.EDGE };
   L.crashPoint = (e = L.EDGE.crash) => { const u = 1 - L.random(); return Math.max(1, Math.floor((1 - e) / u * 100) / 100); };
   L.limboResult = (e = L.EDGE.limbo) => { const u = 1 - L.random(); return Math.min(1e6, Math.max(1, Math.floor((1 - e) / u * 100) / 100)); };
@@ -633,25 +634,79 @@
   L.CHE_ANTE = { 9: 100, 8: 20, 7: 10, 6: 3, 5: 2 }; // by catR; everything else 1:1
   L.cheQualifies = (score) => { const c = L.cat5(score); if (c >= 2) return true; if (c === 1) return Math.floor(score / 15 ** 4) % 15 >= 4; return false; };
 
-  /* ---- video slot engine (independent weighted cells, paylines + scatter) ---- */
+  /* ---- video slot engine ----
+   * Every cell is an independent weighted draw, which makes the return exactly computable:
+   *  - "lines": wins on fixed paylines from the leftmost reel (bet split evenly across lines)
+   *  - "ways": a symbol pays when it lands on adjacent reels from the left, anywhere on each reel; the win is
+   *            multiplied by the number of combinations (243 ways on 5x3, 1024 on 5x4)
+   *  - scatters pay anywhere; 3+ scatters can award free spins at a multiplier (no retriggers).
+   * Pay tables are scaled so the RTP equals 1 - EDGE[id] (then rounded down, so the true RTP is a hair lower). */
   const LINES5 = [[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2], [0, 0, 1, 2, 2], [2, 2, 1, 0, 0], [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 2, 1]];
   const LINES3 = [[1, 1, 1], [0, 0, 0], [2, 2, 2], [0, 1, 2], [2, 1, 0]];
+  /** More paylines: left-to-right paths moving at most one row per reel, simplest (fewest bends, symmetric) first. */
+  function genLines(rows, reels, n, base = []) {
+    const all = [];
+    const walk = (path) => { if (path.length === reels) { all.push(path.slice()); return; } const last = path[path.length - 1]; for (const d of [0, -1, 1]) { const r = last + d; if (r >= 0 && r < rows) { path.push(r); walk(path); path.pop(); } } };
+    for (let r = 0; r < rows; r++) walk([r]);
+    const bends = (q) => q.reduce((acc, r, i) => acc + (i && r !== q[i - 1] ? 1 : 0), 0);
+    const sym = (q) => (q.join() === q.slice().reverse().join() ? 0 : 1);
+    all.sort((x, y) => bends(x) + sym(x) - (bends(y) + sym(y)) || x.join('').localeCompare(y.join('')));
+    const out = base.slice(), seen = new Set(base.map((q) => q.join()));
+    for (const q of all) { if (out.length >= n) break; if (!seen.has(q.join())) { seen.add(q.join()); out.push(q); } }
+    return out;
+  }
+  const ROYALS = (w) => [['T', w], ['J', w - 1], ['Q', w - 2], ['K', w - 3], ['A', w - 4]];
+  const RP = { T: [5, 20, 80], J: [5, 20, 80], Q: [5, 25, 100], K: [8, 30, 120], A: [8, 35, 150] }; // royal line pays
+  const RW = { T: [1, 3, 8], J: [1, 3, 8], Q: [1, 4, 10], K: [2, 5, 12], A: [2, 5, 15] }; // royal ways pays
   L.SLOT_THEMES = {
-    fruits: { name: 'Fruit Frenzy', reels: 5, rows: 3, lines: LINES5,
+    fruits: { name: 'Fruit Frenzy', reels: 5, rows: 3, mode: 'lines', lines: LINES5,
       symbols: [['cherry', 20], ['lemon', 18], ['orange', 16], ['plum', 14], ['grape', 11], ['melon', 8], ['bell', 5], ['seven', 2.6], ['wild', 2.4], ['scatter', 2.2]],
       pays: { cherry: [5, 15, 40], lemon: [5, 15, 40], orange: [8, 20, 60], plum: [8, 20, 60], grape: [12, 40, 100], melon: [15, 60, 150], bell: [25, 100, 300], seven: [50, 250, 1000], wild: [50, 250, 1000] },
       scatter: { 3: 2, 4: 10, 5: 50 } },
-    gems: { name: 'Gem Rush', reels: 5, rows: 3, lines: LINES5,
+    gems: { name: 'Gem Rush', reels: 5, rows: 3, mode: 'lines', lines: LINES5,
       symbols: [['g-blue', 19], ['g-green', 18], ['g-purple', 16], ['g-orange', 14], ['g-red', 11], ['g-pink', 8], ['crown', 4.4], ['diamond', 2.4], ['wild', 2.6], ['scatter', 2.2]],
       pays: { 'g-blue': [5, 12, 40], 'g-green': [5, 12, 40], 'g-purple': [8, 20, 60], 'g-orange': [8, 25, 75], 'g-red': [12, 40, 120], 'g-pink': [15, 60, 160], crown: [30, 120, 400], diamond: [60, 300, 1500], wild: [60, 300, 1500] },
       scatter: { 3: 2, 4: 12, 5: 60 } },
-    sevens: { name: 'Lucky 7s', reels: 3, rows: 3, lines: LINES3,
+    sevens: { name: 'Lucky 7s', reels: 3, rows: 3, mode: 'lines', lines: LINES3,
       symbols: [['cherry', 22], ['bar', 18], ['bar2', 12], ['bar3', 8], ['bell', 7], ['seven', 3.2], ['wild', 2.2]],
       pays: { cherry: [6], bar: [10], bar2: [20], bar3: [40], bell: [60], seven: [200], wild: [400] },
       scatter: null },
+    pharaoh: { name: "Pharaoh's Fortune", reels: 5, rows: 3, mode: 'lines', lines: genLines(3, 5, 20, LINES5),
+      symbols: [...ROYALS(15), ['ankh', 8], ['eye', 7], ['scarab', 5.5], ['cat', 4], ['wild', 2.4], ['scatter', 2.8]],
+      pays: { ...RP, ankh: [15, 60, 250], eye: [20, 80, 300], scarab: [30, 120, 500], cat: [50, 200, 1000], wild: [100, 500, 2500] },
+      scatter: { 3: 2, 4: 15, 5: 100 }, free: { spins: { 3: 10, 4: 12, 5: 15 }, mult: 2 } },
+    ocean: { name: 'Deep Sea Treasure', reels: 5, rows: 3, mode: 'ways',
+      symbols: [...ROYALS(15), ['starfish', 8], ['octopus', 6.5], ['shell', 5], ['chest', 3.5], ['wild', 2.6], ['scatter', 2.7]],
+      pays: { ...RW, starfish: [3, 10, 30], octopus: [4, 15, 50], shell: [6, 25, 80], chest: [10, 40, 150] },
+      scatter: { 3: 2, 4: 10, 5: 50 }, free: { spins: { 3: 8, 4: 10, 5: 12 }, mult: 3 } },
+    goldrush: { name: 'Gold Rush', reels: 5, rows: 3, mode: 'lines', lines: genLines(3, 5, 25, LINES5),
+      symbols: [...ROYALS(15), ['horseshoe', 8], ['lantern', 7], ['pickaxe', 5.5], ['nugget', 4], ['wild', 2.3], ['scatter', 2.7]],
+      pays: { ...RP, horseshoe: [15, 50, 200], lantern: [20, 75, 300], pickaxe: [25, 100, 400], nugget: [50, 200, 1000], wild: [80, 400, 2000] },
+      scatter: { 3: 2, 4: 10, 5: 50 }, free: { spins: { 3: 10, 4: 15, 5: 20 }, mult: 2 } },
+    dragon: { name: 'Dragon Pearl', reels: 5, rows: 4, mode: 'ways',
+      symbols: [...ROYALS(16), ['fan', 9], ['coin', 8], ['lantern2', 7], ['koi', 5.5], ['ingot', 4], ['wild', 1.8], ['scatter', 2.2]],
+      pays: { ...RW, fan: [2, 8, 20], coin: [3, 10, 25], lantern2: [4, 12, 40], koi: [5, 20, 60], ingot: [8, 30, 120] },
+      scatter: { 3: 2, 4: 10, 5: 50 }, free: { spins: { 3: 8, 4: 12, 5: 15 }, mult: 2 } },
+    candy: { name: 'Candy Pop', reels: 5, rows: 3, mode: 'ways',
+      symbols: [['c-wrap', 16], ['c-drop', 15], ['c-heart', 14], ['c-bear', 13], ['c-lolly', 10], ['c-donut', 7.5], ['c-cupcake', 5], ['wild', 2.2], ['scatter', 2.3]],
+      pays: { 'c-wrap': [1, 3, 8], 'c-drop': [1, 4, 10], 'c-heart': [2, 5, 12], 'c-bear': [2, 6, 15], 'c-lolly': [3, 10, 30], 'c-donut': [5, 20, 60], 'c-cupcake': [10, 40, 150] },
+      scatter: { 3: 3, 4: 12, 5: 60 }, free: { spins: { 3: 10, 4: 12, 5: 15 }, mult: 3 } },
+    neon: { name: 'Neon Nights', reels: 5, rows: 3, mode: 'lines', lines: LINES5,
+      symbols: [['n-cherry', 18], ['n-lemon', 16], ['n-bell', 13], ['n-bar', 11], ['n-diamond', 8], ['n-star', 6], ['n-seven', 3.5], ['wild', 2.4], ['scatter', 2.3]],
+      pays: { 'n-cherry': [5, 15, 50], 'n-lemon': [5, 15, 50], 'n-bell': [8, 25, 80], 'n-bar': [10, 30, 100], 'n-diamond': [15, 50, 200], 'n-star': [25, 100, 400], 'n-seven': [50, 250, 1000], wild: [100, 500, 2000] },
+      scatter: { 3: 2, 4: 10, 5: 50 }, free: { spins: { 3: 10, 4: 12, 5: 15 }, mult: 2 } },
+    clover: { name: 'Lucky Clover', reels: 5, rows: 3, mode: 'lines', lines: genLines(3, 5, 20, LINES5),
+      symbols: [...ROYALS(15), ['clover', 8], ['horseshoe2', 7], ['hat', 5.5], ['pot', 4], ['wild', 2.4], ['scatter', 2.8]],
+      pays: { ...RP, clover: [15, 60, 250], horseshoe2: [20, 75, 300], hat: [25, 100, 500], pot: [50, 250, 1000], wild: [100, 500, 2500] },
+      scatter: { 3: 2, 4: 10, 5: 50 }, free: { spins: { 3: 10, 4: 15, 5: 20 }, mult: 2 } },
+    cosmic: { name: 'Cosmic Cash', reels: 5, rows: 4, mode: 'lines', lines: genLines(4, 5, 40, [[1, 1, 1, 1, 1], [2, 2, 2, 2, 2], [0, 0, 0, 0, 0], [3, 3, 3, 3, 3]]),
+      symbols: [...ROYALS(15), ['planet', 8], ['comet', 7], ['ufo', 5.5], ['astronaut', 4], ['wild', 2.2], ['scatter', 2.1]],
+      pays: { ...RP, planet: [15, 60, 250], comet: [20, 80, 300], ufo: [30, 120, 500], astronaut: [50, 250, 1000], wild: [100, 500, 2500] },
+      scatter: { 3: 2, 4: 10, 5: 50 }, free: { spins: { 3: 10, 4: 12, 5: 15 }, mult: 2 } },
   };
-  /** Evaluate one payline: {sym, n, pay} or null. pays index = n - 3 (5-reel) or 0 (3-reel). */
-  function lineWin(theme, cells) {
+  L.SLOT_IDS = Object.keys(L.SLOT_THEMES);
+  /** One payline: {sym, n, pay} or null. Wilds substitute for the first real symbol; pay index = n - 3 (or 0 on 3 reels). */
+  function lineWin(theme, pays, cells) {
     let sym = null, n = 0;
     for (const c of cells) {
       if (c === 'scatter') break;
@@ -662,52 +717,95 @@
     }
     if (sym === null) sym = 'wild';
     if (n < 3) return null;
-    const pt = theme.pays[sym]; if (!pt) return null;
+    const pt = pays[sym]; if (!pt) return null;
     const pay = pt[Math.min(n, theme.reels) - 3];
     return pay ? { sym, n, pay } : null;
   }
-  const slotCache = {};
-  /** Exact base RTP (before scaling) for a theme: line EV + scatter EV, both per unit of total bet. */
-  function slotBase(id) {
-    if (slotCache[id]) return slotCache[id];
-    const t = L.SLOT_THEMES[id], syms = t.symbols.map((x) => x[0]), W = t.symbols.reduce((a, x) => a + x[1], 0), q = t.symbols.map((x) => x[1] / W);
-    let lineEv = 0; const cells = new Array(t.reels), idx = new Array(t.reels).fill(0);
-    const total = syms.length ** t.reels;
-    for (let i = 0; i < total; i++) {
-      let x = i, p = 1;
-      for (let r = 0; r < t.reels; r++) { idx[r] = x % syms.length; x = Math.floor(x / syms.length); cells[r] = syms[idx[r]]; p *= q[idx[r]]; }
-      const w = lineWin(t, cells); if (w) lineEv += p * w.pay;
+  /** Ways wins for one grid: a symbol (or wild) on reels 1..n, with at least one real symbol among them. */
+  function waysWins(theme, pays, grid) {
+    const out = [];
+    for (const s of Object.keys(pays)) {
+      let n = 0, ways = 1, real = false; const cells = [];
+      for (let r = 0; r < theme.reels; r++) {
+        let cnt = 0;
+        grid[r].forEach((c, row) => { if (c === s || c === 'wild') { cnt++; cells.push([r, row]); if (c === s) real = true; } });
+        if (!cnt) break; ways *= cnt; n++;
+      }
+      if (n >= 3 && real && pays[s][n - 3]) out.push({ sym: s, n, ways, pay: pays[s][n - 3] * ways, cells: cells.filter(([r]) => r < n) });
     }
-    let scatEv = 0;
-    if (t.scatter) {
-      const N = t.reels * t.rows, qs = q[syms.indexOf('scatter')];
-      const keys = Object.keys(t.scatter).map(Number).sort((x, y) => y - x);
-      for (let c = 0; c <= N; c++) { const k = keys.find((x) => c >= x); if (k) scatEv += L.comb(N, c) * qs ** c * (1 - qs) ** (N - c) * t.scatter[k]; }
+    return out;
+  }
+  const qOf = (t) => { const W = t.symbols.reduce((a, x) => a + x[1], 0); return Object.fromEntries(t.symbols.map((x) => [x[0], x[1] / W])); };
+  const binomP = (n, k, p) => L.comb(n, k) * p ** k * (1 - p) ** (n - k);
+  const tierOf = (tbl, c) => { if (!tbl) return null; const ks = Object.keys(tbl).map(Number).sort((x, y) => y - x); const k = ks.find((x) => c >= x); return k ? tbl[k] : null; };
+  /** Exact expected return of one spin (per unit of total bet) for given pay tables. */
+  function spinEv(t, pays, scatter) {
+    const q = qOf(t), syms = t.symbols.map((x) => x[0]);
+    let lineEv = 0;
+    if (t.mode === 'ways') {
+      const qw = q.wild || 0, R = t.rows;
+      for (const s of Object.keys(pays)) {
+        const p = q[s] + qw, none = (1 - p) ** R;
+        const all = R * p, onlyW = R * qw * (1 - q[s]) ** (R - 1);
+        for (let k = 3; k <= t.reels; k++) {
+          const pay = pays[s][k - 3]; if (!pay) continue;
+          lineEv += pay * (all ** k - onlyW ** k) * (k < t.reels ? none : 1);
+        }
+      }
+    } else {
+      const cells = new Array(t.reels), idx = new Array(t.reels).fill(0), total = syms.length ** t.reels, qs = syms.map((x) => q[x]);
+      for (let i = 0; i < total; i++) {
+        let x = i, pr = 1;
+        for (let r = 0; r < t.reels; r++) { idx[r] = x % syms.length; x = Math.floor(x / syms.length); cells[r] = syms[idx[r]]; pr *= qs[idx[r]]; }
+        const w = lineWin(t, pays, cells); if (w) lineEv += pr * w.pay;
+      }
     }
-    return (slotCache[id] = { lineEv, scatEv, base: lineEv + scatEv, q, W });
+    let scatEv = 0; const N = t.reels * t.rows;
+    if (scatter && q.scatter) for (let c = 0; c <= N; c++) { const v = tierOf(scatter, c); if (v) scatEv += binomP(N, c, q.scatter) * v; }
+    return lineEv + scatEv;
+  }
+  /** Expected number of free spins awarded per paid spin. */
+  function freeSpinsEv(t) {
+    if (!t.free) return 0;
+    const q = qOf(t), N = t.reels * t.rows; let ev = 0;
+    for (let c = 0; c <= N; c++) { const v = tierOf(t.free.spins, c); if (v) ev += binomP(N, c, q.scatter) * v; }
+    return ev;
   }
   const scaledCache = {};
-  /** Paytable scaled so RTP = 1 - EDGE[id] (rounded down to cents). */
+  /** Pay tables scaled to RTP = 1 - EDGE[id]; `rtp` is recomputed exactly from the rounded tables. */
   L.slotTable = (id, e = L.EDGE[id]) => {
-    const key = id + e; if (scaledCache[key]) return scaledCache[key];
-    const t = L.SLOT_THEMES[id], b = slotBase(id), f = (1 - e) / b.base;
-    const pays = Object.fromEntries(Object.entries(t.pays).map(([k, v]) => [k, v.map((x) => Math.floor(x * f * 100) / 100)]));
+    const key = id + ':' + e; if (scaledCache[key]) return scaledCache[key];
+    const t = L.SLOT_THEMES[id], fsEv = freeSpinsEv(t), feature = 1 + (t.free ? t.free.mult * fsEv : 0);
+    const f = (1 - e) / (spinEv(t, t.pays, t.scatter) * feature), dec = t.mode === 'ways' ? 10000 : 100;
+    const pays = Object.fromEntries(Object.entries(t.pays).map(([k, v]) => [k, v.map((x) => Math.floor(x * f * dec) / dec)]));
     const scatter = t.scatter ? Object.fromEntries(Object.entries(t.scatter).map(([k, v]) => [k, Math.floor(v * f * 100) / 100])) : null;
-    const rtp = b.lineEv * f + b.scatEv * f; // rounding makes the true RTP very slightly lower
-    return (scaledCache[key] = { ...t, pays, scatter, rtp, f });
+    const rtp = spinEv(t, pays, scatter) * feature;
+    return (scaledCache[key] = { ...t, id, pays, scatter, rtp, f, freeSpinsEv: fsEv });
   };
-  /** Spin a theme. Returns grid[reel][row], line wins, scatter count and total multiplier of the bet. */
-  L.slotSpin2 = (id, e = L.EDGE[id]) => {
-    const t = L.slotTable(id, e), b = slotBase(id), items = t.symbols.map((x, i) => ({ id: x[0], p: b.q[i] }));
+  /** Chance that a paid spin triggers free spins. */
+  L.slotFeatureChance = (id) => { const t = L.SLOT_THEMES[id]; if (!t.free) return 0; const q = qOf(t), N = t.reels * t.rows, min = Math.min(...Object.keys(t.free.spins).map(Number)); let p = 0; for (let c = min; c <= N; c++) p += binomP(N, c, q.scatter); return p; };
+  const floor4 = (x) => Math.floor(x * 10000 + 1e-9) / 10000;
+  function spinOnce(t, items) {
     const grid = Array.from({ length: t.reels }, () => Array.from({ length: t.rows }, () => items[L.pickWeighted(items)].id));
-    const wins = [];
-    t.lines.forEach((ln, li) => { const w = lineWin(t, ln.map((row, r) => grid[r][row])); if (w) wins.push({ line: li, ...w, pay: w.pay }); });
-    const lineMult = wins.reduce((a, w) => a + w.pay, 0) / t.lines.length;
+    let wins, lineMult;
+    if (t.mode === 'ways') { wins = waysWins(t, t.pays, grid); lineMult = wins.reduce((a, w) => a + w.pay, 0); }
+    else {
+      wins = [];
+      t.lines.forEach((ln, li) => { const w = lineWin(t, t.pays, ln.map((row, r) => grid[r][row])); if (w) wins.push({ line: li, ...w, cells: ln.slice(0, w.n).map((row, r) => [r, row]) }); });
+      lineMult = wins.reduce((a, w) => a + w.pay, 0) / t.lines.length;
+    }
     let scat = 0; grid.forEach((col) => col.forEach((c) => { if (c === 'scatter') scat++; }));
-    const keys = t.scatter ? Object.keys(t.scatter).map(Number).sort((x, y) => y - x) : [];
-    const sk = keys.find((k) => scat >= k);
-    const scatMult = sk ? t.scatter[sk] : 0;
-    return { grid, wins, scatter: scat, scatterPay: scatMult, mult: Math.floor((lineMult + scatMult) * 10000) / 10000 };
+    const scatterPay = tierOf(t.scatter, scat) || 0;
+    return { grid, wins, scatter: scat, scatterPay, mult: floor4(lineMult + scatterPay) };
+  }
+  /** Spin a theme: base spin plus any free spins it triggers. `mult` is the total return as a multiple of the bet. */
+  L.slotSpin2 = (id, e = L.EDGE[id]) => {
+    const t = L.slotTable(id, e), q = qOf(t), items = t.symbols.map((x) => ({ id: x[0], p: q[x[0]] }));
+    const base = spinOnce(t, items), free = [];
+    let total = base.mult;
+    const n = t.free ? tierOf(t.free.spins, base.scatter) : 0;
+    for (let i = 0; i < (n || 0); i++) { const s = spinOnce(t, items); free.push(s); total += s.mult * t.free.mult; }
+    return { ...base, baseMult: base.mult, free, freeMult: t.free ? t.free.mult : 0, mult: floor4(total) };
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = L;

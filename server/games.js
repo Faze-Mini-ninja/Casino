@@ -229,9 +229,9 @@ G.pokerdice = { play(p) {
   const b = U(p.bet), d = [0, 0, 0, 0, 0].map(() => L.range(1, 6)), k = L.pokerDice(d), m = k >= 0 ? L.POKERDICE[k][1] : 0;
   return { wager: b, payout: floorU(b * m), detail: k >= 0 ? L.POKERDICE[k][0] : 'No hand', result: { dice: d, hand: k, mult: m } };
 } };
-for (const id of ['fruits', 'gems', 'sevens']) G[id] = { play(p) {
+for (const id of L.SLOT_IDS) G[id] = { play(p) {
   const b = U(p.bet), r = L.slotSpin2(id);
-  return { wager: b, payout: floorU(b * r.mult), detail: `${L.SLOT_THEMES[id].name}: ${r.mult}×`, result: r };
+  return { wager: b, payout: floorU(b * r.mult), detail: `${L.SLOT_THEMES[id].name}: ${r.mult}×` + (r.free.length ? ` (${r.free.length} free spins)` : ''), result: r };
 } };
 
 /* ---------------- multi-step games ---------------- */

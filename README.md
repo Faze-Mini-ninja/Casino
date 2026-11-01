@@ -1,6 +1,6 @@
 # krush.casino
 
-A web casino with 53 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
+A web casino with 61 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
 Every bet, card and spin is decided on the server; the browser only animates the results.
 
 > **Devnet by default.** Out of the box it runs on Solana devnet, where coins have no value. The server
@@ -45,7 +45,7 @@ Roles go **player → mod → staff → admin**. The admin gives roles from **St
 | Dashboard | mod+ | Online now, 24h GGR, bets, deposits, open tickets, pending withdrawals |
 | Players | staff+ | Search, profiles (balances, per-game results, recent bets), mute. Admin: add/remove balance, roles, reset password, disable |
 | Live | mod+ | Games in progress and a live bet feed with player names |
-| Games & odds | admin | House edge per game (Crash, Mines, Limbo, Dice, Hi-Lo, Tower, Coin Flip, Fish, Wheel, Cases, Pump, Penalty, Darts, Horse Race, Cups, Rock Paper Scissors, Red or Black and the three video slots) and Plinko RTP, open/close games, tipping rules |
+| Games & odds | admin | House edge per game (Crash, Mines, Limbo, Dice, Hi-Lo, Tower, Coin Flip, Fish, Wheel, Cases, Pump, Penalty, Darts, Horse Race, Cups, Rock Paper Scissors, Red or Black and every video slot) and Plinko RTP, open/close games, tipping rules |
 | Support | mod+ | Reply to and close player tickets |
 | Chat | mod+ | Delete messages, mute players |
 | Announcement | staff+ | Site-wide banner, pushed live |
@@ -121,7 +121,8 @@ an audit of the payments code, and monitoring/alerting for the hot wallet and th
 
 ```bash
 npm test         # house edges + API, referral and social/staff tests against throwaway databases
-npm run smoke    # headless browser signs up and plays all 53 games (needs Playwright)
+npm run smoke    # headless browser signs up and plays all 61 games (needs Playwright)
+npm run covers   # re-render the game cover images into img/covers/ (needs Playwright)
 ```
 
 ## Games and house edges
@@ -171,6 +172,17 @@ npm run smoke    # headless browser signs up and plays all 53 games (needs Playw
 | 50 / 51 | Fruit Frenzy / Gem Rush (5×3, 10 lines) | 12% (adjustable) |
 | 52 | Lucky 7s (3×3, 5 lines) | 15% (adjustable) |
 | 53 | Pick 3 | 30% |
+| 54 | Pharaoh's Fortune (5×3, 20 lines, free spins ×2) | 10% (adjustable) |
+| 55 | Deep Sea Treasure (243 ways, free spins ×3) | 10% (adjustable) |
+| 56 | Gold Rush (5×3, 25 lines, free spins ×2) | 12% (adjustable) |
+| 57 | Dragon Pearl (5×4, 1024 ways, free spins ×2) | 10% (adjustable) |
+| 58 | Candy Pop (243 ways, free spins ×3) | 12% (adjustable) |
+| 59 | Neon Nights (5×3, 10 lines, free spins ×2) | 12% (adjustable) |
+| 60 | Lucky Clover (5×3, 20 lines, free spins ×2) | 12% (adjustable) |
+| 61 | Cosmic Cash (5×4, 40 lines, free spins ×2) | 10% (adjustable) |
+
+Video slot returns are calculated exactly, free spins included (every cell is an independent weighted draw), and
+`test/rtp.js` cross-checks the spin engine against that figure by simulation.
 
 ## Layout
 ```
@@ -192,7 +204,10 @@ js/chat.js          chat panel and tip dialog
 js/support.js       player support page
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
-js/games/*.js       one UI file per game (more-*.js hold games 34–53)
-js/art.js           drawn SVG symbols (fruit, gems, bars, sevens, coins, cups, balloons…) used by the games and lobby tiles
+js/games/*.js       one UI file per game (more-*.js hold games 34–53, video-slots.js all video slots)
+js/art.js           drawn SVG symbols (fruit, gems, bars, sevens, coins, cups, balloons…) used by the games
+js/art-slots.js     symbol art for the themed video slots (plus card royals in each theme's typeface)
+js/covers.js        game cover illustrations; tools/build-covers.js renders them to img/covers/*.webp
+fonts/              display typefaces for logos and symbols (open licences, see fonts/LICENSES.md)
 js/fx.js            synthesised sound effects, mute button, big-win celebration
 ```

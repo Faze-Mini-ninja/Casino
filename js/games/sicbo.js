@@ -13,7 +13,7 @@
       const dice = h('div', { class: 'dice-row' }, C.dieEl(1), C.dieEl(2), C.dieEl(3));
       const hist = h('div', { class: 'history-strip' });
       let busy = false;
-      const dieMini = (v) => h('span', { class: 'mini-die' }, '⚀⚁⚂⚃⚄⚅'[v - 1]);
+      const dieMini = (v) => C.dieEl(v, 'sbmini');
       const sp = (id, content, pays, cls = '') => T.spot(id, [content, h('small', null, pays)], 'sbspot ' + cls);
       const nums = [1, 2, 3, 4, 5, 6];
       const combos = []; for (let a = 1; a <= 6; a++) for (let b = a + 1; b <= 6; b++) combos.push([a, b]);
@@ -52,4 +52,5 @@
   .mini-die{font-size:22px;line-height:1}
   @media(max-width:900px){.sb-row13,.sb-row14,.sb-row15{grid-template-columns:repeat(7,1fr)}}`;
   document.head.appendChild(css);
+  const css2 = document.createElement('style'); css2.textContent = '.die.sbmini{width:22px;height:22px;padding:3px;border-radius:5px;display:inline-grid;margin:0 1px;box-shadow:0 2px 4px rgba(0,0,0,.4)}.die.sbmini .pip{width:4px;height:4px}'; document.head.appendChild(css2);
 })();

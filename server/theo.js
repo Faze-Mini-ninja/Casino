@@ -30,6 +30,7 @@ const mapTheo = (bets, edgeOf) => Object.entries(bets || {}).reduce((s, [k, v]) 
 /** @returns expected house profit in units (float) */
 function theoOf(game, p, wager, state) {
   p = p || {};
+  if (L.SLOT_THEMES[game]) return wager * Math.max(0, 1 - L.slotTable(game).rtp);
   switch (game) {
     case 'slots': return wager * SLOTS;
     case 'keno': return wager * (1 - L.kenoRTP((p.picks || []).length || 1));
@@ -64,7 +65,6 @@ function theoOf(game, p, wager, state) {
     case 'uo7': return wager * (1 / 6);
     case 'duel': return mapTheo(p.bets, (k) => (k === 'tie' ? 0.098 : 0.112));
     case 'pokerdice': return wager * 0.11;
-    case 'fruits': case 'gems': case 'sevens': return wager * (1 - L.slotTable(game).rtp);
     case 'pump': case 'penalty': case 'redblack': return wager * ((state && state.e) ?? L.EDGE[game]);
     case 'casinoholdem': return wager * 0.008; // ≈2.2% of the ante with good strategy ≈ 0.8% of everything wagered
     case 'reddog': return wager * 0.02; // ≈2.8% of the initial bet, less once raises are counted

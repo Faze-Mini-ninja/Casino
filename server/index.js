@@ -246,17 +246,23 @@ const routes = {
 Object.assign(routes, socialRoutes({ need, HttpError, limited, audit }), adminRoutes({ need, audit }));
 
 /* ---------- static files ---------- */
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
-const PUBLIC = ['/index.html', '/css/', '/js/'];
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
+const PUBLIC = ['/index.html', '/css/', '/js/', '/fonts/', '/img/'];
 function serveStatic(req, res, pathname) {
   if (pathname === '/') pathname = '/index.html';
   if (!PUBLIC.some((p) => pathname === p || pathname.startsWith(p))) { res.writeHead(404); return res.end('Not found'); }
   const file = path.normalize(path.join(cfg.ROOT, pathname));
   if (!file.startsWith(cfg.ROOT + path.sep)) { res.writeHead(403); return res.end(); }
-  fs.readFile(file, (err, data) => {
-    if (err) { res.writeHead(404); return res.end('Not found'); }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
-    res.end(data);
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); return res.end('Not found'); }
+    // revalidate every time, but answer 304 when unchanged so images and fonts are not re-downloaded
+    const etag = `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
+    const headers = { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': pathname.startsWith('/fonts/') ? 'public, max-age=2592000' : 'no-cache', ETag: etag };
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, headers); return res.end(); }
+    fs.readFile(file, (err2, data) => {
+      if (err2) { res.writeHead(404); return res.end('Not found'); }
+      res.writeHead(200, headers); res.end(data);
+    });
   });
 }
 
