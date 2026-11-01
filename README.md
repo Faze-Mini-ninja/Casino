@@ -1,6 +1,6 @@
 # krush.casino
 
-A web casino with 30 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
+A web casino with 33 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
 Every bet, card and spin is decided on the server; the browser only animates the results.
 
 > **Devnet by default.** Out of the box it runs on Solana devnet, where coins have no value. The server
@@ -36,6 +36,31 @@ ADMIN_USERNAME=owner
 ADMIN_PASSWORD=a-long-unique-password
 ```
 With these set, every newly registered account is an ordinary player. Without them (local testing only), the first account registered becomes admin.
+
+### Staff Panel and roles
+Roles go **player → mod → staff → admin**. The admin gives roles from **Staff Panel → Players → (player) → Make Mod / Make Staff**.
+
+| Tab | Who | What |
+|---|---|---|
+| Dashboard | mod+ | Online now, 24h GGR, bets, deposits, open tickets, pending withdrawals |
+| Players | staff+ | Search, profiles (balances, per-game results, recent bets), mute. Admin: add/remove balance, roles, reset password, disable |
+| Live | mod+ | Games in progress and a live bet feed with player names |
+| Games & odds | admin | House edge per game (Crash, Mines, Limbo, Dice, Hi-Lo, Tower, Coin Flip, Fish, Wheel, Cases) and Plinko RTP, open/close games, tipping rules |
+| Support | mod+ | Reply to and close player tickets |
+| Chat | mod+ | Delete messages, mute players |
+| Announcement | staff+ | Site-wide banner, pushed live |
+| Withdrawals, Treasury, Log | admin | Approve cash-outs, wallets and sweeps, audit log |
+
+**Odds changes are applied to everyone equally.** Rounds already in progress keep the odds they started with, and the
+browser sends the odds version it is showing with every bet. If payouts changed since the page loaded, the bet is
+refused and the page refreshes, so nobody is ever paid differently from what they were shown. There is deliberately no
+per-player odds control.
+
+### Chat, tips and support
+- **Live chat** (sidebar on desktop, Chat tab on phones) with role badges. Tap a name to tip; mods can mute or delete.
+- **Tips:** `/tip name amount` in chat or the tip button. Real-SOL tips need a minimum amount wagered first and have a daily cap
+  (Staff Panel → Games & odds → tipping rules). Every tip is in the ledger.
+- **Support:** players open tickets on the Support page and see replies there; staff answer from the Staff Panel.
 
 ### Odds display
 Odds are **hidden from players by default**. Players still see what every bet pays, but no house edges, RTPs, win
@@ -95,7 +120,7 @@ an audit of the payments code, and monitoring/alerting for the hot wallet and th
 ## Tests
 
 ```bash
-npm test         # house edges (exact/simulated) + API test playing every game against a throwaway DB
+npm test         # house edges + API, referral and social/staff tests against throwaway databases
 npm run smoke    # headless browser signs up and plays all 30 games (needs Playwright)
 ```
 
@@ -125,6 +150,9 @@ npm run smoke    # headless browser signs up and plays all 30 games (needs Playw
 | 28 | Fish Table | 20% |
 | 29 | Coin Flip | 10% |
 | 30 | Casino War | ≈3% (Tie bet ≈18.8%) |
+| 31 | Wheel | ≈7% (adjustable) |
+| 32 | Cases | ≈10% (adjustable) |
+| 33 | Red Dog | ≈2.8% |
 
 ## Layout
 ```
@@ -137,6 +165,13 @@ server/chain.js     Solana RPC wrapper
 server/db.js        SQLite schema, balances, ledger
 server/referrals.js referral codes, commission accrual and claims
 server/theo.js      theoretical house profit per round (basis for commission)
+server/settings.js  live odds, closed games, announcement, tipping rules
+server/social.js    chat, moderation, tips, support tickets
+server/admin.js     Staff Panel API
+server/stream.js    live updates to browsers (Server-Sent Events)
+js/staff.js         Staff Panel UI
+js/chat.js          chat panel and tip dialog
+js/support.js       player support page
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
 js/games/*.js       one UI file per game

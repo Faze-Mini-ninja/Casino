@@ -47,9 +47,12 @@ function theoOf(game, p, wager, state) {
     case 'dice': return wager * L.EDGE.dice;
     case 'coinflip': return wager * L.EDGE.coinflip;
     case 'crash': return wager * L.EDGE.crash;
-    case 'mines': return wager * L.EDGE.mines;
-    case 'tower': return wager * L.EDGE.tower;
-    case 'hilo': return wager * L.EDGE.hilo;
+    case 'mines': return wager * ((state && state.e) ?? L.EDGE.mines);
+    case 'tower': return wager * ((state && state.e) ?? L.EDGE.tower);
+    case 'hilo': return wager * ((state && state.e) ?? L.EDGE.hilo);
+    case 'wheel': return wager * (1 - L.wheelTable(Number(p.segments), p.risk).rtp);
+    case 'cases': return wager * (1 - L.caseTable(p.case).rtp);
+    case 'reddog': return wager * 0.02; // ≈2.8% of the initial bet, less once raises are counted
     case 'fish': return wager * L.EDGE.fish;
     case 'videopoker': return wager * 0.06;
     case 'blackjack': { const pp = units(p.pp), t3 = units(p.t3); return pp * 0.21 + t3 * 0.16 + Math.max(0, wager - pp - t3) * 0.005; }

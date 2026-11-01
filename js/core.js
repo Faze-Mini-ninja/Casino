@@ -30,8 +30,8 @@
     catch (e) { C.toast('Connection problem — check your network', 'err'); throw e; }
     let j = {}; try { j = await res.json(); } catch (e) { /* empty */ }
     if (!res.ok) {
-      if (res.status === 401 && S.user) { S.user = null; emit(); location.hash = '#login'; }
-      const err = new Error(j.error || 'Request failed'); err.status = res.status; err.shown = true;
+      if (res.status === 401 && S.user) { S.user = null; emit(); C.reconnect(); location.hash = '#login'; }
+      const err = new Error(j.error || 'Request failed'); err.status = res.status; err.shown = true; err.data = j;
       C.toast(err.message, 'err'); throw err;
     }
     return j;
@@ -42,12 +42,25 @@
    */
   C.play = async (game, action, params) => {
     if (!S.user) { location.hash = '#login'; throw new Error('login'); }
-    const r = await C.api('POST', '/api/play', { game, action, params, mode: S.mode });
+    // send the odds version this page was rendered with; the server refuses the bet if payouts changed since
+    const ov = S.shownOv;
+    let r;
+    try { r = await C.api('POST', '/api/play', { game, action, params: game === 'fish' ? { ...params, ov } : params, mode: S.mode, ov }); }
+    catch (e) { if (e.data && e.data.odds) { applyOdds(e.data.odds); setTimeout(route, 400); } throw e; }
     if (r.preBalances) setUnits(r.preBalances);
     if (r.balances && r.preBalances) { r._t = setTimeout(() => setUnits(r.balances), 9000); }
     else setUnits(r.balances);
     return r;
   };
+  /** Apply live odds from the server to the shared game maths (so displayed multipliers match payouts). */
+  function applyOdds(o) {
+    if (!o) return;
+    S.config.odds = o;
+    for (const k in o.edge) L.EDGE[k] = o.edge[k];
+    for (const k in o.plinko) if (L.PLINKO_CFG[k]) L.PLINKO_CFG[k].target = o.plinko[k];
+  }
+  C.applyOdds = applyOdds;
+  C.closed = (g) => !!(S.config.odds && S.config.odds.disabled.includes(g.round || g.statId || g.id));
   C.settle = (r) => { if (r && r._t) { clearTimeout(r._t); r._t = null; } if (r && r.balances) setUnits(r.balances); };
   /** Wrap a game action so errors (already toasted) don't break the UI. Returns null on failure. */
   C.try = async (fn) => { try { return await fn(); } catch (e) { if (!e.shown && e.message !== 'login') { console.error(e); C.toast('Something went wrong', 'err'); } return null; } };
@@ -154,9 +167,9 @@
   C.CATS = { table: 'Table Games', cards: 'Card & Poker', dice: 'Dice & Wheels', lottery: 'Slots & Lottery', originals: 'Originals' };
   // Lobby grouping and short display names (game files keep their own detailed names)
   const RECAT = { 'roulette-us': 'table', 'roulette-eu': 'table', blackjack: 'table', baccarat: 'table', 'baccarat-tie': 'table', 'baccarat-side': 'table', craps: 'table', sicbo: 'table', bigsix: 'table', dragontiger: 'table', war: 'table',
-    videopoker: 'poker', paigow: 'poker', threecard: 'poker', caribbean: 'poker', holdem: 'poker', letitride: 'poker', slots: 'lottery', keno: 'lottery', bingo: 'lottery', scratch: 'lottery' };
+    videopoker: 'poker', paigow: 'poker', threecard: 'poker', caribbean: 'poker', holdem: 'poker', letitride: 'poker', slots: 'lottery', keno: 'lottery', bingo: 'lottery', scratch: 'lottery', reddog: 'table' };
   const SHORT = { blackjack: 'Blackjack', 'roulette-us': 'American Roulette', 'roulette-eu': 'European Roulette', baccarat: 'Baccarat', 'baccarat-tie': 'Baccarat Tie', 'baccarat-side': 'Baccarat Bonus',
-    craps: 'Craps', paigow: 'Pai Gow', bigsix: 'Big Six', threecard: 'Three Card Poker', caribbean: 'Caribbean Stud', holdem: "Hold'em", bingo: 'Bingo', scratch: 'Scratch Cards', war: 'Casino War', videopoker: 'Video Poker' };
+    craps: 'Craps', paigow: 'Pai Gow', bigsix: 'Big Six', threecard: 'Three Card Poker', caribbean: 'Caribbean Stud', holdem: "Hold'em", bingo: 'Bingo', scratch: 'Scratch Cards', war: 'Casino War', videopoker: 'Video Poker', reddog: 'Red Dog' };
   C.register = (g) => { g.cat = RECAT[g.id] || 'originals'; g.short = SHORT[g.id] || g.name; C.games.push(g); };
   let cleanup = null;
   const app = () => document.getElementById('app');
@@ -184,12 +197,21 @@
     star: '<path d="M12 3l2.7 5.6 6.3.9-4.5 4.4 1 6.1L12 17l-5.6 3 1-6.1L3 9.5l6.3-.9z"/>',
     activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
     logout: '<path d="M9 21H5V3h4M16 17l5-5-5-5M21 12H9"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.5"/>',
+    chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+    send: '<path d="M4 12l16-8-6 16-2-7z"/>',
+    gift: '<rect x="3" y="8" width="18" height="5" rx="1"/><path d="M5 13v8h14v-8M12 8v13M12 8c-2-4-6-4-6-1s6 1 6 1zm0 0c2-4 6-4 6-1s-6 1-6 1z"/>',
+    mega: '<path d="M3 10v4l11 5V5zM14 9h3a3 3 0 0 1 0 6h-3M6 15l1 5h3l-1-4"/>',
+    live: '<circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/>',
+    sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    ticket2: '<path d="M4 4h16v12H8l-4 4z"/><path d="M8 9h8M8 12h5"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>',
   };
   C.icon = (name, cls = '') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'i ' + cls); s.innerHTML = ICONS[name] || ''; return s; };
   const iconize = (root = document) => root.querySelectorAll('[data-i]').forEach((el) => { if (!el.querySelector('svg')) el.prepend(C.icon(el.dataset.i)); });
 
   /* ---------------- generated game art ---------------- */
-  const GLYPH = { slots: '7', keno: '80', blackjack: '21', 'roulette-us': '00', 'roulette-eu': '0', 'baccarat-tie': '8:1', 'baccarat-side': '♦', baccarat: '9', craps: '11', videopoker: '♠', paigow: '♣', sicbo: '3D', bingo: 'B', plinko: '▼', dragontiger: '龍', threecard: '3', caribbean: '♥', holdem: 'A♠', letitride: '$', bigsix: '6', crash: '×', mines: '◆', limbo: '∞', dice: '%', hilo: '↕', tower: '▲', scratch: '★', fish: '≈', coinflip: '½', war: '⚔' };
+  const GLYPH = { slots: '7', keno: '80', blackjack: '21', 'roulette-us': '00', 'roulette-eu': '0', 'baccarat-tie': '8:1', 'baccarat-side': '♦', baccarat: '9', craps: '11', videopoker: '♠', paigow: '♣', sicbo: '3D', bingo: 'B', plinko: '▼', dragontiger: '龍', threecard: '3', caribbean: '♥', holdem: 'A♠', letitride: '$', bigsix: '6', crash: '×', mines: '◆', limbo: '∞', dice: '%', hilo: '↕', tower: '▲', scratch: '★', fish: '≈', coinflip: '½', war: '⚔', wheel: '◎', cases: '▣', reddog: 'R' };
   const CAT_LABEL = { originals: 'Krush Originals', table: 'Table Games', poker: 'Poker', lottery: 'Slots & Lottery' };
   C.hue = (g) => (g.n * 47 + 190) % 360;
   function motif(cat) {
@@ -210,13 +232,13 @@
       <text x="280" y="120" text-anchor="end" font-family="-apple-system,Segoe UI,Arial" font-weight="900" font-size="110" fill="#fff" fill-opacity=".9" style="paint-order:stroke" stroke="rgba(0,0,0,.12)" stroke-width="6">${GLYPH[g.id] || ''}</text>
       <rect y="250" width="300" height="150" fill="url(#${id}s)"/><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-opacity="0"/><stop offset="1" stop-opacity=".45"/></linearGradient></svg>`;
   };
-  const tileEl = (g) => h('a', { class: 'tile', href: '#' + g.id },
+  const tileEl = (g) => h('a', { class: 'tile' + (C.closed(g) ? ' closed' : ''), href: '#' + g.id },
     h('div', { class: 'art', html: C.tileArt(g) }),
     g.cat === 'originals' ? h('span', { class: 't-badge' }, 'Original') : null,
     C.odds() ? h('span', { class: 't-edge' }, g.edge) : null,
     h('div', { class: 't-name' }, g.short),
     h('div', { class: 't-prov' }, 'krush.casino'),
-    h('div', { class: 'play' }, h('span', null, C.icon('play'))));
+    C.closed(g) ? h('div', { class: 't-closed' }, 'Maintenance') : h('div', { class: 'play' }, h('span', null, C.icon('play'))));
   C.tileEl = tileEl;
   const CAT_ORDER = ['originals', 'table', 'poker', 'lottery'];
   const CAT_ICON = { originals: 'zap', table: 'target', poker: 'cards', lottery: 'ticket' };
@@ -228,20 +250,27 @@
       h('span', { class: 'btn small' }, cta), h('span', { html: `<svg class="deco" viewBox="0 0 24 24">${ICONS[deco]}</svg>` }));
   }
 
+  const byServerId = () => Object.fromEntries(C.games.map((g) => [g.statId || g.round || g.id, g]));
+  C.betRow = (b, opts = {}) => {
+    const g = byServerId()[b.game] || { name: b.game, short: b.game, n: 0, id: '' };
+    const m = b.wager ? b.payout / b.wager : 0, cur = b.mode === 'real' ? ' ◎' : '', win = b.payout > b.wager;
+    return h('tr', { class: opts.fresh ? 'fresh' : '' },
+      h('td', null, h('a', { class: 'g-cell', href: '#' + (g.id || '') }, h('span', { class: 'dot', style: `background:hsl(${C.hue(g)},70%,45%)` }), g.short || g.name)),
+      h('td', { class: 'hide-m muted' }, opts.userLink && b.userId ? h('a', { href: '#admin-player-' + b.userId }, b.user) : b.user),
+      h('td', { class: 'hide-m muted' }, new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+      h('td', { class: 'r hide-m' }, C.fmt(b.wager) + cur), h('td', { class: 'r' + (m >= 10 ? ' big-mult' : '') }, m.toFixed(2) + '×'),
+      h('td', { class: 'r ' + (win ? 'pos' : 'muted') }, (win ? '+' : '') + C.fmt(b.payout - b.wager) + cur));
+  };
+  C.betTable = () => h('table', null, h('thead', null, h('tr', null, h('th', null, 'Game'), h('th', { class: 'hide-m' }, 'Player'), h('th', { class: 'hide-m' }, 'Time'), h('th', { class: 'r hide-m' }, 'Bet'), h('th', { class: 'r' }, 'Multiplier'), h('th', { class: 'r' }, 'Profit'))), h('tbody'));
   async function feedEl() {
     const box = h('div', { class: 'feed' }, h('div', { class: 'empty' }, 'Loading…'));
-    const load = async () => {
-      let r; try { r = await (await fetch('/api/feed')).json(); } catch (e) { return; }
-      const byId = Object.fromEntries(C.games.map((g) => [g.statId || g.id, g]));
-      box.innerHTML = '';
-      if (!r.bets || !r.bets.length) { box.append(h('div', { class: 'empty' }, 'No bets yet — be the first.')); return; }
-      box.append(h('table', null, h('tr', null, h('th', null, 'Game'), h('th', { class: 'hide-m' }, 'Player'), h('th', { class: 'hide-m' }, 'Time'), h('th', { class: 'r hide-m' }, 'Bet'), h('th', { class: 'r' }, 'Multiplier'), h('th', { class: 'r' }, 'Payout')),
-        r.bets.map((b) => { const g = byId[b.game] || { name: b.game, n: 0 }; const m = b.wager ? b.payout / b.wager : 0; const cur = b.mode === 'real' ? ' ◎' : '';
-          return h('tr', null, h('td', null, h('a', { class: 'g-cell', href: '#' + (g.id || '') }, h('span', { class: 'dot', style: `background:hsl(${C.hue(g)},70%,45%)` }), (g.short || g.name))),
-            h('td', { class: 'hide-m muted' }, b.user), h('td', { class: 'hide-m muted' }, new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-            h('td', { class: 'r hide-m' }, C.fmt(b.wager) + cur), h('td', { class: 'r' }, m.toFixed(2) + '×'), h('td', { class: 'r ' + (b.payout > b.wager ? 'pos' : 'muted') }, (b.payout > b.wager ? '+' : '') + C.fmt(b.payout - b.wager) + cur)); })));
-    };
-    load(); const t = setInterval(() => { if (!document.body.contains(box)) clearInterval(t); else load(); }, 8000);
+    let r; try { r = await (await fetch('/api/feed')).json(); } catch (e) { r = { bets: [] }; }
+    box.innerHTML = '';
+    const t = C.betTable(), body = t.querySelector('tbody');
+    (r.bets || []).forEach((b) => body.append(C.betRow(b)));
+    const empty = h('div', { class: 'empty' }, 'Bets will show up here as they happen.');
+    box.append(t); if (!body.children.length) box.append(empty);
+    C.onStream('bet', (b) => { empty.remove(); body.prepend(C.betRow(b, { fresh: true })); while (body.children.length > 15) body.lastChild.remove(); });
     return box;
   }
 
@@ -263,14 +292,14 @@
     };
     const tabs = h('div', { class: 'tabs' }, [['', 'Lobby', 'home'], ...CAT_ORDER.map((c) => [c, CAT_LABEL[c].replace('Krush ', ''), CAT_ICON[c]])].map(([k, v, ic]) =>
       h('a', { class: 'tab' + ((cat || '') === k ? ' sel' : ''), href: k ? '#cat-' + k : '#lobby' }, C.icon(ic), v)));
-    const search = h('input', { class: 'search', placeholder: 'Search 30 games', oninput: (e) => { q = e.target.value.toLowerCase().trim(); render(); } });
+    const search = h('input', { class: 'search', placeholder: `Search ${C.games.length} games`, oninput: (e) => { q = e.target.value.toLowerCase().trim(); render(); } });
     render();
     const pct = Math.round((S.config.referralShare || 0) * 100);
     const promos = cat ? null : h('div', { class: 'promos' },
-      S.user ? promo('Deposit', 'Play with SOL', 'Fresh deposit address every day. Credited the moment your deposit is final.', 'Deposit now', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
-        : promo('Welcome', 'Sign up, get 10,000 free credits', 'Try all 30 games in demo mode, then deposit SOL when you’re ready.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
-      promo('Refer & Earn', `Earn ${pct}% commission`, 'Share your link and earn on every real-money bet your friends make — forever.', 'Get your link', S.user ? '#referrals' : '#login', '#f97316', '#db2777', 'users'),
-      promo('Originals', 'Crash, Mines, Plinko & more', 'Fast in-house games with instant results.', 'Play originals', '#cat-originals', '#2563eb', '#16a34a', 'zap'));
+      S.user ? promo('Deposit', 'Top up with SOL', 'Send SOL to your personal address. It hits your balance as soon as the network confirms it.', 'Deposit', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
+        : promo('New here', '10,000 free credits to start', 'Play every game without depositing. Switch to SOL whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
+      promo('Affiliates', 'Bring friends, get paid', `You earn ${pct}% commission on every real bet your friends place. Withdraw it whenever you like.`, 'Get my link', S.user ? '#referrals' : '#login', '#f97316', '#db2777', 'users'),
+      promo('Krush Originals', 'Crash. Mines. Wheel.', 'Instant games made in-house. New this week: Wheel and Cases.', 'Play now', '#cat-originals', '#2563eb', '#16a34a', 'zap'));
     const feed = h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon('activity'), 'Latest bets')));
     if (!cat) feedEl().then((f) => feed.append(f));
     return h('div', { class: 'lobby' }, promos, h('div', { class: 'lobby-bar' }, h('div', { class: 'search-wrap' }, C.icon('search'), search), tabs), body, cat ? null : feed);
@@ -292,6 +321,10 @@
       h('div', { class: 'crumbs' }, h('a', { href: '#lobby' }, 'Casino'), '/', h('a', { href: '#cat-' + g.cat }, CAT_LABEL[g.cat]), '/', h('span', { class: 'cur-title' }, g.name),
         h('span', { class: 'spacer' }), h('span', { class: 'mode-pill ' + S.mode }, S.mode === 'real' ? 'REAL SOL' : 'DEMO'), odds ? h('span', { class: 'edge-pill' }, 'House edge ' + g.edge) : null),
       root, info);
+    if (C.closed(g)) {
+      root.append(h('div', { class: 'closed-note' }, h('h3', null, `${g.short || g.name} is closed for maintenance`), h('p', { class: 'muted' }, 'We\'ll have it back shortly. Try another game in the meantime.'), h('a', { class: 'btn', href: '#lobby' }, 'Back to lobby')));
+      return page;
+    }
     setTimeout(() => {
       const c = g.mount(root, g);
       // Stake-style: the primary action lives in the control panel, under the bet inputs
@@ -378,106 +411,6 @@
     return wrap;
   }
 
-  let adminTab = 'users';
-  async function adminPage() {
-    const wrap = h('div', { class: 'wallet-page' }, h('p', { class: 'muted' }, 'Loading…'));
-    const [o, ws, us] = await Promise.all([C.try(() => C.api('GET', '/api/admin/overview')), C.try(() => C.api('GET', '/api/admin/withdrawals')), C.try(() => C.api('GET', '/api/admin/users'))]);
-    wrap.innerHTML = '';
-    if (!o || !ws || !us) return wrap;
-    const tbl = (cols, rows) => (rows.length ? h('table', { class: 'data' }, h('tr', null, cols.map((c) => h('th', null, c))), rows) : h('p', { class: 'muted' }, 'None.'));
-    const short = (a) => a.slice(0, 6) + '…' + a.slice(-4);
-    const body = h('div', { class: 'wallet-page' });
-    const tabs = h('div', { class: 'tabs' }, [['users', 'Users', 'users'], ['overview', 'Overview', 'chart'], ['withdrawals', 'Withdrawals', 'wallet'], ['log', 'Admin log', 'clock']].map(([k, v, ic]) =>
-      h('button', { class: 'tab' + (adminTab === k ? ' sel' : ''), onclick: () => { adminTab = k; route(); } }, C.icon(ic), v, k === 'withdrawals' && ws.withdrawals.some((x) => x.status === 'pending') ? h('span', { class: 'badge' }, String(ws.withdrawals.filter((x) => x.status === 'pending').length)) : null)));
-    wrap.append(h('div', { class: 'admin-head' }, h('h2', null, 'Admin'), tabs), body);
-
-    if (adminTab === 'users') {
-      // create account
-      const nu = h('input', { placeholder: 'Username' }), np = h('input', { placeholder: 'Password (8+)', type: 'text', autocomplete: 'off' });
-      const nd = h('input', { type: 'number', step: '0.01', min: '0', value: '10000', placeholder: 'Demo credits' }), nr = h('input', { type: 'number', step: '0.01', min: '0', value: '0', placeholder: 'Real credits' });
-      const createBtn = h('button', { class: 'btn', onclick: async () => {
-        createBtn.disabled = true;
-        const r = await C.try(() => C.api('POST', '/api/admin/users/create', { username: nu.value.trim(), password: np.value, demo: +nd.value, real: +nr.value }));
-        createBtn.disabled = false; if (r) { C.toast(`Account ${nu.value.trim()} created`, 'win'); route(); }
-      } }, 'Create account');
-      // search + table
-      const search = h('input', { placeholder: 'Search users…', style: 'width:100%' });
-      const list = h('div');
-      const editor = h('div');
-      const paintList = (users) => {
-        list.innerHTML = '';
-        list.append(tbl(['User', 'Demo', 'Real (credits)', 'Real (SOL)', 'Deposited', 'Referred by', 'Joined', ''], users.map((x) => h('tr', { class: x.disabled ? 'off' : '' },
-          h('td', null, h('b', null, x.username), x.role === 'admin' ? h('span', { class: 'tag-s approved', style: 'margin-left:6px' }, 'admin') : null, x.disabled ? h('span', { class: 'tag-s failed', style: 'margin-left:6px' }, 'disabled') : null),
-          h('td', null, C.fmt(x.demo)), h('td', null, C.fmt(x.real)), h('td', null, C.fmtSol(x.realSol)), h('td', null, x.depositedSol ? C.fmtSol(x.depositedSol) + ' SOL' : '—'),
-          h('td', { class: 'muted' }, x.referrer || '—'), h('td', { class: 'muted' }, new Date(x.created).toLocaleDateString()),
-          h('td', null, h('button', { class: 'btn small ghost', onclick: () => openEditor(x) }, 'Manage'))))));
-      };
-      function openEditor(x) {
-        const amt = h('input', { type: 'number', step: '0.01', placeholder: 'Amount (credits)' });
-        const mode = h('select', null, h('option', { value: 'real' }, 'Real balance (SOL)'), h('option', { value: 'demo' }, 'Demo balance'));
-        const note = h('input', { placeholder: 'Note (optional, saved in the log)' });
-        const solHint = h('div', { class: 'sol-hint' });
-        const upd = () => { solHint.textContent = mode.value === 'real' && +amt.value ? `≈ ${C.fmtSol(C.solOf(Math.abs(+amt.value)))} SOL` : ''; };
-        amt.oninput = upd; mode.onchange = upd;
-        const adjust = async (sign) => {
-          const a = Math.abs(+amt.value); if (!a) return C.toast('Enter an amount', 'err');
-          const r = await C.try(() => C.api('POST', '/api/admin/users/adjust', { id: x.id, mode: mode.value, amount: sign * a, note: note.value }));
-          if (r) { C.toast(`${sign > 0 ? 'Added' : 'Removed'} ${C.fmt(a)} ${mode.value} credits ${sign > 0 ? 'to' : 'from'} ${x.username}`, 'win'); if (x.id === S.user.id) setUnits(r.balances); route(); }
-        };
-        const pw = h('input', { placeholder: 'New password (8+)', type: 'text', autocomplete: 'off' });
-        editor.innerHTML = '';
-        editor.append(h('div', { class: 'panel editor' },
-          h('div', { class: 'row', style: 'justify-content:space-between' }, h('h3', { style: 'margin:0' }, `Manage ${x.username}`), h('button', { class: 'btn small ghost', onclick: () => (editor.innerHTML = '') }, 'Close')),
-          h('div', { class: 'muted small' }, `Demo ${C.fmt(x.demo)} · Real ${C.fmt(x.real)} credits (${C.fmtSol(x.realSol)} SOL)`),
-          h('div', { class: 'ed-grid' },
-            h('div', { class: 'field' }, h('label', null, 'Wallet'), mode), h('div', { class: 'field' }, h('label', null, 'Amount (credits)'), amt, solHint), h('div', { class: 'field' }, h('label', null, 'Note'), note)),
-          h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => adjust(1) }, 'Add balance'), h('button', { class: 'btn red', onclick: () => adjust(-1) }, 'Remove balance')),
-          h('div', { class: 'muted small' }, 'Real balance can be withdrawn as SOL from the hot wallet. Every change is written to the ledger and the admin log.'),
-          h('hr'),
-          h('div', { class: 'row' }, pw, h('button', { class: 'btn small ghost', onclick: async () => { if (await C.try(() => C.api('POST', '/api/admin/users/password', { id: x.id, password: pw.value }))) { C.toast('Password reset — user signed out everywhere', 'win'); pw.value = ''; } } }, 'Reset password'),
-            x.id !== S.user.id ? h('button', { class: 'btn small ' + (x.disabled ? '' : 'red'), onclick: async () => { if (await C.try(() => C.api('POST', '/api/admin/users/disable', { id: x.id, disabled: !x.disabled }))) { C.toast(x.disabled ? 'Account enabled' : 'Account disabled', 'win'); route(); } } }, x.disabled ? 'Enable account' : 'Disable account') : null)));
-        editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      let t;
-      search.oninput = () => { clearTimeout(t); t = setTimeout(async () => { const r = await C.try(() => C.api('GET', '/api/admin/users?q=' + encodeURIComponent(search.value))); if (r) paintList(r.users); }, 250); };
-      paintList(us.users);
-      body.append(
-        h('div', { class: 'panel' }, h('h3', null, 'Create account'), h('div', { class: 'ed-grid c4' },
-          h('div', { class: 'field' }, h('label', null, 'Username'), nu), h('div', { class: 'field' }, h('label', null, 'Password'), np),
-          h('div', { class: 'field' }, h('label', null, 'Demo credits'), nd), h('div', { class: 'field' }, h('label', null, 'Real credits'), nr)), h('div', { class: 'row', style: 'margin-top:12px' }, createBtn,
-          h('span', { class: 'muted small' }, `1 SOL = ${(S.config.creditsPerSol || 1000).toLocaleString()} credits`))),
-        editor,
-        h('div', { class: 'panel' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' }, h('h3', { style: 'margin:0' }, `Users (${us.users.length})`), h('div', { style: 'width:min(320px,100%)' }, search)), h('div', { class: 'tbl-wrap' }, list)));
-    }
-
-    if (adminTab === 'overview') {
-      body.append(
-        h('div', { class: 'kpis' }, kpi('Network', o.cluster), kpi('Hot wallet', typeof o.hotSol === 'number' ? C.fmtSol(o.hotSol) + ' SOL' : 'unavailable'), kpi('Player balances (owed)', C.fmtSol(o.playerBalancesSol) + ' SOL'), kpi('Users', o.users),
-          kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.fmtSol(o.referrals.pendingSol)} owed · ${C.fmtSol(o.referrals.paidSol)} paid`),
-          kpi('Watcher', o.watcher.lastError ? 'error' : o.watcher.lastRun ? 'ok ' + new Date(o.watcher.lastRun).toLocaleTimeString() : 'not run')),
-        o.watcher.lastError ? h('div', { class: 'notice err' }, 'Cannot reach Solana RPC: ' + o.watcher.lastError) : null,
-        h('div', { class: 'panel' }, h('p', { class: 'muted small', style: 'margin-top:0' }, 'Hot wallet: ', h('span', { class: 'mono' }, o.hotWallet), h('br'), 'Treasury: ', h('span', { class: 'mono' }, o.treasury), ` — sweeps fill the hot wallet up to ${o.hotFloatSol} SOL, then go to treasury.`),
-          h('h3', null, 'Daily deposit wallets'),
-          tbl(['Day (UTC)', 'Addresses issued', 'Deposits', 'SOL in'], o.days.map((d) => h('tr', null, h('td', null, d.day), h('td', null, d.addresses), h('td', null, d.deposits), h('td', null, C.fmtSol(d.sol))))),
-          h('h3', { style: 'margin-top:18px' }, 'Recent sweeps'),
-          tbl(['Time', 'From', 'SOL', 'To', 'Status'], o.sweeps.map((s) => h('tr', null, h('td', null, new Date(s.ts).toLocaleString()), h('td', { class: 'mono' }, short(s.address)), h('td', null, C.fmtSol(s.sol)), h('td', { class: 'mono' }, short(s.dest)), h('td', null, s.status)))),
-          h('h3', { style: 'margin-top:18px' }, 'House results (real money)'),
-          tbl(['Game', 'Rounds', 'Wagered SOL', 'Paid SOL', 'House SOL'], o.house.map((r) => h('tr', null, h('td', null, names()[r.game] || r.game), h('td', null, r.rounds), h('td', null, C.fmtSol(r.wageredSol)), h('td', null, C.fmtSol(r.paidSol)), h('td', { class: r.houseSol >= 0 ? 'pos' : 'neg' }, C.fmtSol(r.houseSol)))))));
-    }
-
-    if (adminTab === 'withdrawals') {
-      const act = async (id, action) => { if (await C.try(() => C.api('POST', '/api/admin/withdrawal', { id, action }))) { C.toast('Done', 'win'); route(); } };
-      body.append(h('div', { class: 'panel' }, tbl(['#', 'User', 'SOL', 'To', 'Requested', 'Status', 'Actions'], ws.withdrawals.map((x) => h('tr', null, h('td', null, x.id), h('td', null, x.username), h('td', null, C.fmtSol(x.sol)), h('td', { class: 'mono' }, short(x.dest)), h('td', { class: 'muted' }, new Date(x.created).toLocaleString()),
-        h('td', null, h('span', { class: 'tag-s ' + x.status }, x.status), x.note ? h('div', { class: 'muted small' }, x.note) : null),
-        h('td', null, x.status === 'pending' ? h('button', { class: 'btn small', onclick: () => act(x.id, 'approve') }, 'Approve') : null, ' ', ['pending', 'approved'].includes(x.status) ? h('button', { class: 'btn small red', onclick: () => act(x.id, 'reject') }, 'Reject') : null))))));
-    }
-
-    if (adminTab === 'log') {
-      body.append(h('div', { class: 'panel' }, tbl(['Time', 'Admin', 'Action', 'User', 'Details'], us.log.map((l) => h('tr', null, h('td', { class: 'muted' }, new Date(l.ts).toLocaleString()), h('td', null, l.admin), h('td', null, l.action), h('td', null, l.target || '—'), h('td', { class: 'muted' }, l.detail))))));
-    }
-    return wrap;
-  }
-
   async function referralsPage() {
     const r = await C.try(() => C.api('GET', '/api/referrals'));
     if (!r) return h('div');
@@ -520,7 +453,7 @@
       if (r) { cur.value = nx.value = nx2.value = ''; C.toast('Password changed. Other devices have been signed out.', 'win'); }
     } }, h('h2', null, 'Account'), h('p', { class: 'muted' }, 'Signed in as ', h('b', null, S.user.username), S.user.role === 'admin' ? ' (admin)' : ''),
     h('h3', null, 'Change password'), cur, nx, nx2, btn,
-    h('button', { class: 'btn ghost', type: 'button', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); location.hash = '#login'; } }, 'Log out')));
+    h('button', { class: 'btn ghost', type: 'button', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); C.reconnect(); location.hash = '#login'; } }, 'Log out')));
   }
 
   async function historyPage() {
@@ -556,7 +489,8 @@
 
   async function route() {
     if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } cleanup = null; }
-    pageListeners = [];
+    pageListeners = []; pageStream = {};
+    S.shownOv = S.config.odds ? S.config.odds.v : undefined;
     const hash = location.hash.replace(/^#\/?/, '').replace(/^game\//, '');
     const a = app(); a.innerHTML = '';
     document.body.classList.remove('nav-open');
@@ -566,28 +500,87 @@
     window.scrollTo(0, 0);
     document.title = 'Krush Casino';
     if (hash.startsWith('ref-')) { try { localStorage.setItem('casino.ref', hash.slice(4).toUpperCase()); } catch (e) { /* ignore */ } location.hash = S.user ? '#referrals' : '#login'; if (!S.user) setTimeout(() => { const sw = document.querySelector('.auth a'); if (sw && /Create/.test(sw.textContent)) sw.click(); }, 50); return; }
-    const needLogin = ['history', 'stats', 'wallet', 'admin', 'account', 'referrals'].includes(hash) || C.games.some((g) => g.id === hash);
+    const needLogin = ['history', 'stats', 'wallet', 'account', 'referrals'].includes(hash) || Object.keys(pages).some((k) => (hash === k || hash.startsWith(k + '-')) && pages[k].auth) || C.games.some((g) => g.id === hash);
     if (hash === 'login') return a.appendChild(authPage());
     if (hash === 'account' && S.user) return a.appendChild(accountPage());
     if (needLogin && !S.user) { location.hash = '#login'; return; }
     const g = C.games.find((x) => x.id === hash);
     if (g) { document.title = g.name + ' — Krush Casino'; return a.appendChild(gamePage(g)); }
-    const page = { history: historyPage, stats: statsPage, edges: C.odds() ? edgesPage : null, wallet: walletPage, admin: adminPage, referrals: referralsPage }[hash];
+    const ext = Object.keys(pages).find((k) => hash === k || hash.startsWith(k + '-'));
+    if (ext) {
+      const pg = pages[ext];
+      if (pg.role && !C.can(pg.role)) { location.hash = '#lobby'; return; }
+      const el = await pg.fn(hash.slice(ext.length + 1));
+      if (location.hash.replace(/^#/, '') === hash && el) { a.innerHTML = ''; a.appendChild(el); }
+      return;
+    }
+    const page = { history: historyPage, stats: statsPage, edges: C.odds() ? edgesPage : null, wallet: walletPage, referrals: referralsPage }[hash];
     if (page) { const el = await page(); if (location.hash.replace(/^#/, '') === hash) { a.innerHTML = ''; a.appendChild(el); } return; }
     const cat = hash.startsWith('cat-') ? hash.slice(4) : null;
     a.appendChild(lobby(['originals', 'table', 'poker', 'lottery'].includes(cat) ? cat : null));
   }
   C.route = route;
 
+  /* ---------------- page registry (staff panel, support, …) ---------------- */
+  const pages = {};
+  C.page = (name, fn, opts = {}) => { pages[name] = { fn, ...opts }; };
+  const RANKS = { player: 0, mod: 1, staff: 2, admin: 3 };
+  C.rank = () => (S.user ? RANKS[S.user.role] || 0 : -1);
+  C.can = (role) => C.rank() >= RANKS[role];
+  C.kpi = (l, v, cls) => h('div', { class: 'kpi' + (cls ? ' ' + cls : '') }, h('div', { class: 'kpi-v' }, String(v)), h('div', { class: 'kpi-l' }, l));
+  C.setUnits = (b) => setUnits(b);
+  C.names = () => names();
+  C.refreshMe = async () => { const r = await C.try(() => C.api('GET', '/api/me')); if (r) applyMe(r); };
+
+  /* ---------------- live updates (Server-Sent Events) ---------------- */
+  const STREAM_TYPES = ['chat', 'chat-del', 'online', 'bet', 'round', 'announce', 'odds', 'ticket', 'tipped'];
+  const globalStream = {};
+  let pageStream = {}, es = null, esUser;
+  /** Subscribe to a live event. Page subscriptions are dropped on navigation; pass global=true to keep it. */
+  C.onStream = (type, fn, global = false) => { const t = global ? globalStream : pageStream; (t[type] = t[type] || []).push(fn); };
+  function connectStream() {
+    const uid = S.user ? S.user.id : 0;
+    if (es && esUser === uid) return;
+    if (es) es.close();
+    esUser = uid;
+    if (!window.EventSource) return;
+    es = new EventSource('/api/stream');
+    for (const type of STREAM_TYPES) es.addEventListener(type, (ev) => {
+      let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+      (globalStream[type] || []).forEach((f) => f(d)); (pageStream[type] || []).forEach((f) => f(d));
+    });
+  }
+  C.reconnect = () => connectStream();
+  C.onStream('odds', (o) => {
+    applyOdds(o);
+    if (C.games.some((g) => '#' + g.id === location.hash)) C.toast('Payouts on this site were just updated. Your next bet will refresh the numbers.');
+  }, true);
+  C.onStream('announce', (a) => { S.config.announcement = a; paintBanner(); }, true);
+  C.onStream('tipped', (t) => { C.toast(`${t.from} tipped you ${t.amount}`, 'win'); C.refreshMe(); }, true);
+
+  /* ---------------- announcement banner ---------------- */
+  function paintBanner() {
+    const el = document.getElementById('announce'); if (!el) return;
+    const a = S.config.announcement;
+    let dismissed = ''; try { dismissed = localStorage.getItem('casino.ann') || ''; } catch (e) { /* ignore */ }
+    if (!a || String(a.id) === dismissed) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.className = 'announce ann-' + a.tone; el.style.display = '';
+    el.innerHTML = '';
+    el.append(h('div', { class: 'ann-text' }, a.link ? h('a', { href: a.link, target: a.link.startsWith('http') ? '_blank' : null, rel: 'noopener' }, a.text) : a.text),
+      h('button', { class: 'ann-x', 'aria-label': 'Dismiss', onclick: () => { try { localStorage.setItem('casino.ann', String(a.id)); } catch (e) { /* ignore */ } paintBanner(); } }, '×'));
+  }
+
   function applyMe(r) {
     S.user = r.user || null; S.config = r.config || {};
     if (r.balances) S.units = r.balances;
+    applyOdds(S.config.odds); paintBanner(); connectStream();
     emit();
   }
 
   C.start = async () => {
     iconize();
     document.getElementById('burger').append(C.icon('menu'));
+    document.getElementById('chat-btn').append(C.icon('chat'));
     document.getElementById('chev').append(C.icon('chev'));
     document.getElementById('burger').onclick = () => document.body.classList.toggle('nav-open');
     document.getElementById('scrim').onclick = () => document.body.classList.remove('nav-open');
@@ -612,7 +605,7 @@
       userBox.innerHTML = '';
       if (S.user) userBox.append(h('a', { class: 'avatar', href: '#account', title: S.user.username }, C.icon('user')));
       else userBox.append(h('a', { href: '#login', class: 'btn small outline' }, 'Sign in'), h('a', { href: '#login', class: 'btn small', onclick: () => setTimeout(() => { const sw = document.querySelector('.auth a'); if (sw && /Create/.test(sw.textContent)) sw.click(); }, 60) }, 'Register'));
-      const adm = document.getElementById('nav-admin'); if (adm) adm.style.display = S.user && S.user.role === 'admin' ? '' : 'none';
+      const adm = document.getElementById('nav-admin'); if (adm) adm.style.display = C.can('mod') ? '' : 'none';
     };
     C.onChange(paint);
     menu.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {

@@ -145,6 +145,20 @@ G.coinflip = { play(p) {
   return { wager: b, payout: res === call ? floorU(b * L.COIN_MULT) : 0, detail: `Called ${call}, landed ${res}`, result: { res } };
 } };
 
+G.wheel = { play(p) {
+  const b = U(p.bet), n = oneOf(Number(p.segments), L.WHEEL_SEGMENTS, 'segments'), risk = oneOf(p.risk, ['low', 'medium', 'high'], 'risk');
+  const t = L.wheelTable(n, risk), k = L.int(n), m = t.table[k];
+  return { wager: b, payout: floorU(b * m), detail: `${n} segments ${risk}: ${m}×`, result: { index: k, mult: m } };
+} };
+
+G.cases = { play(p) {
+  const b = U(p.bet), id = oneOf(p.case, Object.keys(L.CASES), 'case');
+  const t = L.caseTable(id); let x = L.random(), k = 0;
+  for (; k < t.items.length - 1; k++) { if (x < t.items[k].p) break; x -= t.items[k].p; }
+  const m = t.items[k].m;
+  return { wager: b, payout: floorU(b * m), detail: `${L.CASES[id].name} case: ${m}×`, result: { index: k, mult: m, rarity: t.items[k].rarity } };
+} };
+
 /* ---------------- multi-step games ---------------- */
 const deck = (n = 1) => L.shuffle(L.newDeck(n));
 
@@ -344,20 +358,20 @@ G.mines = {
   start(p) {
     const b = U(p.bet), m = int(p.mines, 1, 24, 'mine count');
     const mines = L.shuffle(Array.from({ length: 25 }, (_, i) => i)).slice(0, m);
-    return { wager: b, state: { b, m, mines, open: [] }, view: { open: [] }, done: false };
+    return { wager: b, state: { b, m, mines, open: [], e: L.EDGE.mines }, view: { open: [], e: L.EDGE.mines }, done: false };
   },
   act(s, a, p) {
-    const fin = (pay, note, hit) => ({ state: s, view: { open: s.open, mines: s.mines, hit, mult: s.open.length ? L.minesMult(s.m, s.open.length) : 0 }, done: true, payout: pay, detail: note });
+    const fin = (pay, note, hit) => ({ state: s, view: { open: s.open, mines: s.mines, hit, mult: s.open.length ? L.minesMult(s.m, s.open.length, s.e ?? L.EDGE.mines) : 0 }, done: true, payout: pay, detail: note });
     if (a === 'cashout') {
       if (!s.open.length) fail('Reveal at least one tile first');
-      const mult = L.minesMult(s.m, s.open.length); return fin(floorU(s.b * mult), `${s.m} mines, ${s.open.length} gems, ${mult}×`);
+      const mult = L.minesMult(s.m, s.open.length, s.e ?? L.EDGE.mines); return fin(floorU(s.b * mult), `${s.m} mines, ${s.open.length} gems, ${mult}×`);
     }
     if (a !== 'pick') fail('Unknown action');
     const i = int(p.i, 0, 24, 'tile'); if (s.open.includes(i)) fail('Already revealed');
     if (s.mines.includes(i)) return fin(0, `${s.m} mines, hit after ${s.open.length} gems`, i);
     s.open.push(i);
     if (s.open.length === 25 - s.m) return G.mines.act(s, 'cashout', {});
-    return { state: s, view: { open: s.open, mult: L.minesMult(s.m, s.open.length) }, done: false };
+    return { state: s, view: { open: s.open, mult: L.minesMult(s.m, s.open.length, s.e ?? L.EDGE.mines) }, done: false };
   },
   abandon(s) { return s.open.length ? G.mines.act(s, 'cashout', {}) : { state: s, view: {}, done: true, payout: s.b, detail: 'Refunded (no tiles picked)' }; },
 };
@@ -368,17 +382,17 @@ G.tower = {
   start(p) {
     const b = U(p.bet), diff = oneOf(p.diff, Object.keys(L.TOWER), 'difficulty'), t = L.TOWER[diff];
     const traps = Array.from({ length: FLOORS }, () => L.shuffle(Array.from({ length: t.cols }, (_, i) => i)).slice(0, t.bombs));
-    return { wager: b, state: { b, diff, traps, floor: 0, picks: [] }, view: { floor: 0 }, done: false };
+    return { wager: b, state: { b, diff, traps, floor: 0, picks: [], e: L.EDGE.tower }, view: { floor: 0, e: L.EDGE.tower }, done: false };
   },
   act(s, a, p) {
-    const fin = (pay, note) => ({ state: s, view: { floor: s.floor, traps: s.traps, picks: s.picks, mult: s.floor ? L.towerMult(s.diff, s.floor) : 0 }, done: true, payout: pay, detail: note });
-    if (a === 'cashout') { if (!s.floor) fail('Climb at least one floor first'); const m = L.towerMult(s.diff, s.floor); return fin(floorU(s.b * m), `${s.diff}: floor ${s.floor}, ${m}×`); }
+    const fin = (pay, note) => ({ state: s, view: { floor: s.floor, traps: s.traps, picks: s.picks, mult: s.floor ? L.towerMult(s.diff, s.floor, s.e ?? L.EDGE.tower) : 0 }, done: true, payout: pay, detail: note });
+    if (a === 'cashout') { if (!s.floor) fail('Climb at least one floor first'); const m = L.towerMult(s.diff, s.floor, s.e ?? L.EDGE.tower); return fin(floorU(s.b * m), `${s.diff}: floor ${s.floor}, ${m}×`); }
     if (a !== 'pick') fail('Unknown action');
     const c = int(p.c, 0, L.TOWER[s.diff].cols - 1, 'tile'); s.picks.push(c);
     if (s.traps[s.floor].includes(c)) return fin(0, `${s.diff}: fell on floor ${s.floor + 1}`);
     s.floor++;
     if (s.floor === FLOORS) return G.tower.act(s, 'cashout', {});
-    return { state: s, view: { floor: s.floor, mult: L.towerMult(s.diff, s.floor) }, done: false };
+    return { state: s, view: { floor: s.floor, mult: L.towerMult(s.diff, s.floor, s.e ?? L.EDGE.tower) }, done: false };
   },
   abandon(s) { return s.floor ? G.tower.act(s, 'cashout', {}) : { state: s, view: {}, done: true, payout: s.b, detail: 'Refunded (no picks)' }; },
 };
@@ -386,13 +400,13 @@ G.tower = {
 // Hi-Lo (cards with replacement)
 const hiloCard = () => { const rank = L.range(1, 13); return { rank, r: rank === 1 ? 14 : rank, s: L.int(4) }; };
 G.hilo = {
-  start(p) { const b = U(p.bet), card = hiloCard(); return { wager: b, state: { b, card, mult: 1, n: 0 }, view: { card, mult: 1, n: 0 }, done: false }; },
+  start(p) { const b = U(p.bet), card = hiloCard(); return { wager: b, state: { b, card, mult: 1, n: 0, e: L.EDGE.hilo }, view: { card, mult: 1, n: 0, e: L.EDGE.hilo }, done: false }; },
   act(s, a) {
     if (a === 'skip') { s.card = hiloCard(); return { state: s, view: { card: s.card, mult: s.mult, n: s.n }, done: false }; }
     if (a === 'cashout') { if (!s.n) fail('Make at least one correct guess first'); return { state: s, view: { mult: s.mult, n: s.n }, done: true, payout: floorU(s.b * s.mult), detail: `${s.n} correct, ${s.mult.toFixed(2)}×` }; }
     const dir = a === 'hi' ? 'hi' : a === 'lo' ? 'lo' : fail('Unknown action');
     if (L.hiloProb(s.card.rank, dir) >= 1) fail('That guess is not available');
-    const prev = s.card.rank, step = L.hiloStep(prev, dir); s.card = hiloCard();
+    const prev = s.card.rank, step = L.hiloStep(prev, dir, s.e ?? L.EDGE.hilo); s.card = hiloCard();
     if (dir === 'hi' ? s.card.rank >= prev : s.card.rank <= prev) { s.mult = Math.floor(s.mult * step * 10000) / 10000; s.n++; return { state: s, view: { card: s.card, mult: s.mult, n: s.n, ok: true }, done: false }; }
     return { state: s, view: { card: s.card, ok: false, n: s.n }, done: true, payout: 0, detail: `Lost after ${s.n} correct` };
   },
@@ -541,6 +555,35 @@ G.holdem = {
   abandon(s, ctx) { return G.holdem.act(s, 'fold', {}, ctx); },
 };
 function heResult(s) { return s.over ? { state: s, view: heView(s, s.show), done: true, payout: s.pay, detail: s.note } : { state: s, view: heView(s, false), done: false }; }
+
+// Red Dog: two cards; bet on the third landing between them. Raise (double) on a spread.
+const rdRank = (c) => c.r; // Ace high
+function rdFinish(s, raised) {
+  const third = s.d.pop(), lo = Math.min(rdRank(s.c1), rdRank(s.c2)), hi = Math.max(rdRank(s.c1), rdRank(s.c2)), r = rdRank(third);
+  const stake = s.a * (raised ? 2 : 1), win = r > lo && r < hi, pays = L.redDogPay(s.spread);
+  const note = win ? `Between! Spread ${s.spread} pays ${pays}:1` : 'Not between — dealer wins';
+  return { extra: raised ? s.a : 0, state: s, view: { c1: s.c1, c2: s.c2, third, spread: s.spread, win, pays, note }, done: true, payout: win ? stake * (pays + 1) : 0, detail: note };
+}
+G.reddog = {
+  start(p) {
+    const a = U(p.ante), d = deck(8), c1 = d.pop(), c2 = d.pop();
+    const s = { a, d, c1, c2 }, diff = Math.abs(rdRank(c1) - rdRank(c2));
+    if (diff === 1) return { wager: a, state: s, view: { c1, c2, note: 'Consecutive cards — push' }, done: true, payout: a, detail: 'Consecutive — push' };
+    if (diff === 0) {
+      const third = d.pop(), trips = rdRank(third) === rdRank(c1);
+      const note = trips ? 'Three of a kind! Pays 11:1' : 'Pair — push';
+      return { wager: a, state: s, view: { c1, c2, third, note, win: trips }, done: true, payout: trips ? a * 12 : a, detail: note };
+    }
+    s.spread = diff - 1;
+    return { wager: a, state: s, view: { c1, c2, spread: s.spread, pays: L.redDogPay(s.spread) }, done: false };
+  },
+  act(s, a, p, ctx) {
+    if (a === 'raise') { ctx.need(s.a); return rdFinish(s, true); }
+    if (a === 'call') return rdFinish(s, false);
+    fail('Unknown action');
+  },
+  abandon(s) { return rdFinish(s, false); },
+};
 
 const ROUND_GAMES = Object.keys(G).filter((k) => G[k].start);
 const SINGLE_GAMES = Object.keys(G).filter((k) => G[k].play);

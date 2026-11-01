@@ -148,4 +148,19 @@ report('Fish Table', 'per shot that hits', 1 - L.EDGE.fish, 'exact');
   }
   report('Casino War', 'Ante (go to war)', 1 + net / n, 'sim'); report('Casino War', 'Tie bet', tie / n, 'sim');
 }
+// 31 Wheel (exact) / 32 Cases (exact) / 33 Red Dog (sim, raise on spread >= 7)
+for (const risk of ['low', 'medium', 'high']) for (const n of [10, 30, 50]) report('Wheel', `${n} segments ${risk}`, L.wheelTable(n, risk).rtp, 'exact');
+for (const id of Object.keys(L.CASES)) report('Cases', L.CASES[id].name, L.caseTable(id).rtp, 'exact');
+{
+  const n = N(1e6); let net = 0, wag = 0;
+  for (let i = 0; i < n; i++) {
+    const sh = new L.Shoe(8); const a = sh.draw().r, b = sh.draw().r, d = Math.abs(a - b);
+    wag += 1;
+    if (d === 1) continue;
+    if (d === 0) { if (sh.draw().r === a) net += 11; continue; }
+    const spread = d - 1, raise = spread >= 7, stake = raise ? 2 : 1, r = sh.draw().r;
+    if (r > Math.min(a, b) && r < Math.max(a, b)) net += stake * L.redDogPay(spread); else net -= stake;
+  }
+  report('Red Dog', 'per initial bet (raise on 7+)', 1 + net / wag, 'sim');
+}
 console.table(rows);

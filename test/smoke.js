@@ -57,6 +57,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       if (id === 'letitride') { await clickText('DEAL'); await clickText('LET IT RIDE'); await clickText('PULL BACK'); continue; }
       if (id === 'war') { await clickText('DEAL'); await clickText('SURRENDER'); continue; }
       if (id === 'videopoker') { await clickText('DEAL'); await click('.vp-slot', 0); await clickText('DRAW'); continue; }
+      if (id === 'wheel') { await clickText('SPIN'); await wait(3600); continue; }
+      if (id === 'cases') { await clickText('OPEN CASE'); await wait(4700); continue; }
+      if (id === 'reddog') { await clickText('DEAL'); await wait(700); await clickText('CALL'); await wait(600); continue; }
       if (id === 'coinflip') { await clickText('HEADS'); await wait(1700); continue; }
       if (id === 'plinko') { await clickText('DROP BALL'); await wait(2500); continue; }
       const main = page.locator('.btn.big').filter({ visible: true }).first();
@@ -69,11 +72,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const s = await page.evaluate(async (g) => ({ bal: Casino.balance(), hist: (await (await fetch('/api/history?mode=demo')).json()).rounds.filter((x) => x.game === g || (g.startsWith('baccarat') && x.game === 'baccarat')).length }), id);
     results.push({ id, rounds: s.hist, balanceDelta: +(s.bal - bal0).toFixed(2), errors: errors.length - before });
   }
-  for (const p of ['#history', '#stats', '#edges', '#wallet', '#admin']) { await page.goto(`http://localhost:${PORT}/${p}`); await wait(200); await page.screenshot({ path: path.join(SHOTS, p.slice(1) + '.png'), fullPage: false }); }
+  for (const p of ['#history', '#stats', '#edges', '#wallet', '#admin', '#admin-players', '#admin-live', '#admin-games', '#admin-support', '#admin-chat', '#admin-announce', '#support', '#referrals', '#account']) { await page.goto(`http://localhost:${PORT}/${p}`); await wait(200); await page.screenshot({ path: path.join(SHOTS, p.slice(1) + '.png'), fullPage: false }); }
   console.table(results);
   if (errors.length) { console.log('ERRORS:'); errors.forEach((e) => console.log(' -', e)); }
   await browser.close(); srv.kill(); fs.rmSync(tmp, { recursive: true, force: true });
   const bad = results.filter((r) => r.errors || !r.rounds);
-  if (tiles !== 30 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
+  if (tiles !== 33 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
   console.log('SMOKE OK');
 })().catch((e) => { console.error(e); process.exit(1); });

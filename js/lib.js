@@ -372,7 +372,7 @@
   const binom = (n, k) => L.comb(n, k) / 2 ** n;
   const plinkoCache = {};
   L.plinkoTable = (rows, risk) => {
-    const key = rows + risk;
+    const key = rows + risk + ':' + L.PLINKO_CFG[risk].target;
     if (plinkoCache[key]) return plinkoCache[key];
     const cfg = L.PLINKO_CFG[risk], mx = cfg.max[rows], mn = cfg.min;
     const rnd = (x) => (x >= 100 ? Math.round(x) : x >= 10 ? Math.round(x * 10) / 10 : Math.round(x * 100) / 100);
@@ -454,19 +454,60 @@
   };
 
   /* ---- 21-26, 29: "original" style games ---- */
-  L.EDGE = { crash: 0.08, mines: 0.1, limbo: 0.08, dice: 0.06, hilo: 0.06, tower: 0.1, coinflip: 0.1, fish: 0.2 };
-  L.crashPoint = () => { const u = 1 - L.random(); return Math.max(1, Math.floor((1 - L.EDGE.crash) / u * 100) / 100); };
-  L.limboResult = () => { const u = 1 - L.random(); return Math.min(1e6, Math.max(1, Math.floor((1 - L.EDGE.limbo) / u * 100) / 100)); };
-  L.minesMult = (mines, k) => { let m = 1 - L.EDGE.mines; for (let i = 0; i < k; i++) m *= (25 - i) / (25 - mines - i); return Math.floor(m * 100) / 100; };
-  L.diceMult = (chance) => Math.floor((1 - L.EDGE.dice) * 100 / chance * 10000) / 10000;
+  // House edges for the parametric games. The server can change these live (admin → Games); rounds lock the edge at start.
+  L.EDGE = { crash: 0.08, mines: 0.1, limbo: 0.08, dice: 0.06, hilo: 0.06, tower: 0.1, coinflip: 0.1, fish: 0.2, wheel: 0.07, cases: 0.1 };
+  L.DEFAULT_EDGE = { ...L.EDGE };
+  L.crashPoint = (e = L.EDGE.crash) => { const u = 1 - L.random(); return Math.max(1, Math.floor((1 - e) / u * 100) / 100); };
+  L.limboResult = (e = L.EDGE.limbo) => { const u = 1 - L.random(); return Math.min(1e6, Math.max(1, Math.floor((1 - e) / u * 100) / 100)); };
+  L.minesMult = (mines, k, e = L.EDGE.mines) => { let m = 1 - e; for (let i = 0; i < k; i++) m *= (25 - i) / (25 - mines - i); return Math.floor(m * 100) / 100; };
+  L.diceMult = (chance, e = L.EDGE.dice) => Math.floor((1 - e) * 100 / chance * 10000) / 10000;
   L.TOWER = {
     easy: { cols: 4, bombs: 1 }, medium: { cols: 3, bombs: 1 }, hard: { cols: 2, bombs: 1 }, expert: { cols: 3, bombs: 2 },
   };
-  L.towerMult = (diff, k) => { const t = L.TOWER[diff], p = (t.cols - t.bombs) / t.cols; return Math.floor((1 - L.EDGE.tower) / p ** k * 100) / 100; };
+  L.towerMult = (diff, k, e = L.EDGE.tower) => { const t = L.TOWER[diff], p = (t.cols - t.bombs) / t.cols; return Math.floor((1 - e) / p ** k * 100) / 100; };
   L.HILO_RANKS = 13; // A(1)..K(13), infinite deck
   L.hiloProb = (r, dir) => (dir === 'hi' ? (14 - r) / 13 : r / 13);
-  L.hiloStep = (r, dir) => (1 - L.EDGE.hilo) / L.hiloProb(r, dir);
-  L.COIN_MULT = 2 * (1 - L.EDGE.coinflip);
+  L.hiloStep = (r, dir, e = L.EDGE.hilo) => (1 - e) / L.hiloProb(r, dir);
+  Object.defineProperty(L, 'COIN_MULT', { get: () => Math.round(2 * (1 - L.EDGE.coinflip) * 10000) / 10000, enumerable: true });
+
+  /* ---- Wheel: n equal segments, layout per risk, scaled to RTP = 1 - EDGE.wheel ---- */
+  L.WHEEL_SEGMENTS = [10, 20, 30, 40, 50];
+  const WHEEL_SHAPES = { // repeating base patterns (relative weights), 0 = lose
+    low: [1.5, 1.2, 1.2, 1.2, 0, 1.2, 1.2, 1.2, 1.2, 0],
+    medium: [0, 1.9, 0, 1.5, 0, 2, 0, 1.5, 0, 3],
+    high: [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  };
+  const wheelCache = {};
+  L.wheelTable = (n, risk, e = L.EDGE.wheel) => {
+    const key = n + risk + e; if (wheelCache[key]) return wheelCache[key];
+    const shape = WHEEL_SHAPES[risk];
+    const raw = risk === 'high' ? Array.from({ length: n }, (_, i) => (i === n - 1 ? 1 : 0)) : Array.from({ length: n }, (_, i) => shape[i % shape.length]);
+    const mean = raw.reduce((a, b) => a + b, 0) / n;
+    const table = raw.map((x) => (x ? Math.floor((x * (1 - e) / mean) * 100) / 100 : 0));
+    const rtp = table.reduce((a, b) => a + b, 0) / n;
+    return (wheelCache[key] = { table, rtp });
+  };
+
+  /* ---- Cases: open a case, win one item; item multipliers scaled to RTP = 1 - EDGE.cases ---- */
+  L.CASES = {
+    starter: { name: 'Starter', color: '#3d8bff', items: [[0.2, 30], [0.5, 28], [1, 20], [1.5, 12], [3, 6], [8, 3], [25, 1]] },
+    gamble: { name: 'Gamble', color: '#8b5cf6', items: [[0, 40], [0.5, 25], [1.5, 18], [3, 10], [10, 5], [50, 1.6], [250, 0.4]] },
+    jackpot: { name: 'Jackpot', color: '#f0a91c', items: [[0, 70], [1, 15], [4, 9], [20, 4], [100, 1.6], [1000, 0.4]] },
+  };
+  const RARITY = ['common', 'common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
+  const caseCache = {};
+  L.caseTable = (id, e = L.EDGE.cases) => {
+    const key = id + e; if (caseCache[key]) return caseCache[key];
+    const c = L.CASES[id], tw = c.items.reduce((a, [, w]) => a + w, 0);
+    const mean = c.items.reduce((a, [m, w]) => a + m * w, 0) / tw;
+    const items = c.items.map(([m, w], i) => ({ m: Math.floor(m * (1 - e) / mean * 100) / 100, p: w / tw, rarity: RARITY[i] || 'mythic' }));
+    const rtp = items.reduce((a, it) => a + it.m * it.p, 0);
+    return (caseCache[key] = { items, rtp });
+  };
+
+  /* ---- Red Dog (8 decks, Ace high) ---- */
+  L.REDDOG_PAYS = { 1: 5, 2: 4, 3: 2 }; // spread 4+ pays 1:1; consecutive = push; pair then trips pays 11:1
+  L.redDogPay = (spread) => L.REDDOG_PAYS[spread] || 1;
 
   /* ---- 27. Scratch cards ---- */
   L.SCRATCH_PRIZES = [ // multiplier, probability

@@ -32,6 +32,9 @@
     tower: '<p>Climb 8 floors by picking a safe tile on each floor; hit a trap and the bet is lost. Cash out after any floor. Harder difficulties pay more per floor.</p>',
     scratch: '<p>Buy a ticket, scratch the 9 panels (or press Reveal). Find three matching multipliers to win ticket price × that multiplier.</p>',
     fish: '<p>Tap the water to fire. Every shot costs your bet. Bullets bounce off the walls until they hit a fish, which may be caught for bet × its multiplier. A bullet that hits nothing is refunded.</p>',
+    wheel: '<p>Pick a risk level and how many segments the wheel has, then spin. You win your bet × the multiplier the pointer stops on. On high risk only one segment pays, and it pays more the more segments there are.</p>',
+    cases: '<p>Pick a case and open it. The reel stops on one item and you win your bet × that item’s multiplier. Rarer items pay more.</p>',
+    reddog: '<p>Two cards are dealt (Ace high). Consecutive cards push. A pair deals a third card: three of a kind pays 11:1, otherwise push. Otherwise you can raise (double your bet) or call, and win if the third card lands strictly between the first two: spread 1 pays 5:1, spread 2 pays 4:1, spread 3 pays 2:1, spread 4 or more pays 1:1.</p>',
     coinflip: `<p>Call heads or tails. A correct call pays ${L.COIN_MULT.toFixed(2)}× your bet.</p>`,
     war: `<p>6 decks, Ace high. Higher card wins 1:1. On a tie you may surrender (lose half your bet) or go to war: match your bet, three cards are burned and one more card each is dealt; if yours is equal or higher, your raise wins 1:1 and the original bet pushes. Optional Tie bet pays ${L.WAR_TIE_PAYS}:1.</p>`,
   };

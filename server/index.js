@@ -11,6 +11,11 @@ const { play, abandon, refundStaleShots, GameError } = require('./play');
 const pay = require('./payments');
 const { hotWallet } = require('./wallet');
 const referrals = require('./referrals');
+const settings = require('./settings');
+const socialRoutes = require('./social');
+const { can } = socialRoutes;
+const adminRoutes = require('./admin');
+const stream = require('./stream');
 
 /* ---------- schema additions: disabled accounts, admin audit log ---------- */
 try { q('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0').run(); } catch { /* exists */ }
@@ -54,7 +59,7 @@ function readJson(req) {
 }
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
-const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE });
+const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
@@ -170,13 +175,13 @@ const routes = {
   },
   /* ----- admin: user management ----- */
   'GET /api/admin/users': async (req, res, body, ip, u, url) => {
-    need(u && u.role === 'admin', 403, 'Admins only');
+    need(can(u, 'staff'), 403, 'Staff only');
     const term = '%' + String(url.searchParams.get('q') || '').trim() + '%';
-    const rows = q(`SELECT u.id, u.username, u.role, u.demo_units, u.real_units, u.created, u.disabled, r.username AS referrer,
+    const rows = q(`SELECT u.id, u.username, u.role, u.demo_units, u.real_units, u.created, u.disabled, u.muted_until, r.username AS referrer,
       (SELECT COALESCE(SUM(c.lamports),0) FROM chain_txs c WHERE c.user_id = u.id AND c.kind = 'deposit') AS dep_lamports
       FROM users u LEFT JOIN users r ON r.id = u.referred_by WHERE u.username LIKE ? ORDER BY u.id DESC LIMIT 100`).all(term);
     const log = q('SELECT l.*, a.username AS admin, t.username AS target FROM admin_log l JOIN users a ON a.id = l.admin_id LEFT JOIN users t ON t.id = l.target_id ORDER BY l.id DESC LIMIT 30').all();
-    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), realSol: solOf(x.real_units), created: x.created, disabled: !!x.disabled, referrer: x.referrer, depositedSol: x.dep_lamports / 1e9 })), log };
+    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), realSol: solOf(x.real_units), created: x.created, disabled: !!x.disabled, muted: x.muted_until > Date.now(), referrer: x.referrer, depositedSol: x.dep_lamports / 1e9 })), log };
   },
   'POST /api/admin/users/create': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');
@@ -238,6 +243,8 @@ const routes = {
   },
 };
 
+Object.assign(routes, socialRoutes({ need, HttpError, limited, audit }), adminRoutes({ need, audit }));
+
 /* ---------- static files ---------- */
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 const PUBLIC = ['/index.html', '/css/', '/js/'];
@@ -261,6 +268,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const ip = (cfg.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '') || req.socket.remoteAddress;
   if (url.pathname === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+  if (url.pathname === '/api/stream' && req.method === 'GET') return stream.handle(req, res, userFrom(req), ip);
   if (!url.pathname.startsWith('/api/')) return serveStatic(req, res, decodeURIComponent(url.pathname));
   const h = routes[`${req.method} ${url.pathname}`];
   if (!h) return send(res, 404, { error: 'Not found' });
@@ -269,7 +277,7 @@ const server = http.createServer(async (req, res) => {
     send(res, 200, await h(req, res, body, ip, userFrom(req), url));
   } catch (e) {
     if (e instanceof HttpError) return send(res, e.code, { error: e.message });
-    if (e instanceof GameError) return send(res, 400, { error: e.message });
+    if (e instanceof GameError) return send(res, 400, { error: e.message, ...(e.data || {}) });
     if (e instanceof BalanceError) return send(res, 400, { error: 'Insufficient balance' });
     console.error(e); send(res, 500, { error: 'Server error' });
   }
