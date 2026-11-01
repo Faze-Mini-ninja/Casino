@@ -30,7 +30,7 @@
         for (const n in cells) cells[n].classList.toggle('pick', picks.has(+n));
         pt.innerHTML = '';
         const t = L.KENO_PAYS[picks.size];
-        info.textContent = picks.size ? `${picks.size} spot${picks.size > 1 ? 's' : ''} • RTP ${(L.kenoRTP(picks.size) * 100).toFixed(2)}%` : 'Pick 1–10 numbers';
+        info.textContent = picks.size ? `${picks.size} spot${picks.size > 1 ? 's' : ''}` + (C.odds() ? ` • RTP ${(L.kenoRTP(picks.size) * 100).toFixed(2)}%` : '') : 'Pick 1–10 numbers';
         if (t) Object.entries(t).reverse().forEach(([k, v]) => pt.appendChild(h('div', { class: +k === hits ? 'hit' : '' }, h('span', null, `${k} hits`), h('b', null, v + '×'))));
       }
       const quick = () => { if (busy) return; const n = picks.size || 5; resetDraw(); picks.clear(); L.shuffle(Array.from({ length: 80 }, (_, i) => i + 1)).slice(0, n).forEach((x) => picks.add(x)); paint(); };

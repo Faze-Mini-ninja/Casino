@@ -262,3 +262,4 @@ body.real-mode .wallet { border-color: #14f195; box-shadow: 0 0 0 1px rgba(20, 2
   #toasts { left: 12px; right: 12px; bottom: 12px; align-items: center; } .toast { font-size: 13px; padding: 8px 12px; }
   .bal-sol { font-size: 10px; }
 }
+body.no-odds .odds-only { display: none !important; }

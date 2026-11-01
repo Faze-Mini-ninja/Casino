@@ -4,14 +4,14 @@
   for (const risk of ['low', 'medium', 'high']) for (const r of [8, 12, 16]) { const t = L.plinkoTable(r, risk); edges.push([`${r} rows, ${risk} risk`, t.table.join(' · '), ((1 - t.rtp) * 100).toFixed(2) + '%']); }
   C.register({
     n: 14, id: 'plinko', name: 'Plinko', icon: '🔻', cat: 'originals', edge: '12–40%',
-    blurb: 'Drop balls through pegs. Higher risk = bigger edges.',
+    blurb: 'Drop balls through pegs. Higher risk, bigger multipliers.',
     rules: '<p>Each ball bounces left or right with equal probability at every row and lands in a multiplier slot. Choose 8, 12 or 16 rows and a risk level. Low risk RTP 88%, medium 78%, high 60% — exact, from the binomial distribution.</p>',
     edges,
     mount(root) {
       const bet = C.betInput({ value: 1 });
       let rows = 12, risk = 'medium', alive = true, raf = 0;
       const rowsSel = C.select('Rows', [8, 12, 16], rows, (v) => { if (balls.length) { C.toast('Wait for balls to land'); rowsSel.sel.value = rows; return; } rows = +v; setup(); });
-      const riskSel = C.select('Risk', [['low', 'Low (12% edge)'], ['medium', 'Medium (22% edge)'], ['high', 'High (40% edge)']], risk, (v) => { if (balls.length) { C.toast('Wait for balls to land'); riskSel.sel.value = risk; return; } risk = v; setup(); });
+      const riskSel = C.select('Risk', [['low', C.odds() ? 'Low (12% edge)' : 'Low'], ['medium', C.odds() ? 'Medium (22% edge)' : 'Medium'], ['high', C.odds() ? 'High (40% edge)' : 'High']], risk, (v) => { if (balls.length) { C.toast('Wait for balls to land'); riskSel.sel.value = risk; return; } risk = v; setup(); });
       const msg = C.msg();
       const W = 640, H = 560;
       const cv = h('canvas', { width: W, height: H, class: 'plinko-cv' });
@@ -25,7 +25,7 @@
         h('div', { class: 'stage' }, cv, msg.el, dropBtn, lastEl)));
       function setup() {
         const t = L.plinkoTable(rows, risk); table = t.table;
-        rtpEl.textContent = `RTP ${(t.rtp * 100).toFixed(2)}% • max ${Math.max(...table)}×`;
+        rtpEl.textContent = (C.odds() ? `RTP ${(t.rtp * 100).toFixed(2)}% • ` : '') + `Top prize ${Math.max(...table)}×`;
         gap = Math.min((W - 40) / (rows + 2), (H - 100) / (rows + 1));
       }
       const slotColor = (m) => (m >= 10 ? '#ff4d6d' : m >= 3 ? '#ff9f43' : m >= 1 ? '#f5c542' : '#4ea8ff');

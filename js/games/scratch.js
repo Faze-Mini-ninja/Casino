@@ -19,7 +19,7 @@
       const buyBtn = h('button', { class: 'btn big', onclick: () => buy() }, 'BUY TICKET');
       const revBtn = h('button', { class: 'btn ghost', onclick: () => reveal() }, 'Reveal all');
       root.appendChild(h('div', { class: 'layout' },
-        h('div', { class: 'side' }, priceSel.el, h('div', { class: 'pays-list' }, L.SCRATCH_PRIZES.map(([m, p]) => h('div', null, h('span', null, `3 × ${m}×`), h('b', null, `1 in ${Math.round(1 / p).toLocaleString()}`))))),
+        h('div', { class: 'side' }, priceSel.el, h('div', { class: 'pays-list' }, L.SCRATCH_PRIZES.map(([m, p]) => h('div', null, h('span', null, `3 × ${m}×`), h('b', null, C.odds() ? `1 in ${Math.round(1 / p).toLocaleString()}` : `wins ${m}× ticket`))))),
         h('div', { class: 'stage' }, ticket, msg.el, h('div', { class: 'controls' }, buyBtn, revBtn))));
       function cover() {
         ctx.globalCompositeOperation = 'source-over';

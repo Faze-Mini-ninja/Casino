@@ -20,7 +20,7 @@
           h('div', { class: 'row' }, [1.5, 2, 5, 10, 100].map((v) => h('button', { class: 'btn small ghost', onclick: () => { tgt.value = v.toFixed(2); upd(); } }, v + '×')))),
         h('div', { class: 'stage' }, big, msg.el, btn, hist)));
       const target = () => Math.min(1e6, Math.max(1.01, Math.floor(+tgt.value * 100) / 100 || 1.01));
-      function upd() { chance.innerHTML = `Win chance <b>${((1 - E) / target() * 100).toFixed(4)}%</b>`; }
+      function upd() { chance.innerHTML = C.odds() ? `Win chance <b>${((1 - E) / target() * 100).toFixed(4)}%</b>` : `Pays <b>${target().toFixed(2)}×</b> your bet`; }
       upd();
       async function play() {
         if (busy) return;

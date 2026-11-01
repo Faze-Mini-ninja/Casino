@@ -48,7 +48,7 @@ function readJson(req) {
 }
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
-const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS });
+const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
@@ -61,7 +61,8 @@ const routes = {
     need(!q('SELECT 1 FROM users WHERE username = ?').get(username), 409, 'That username is taken');
     const salt = crypto.randomBytes(16).toString('hex');
     const id = tx(() => {
-      const first = !q('SELECT 1 FROM users LIMIT 1').get();
+      // Without ADMIN_USERNAME configured (local dev), the first account becomes admin.
+      const first = !cfg.ADMIN_USERNAME && !q('SELECT 1 FROM users LIMIT 1').get();
       const uid = Number(q('INSERT INTO users (username, pass_hash, salt, role, created) VALUES (?,?,?,?,?)').run(username, hash(password, salt), salt, first ? 'admin' : 'player', Date.now()).lastInsertRowid);
       credit(uid, 'demo', Math.round(cfg.DEMO_START_CREDITS * 100), 'demo-signup');
       return uid;
@@ -76,6 +77,17 @@ const routes = {
     need(ok, 401, 'Wrong username or password');
     createSession(res, u.id);
     return me(u);
+  },
+  'POST /api/password': async (req, res, body, ip, u) => {
+    need(u, 401, 'Please log in'); need(!limited('pw:' + u.id, 5, 600000), 429, 'Too many attempts, wait a few minutes');
+    const row = q('SELECT * FROM users WHERE id = ?').get(u.id);
+    const ok = crypto.timingSafeEqual(Buffer.from(hash(String(body.current || ''), row.salt), 'hex'), Buffer.from(row.pass_hash, 'hex'));
+    need(ok, 400, 'Current password is wrong');
+    const next = String(body.next || ''); need(next.length >= 8 && next.length <= 200, 400, 'New password must be at least 8 characters');
+    const salt = crypto.randomBytes(16).toString('hex');
+    tx(() => { q('UPDATE users SET pass_hash = ?, salt = ? WHERE id = ?').run(hash(next, salt), salt, u.id); q('DELETE FROM sessions WHERE user_id = ?').run(u.id); });
+    createSession(res, u.id); // keep this device signed in; all others are signed out
+    return { ok: true };
   },
   'POST /api/logout': async (req, res) => {
     const m = /(?:^|;\s*)sid=([0-9a-f]{64})/.exec(req.headers.cookie || ''); if (m) q('DELETE FROM sessions WHERE token = ?').run(m[1]);
@@ -178,6 +190,21 @@ const server = http.createServer(async (req, res) => {
     console.error(e); send(res, 500, { error: 'Server error' });
   }
 });
+
+/** Create or update the configured admin account (ADMIN_USERNAME / ADMIN_PASSWORD). */
+function ensureAdmin() {
+  if (!cfg.ADMIN_USERNAME && !cfg.ADMIN_PASSWORD) return;
+  if (!/^[A-Za-z0-9_]{3,20}$/.test(cfg.ADMIN_USERNAME)) throw new Error('ADMIN_USERNAME must be 3–20 letters, numbers or _');
+  if (cfg.ADMIN_PASSWORD.length < 10) throw new Error('ADMIN_PASSWORD must be at least 10 characters');
+  const salt = crypto.randomBytes(16).toString('hex'), ph = hash(cfg.ADMIN_PASSWORD, salt);
+  const u = q('SELECT * FROM users WHERE username = ?').get(cfg.ADMIN_USERNAME);
+  if (u) {
+    const same = crypto.timingSafeEqual(Buffer.from(hash(cfg.ADMIN_PASSWORD, u.salt), 'hex'), Buffer.from(u.pass_hash, 'hex'));
+    tx(() => { q("UPDATE users SET role = 'admin' WHERE id = ?").run(u.id); if (!same) { q('UPDATE users SET pass_hash = ?, salt = ? WHERE id = ?').run(ph, salt, u.id); q('DELETE FROM sessions WHERE user_id = ?').run(u.id); } });
+  } else tx(() => { const id = Number(q("INSERT INTO users (username, pass_hash, salt, role, created) VALUES (?,?,?,'admin',?)").run(cfg.ADMIN_USERNAME, ph, salt, Date.now()).lastInsertRowid); credit(id, 'demo', Math.round(cfg.DEMO_START_CREDITS * 100), 'demo-signup'); });
+  console.log(`[auth] admin account: ${cfg.ADMIN_USERNAME}`);
+}
+ensureAdmin();
 
 if (require.main === module) {
   server.listen(cfg.PORT, cfg.HOST, () => console.log(`Royal Edge Casino on http://localhost:${cfg.PORT}  (${cfg.cluster}, chain ${cfg.CHAIN_ENABLED ? 'on' : 'off'})`));

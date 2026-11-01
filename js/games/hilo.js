@@ -25,8 +25,8 @@
       function paint() {
         cardWrap.innerHTML = ''; cardWrap.appendChild(C.cardEl(st || card.s != null ? card : null, { hidden: !st && !trail.children.length }));
         const ph = L.hiloProb(card.rank, 'hi'), pl = L.hiloProb(card.rank, 'lo');
-        hiBtn.innerHTML = `▲ ${card.rank === 13 ? 'Same' : 'Higher or Same'}<br><small>${(ph * 100).toFixed(1)}% • ${L.hiloStep(card.rank, 'hi').toFixed(2)}×</small>`;
-        loBtn.innerHTML = `▼ ${card.rank === 1 ? 'Same' : 'Lower or Same'}<br><small>${(pl * 100).toFixed(1)}% • ${L.hiloStep(card.rank, 'lo').toFixed(2)}×</small>`;
+        hiBtn.innerHTML = `▲ ${card.rank === 13 ? 'Same' : 'Higher or Same'}<br><small>${C.odds() ? (ph * 100).toFixed(1) + '% • ' : ''}${L.hiloStep(card.rank, 'hi').toFixed(2)}×</small>`;
+        loBtn.innerHTML = `▼ ${card.rank === 1 ? 'Same' : 'Lower or Same'}<br><small>${C.odds() ? (pl * 100).toFixed(1) + '% • ' : ''}${L.hiloStep(card.rank, 'lo').toFixed(2)}×</small>`;
         hiBtn.disabled = !st || ph >= 1; loBtn.disabled = !st || pl >= 1; skipBtn.disabled = !st;
         multEl.innerHTML = `Multiplier <b>${st ? st.mult.toFixed(2) + '×' : '—'}</b>${st && st.n ? ` &nbsp; Cash-out <b>${C.fmt(st.b * st.mult)}</b>` : ''}`;
         mainBtn.disabled = !!st && !st.n;

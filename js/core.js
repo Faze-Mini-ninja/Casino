@@ -20,6 +20,7 @@
   C.balance = () => S.units[S.mode] / 100;
   C.setMode = (m) => { S.mode = m; try { localStorage.setItem('casino.mode', m); } catch (e) { /* ignore */ } emit(); };
   const setUnits = (b) => { if (b) { S.units = { demo: b.demo, real: b.real }; emit(); } };
+  C.odds = () => !!S.config.showOdds;
   C.solOf = (credits) => credits / (S.config.creditsPerSol || 1000);
 
   /* ---------------- API ---------------- */
@@ -165,7 +166,7 @@
         .filter((g) => (filter === 'all' || g.cat === filter) && (!q || g.name.toLowerCase().includes(q)))
         .forEach((g) => grid.appendChild(h('a', { class: 'tile', href: '#' + g.id },
           h('div', { class: 'tile-icon' }, g.icon), h('div', { class: 'tile-name' }, g.name), h('div', { class: 'tile-blurb' }, g.blurb),
-          h('div', { class: 'tile-edge' }, 'House edge ', h('b', null, g.edge)), h('div', { class: 'tile-num' }, '#' + g.n))));
+          C.odds() ? h('div', { class: 'tile-edge' }, 'House edge ', h('b', null, g.edge)) : null, h('div', { class: 'tile-num' }, '#' + g.n))));
     };
     const tabs = h('div', { class: 'tabs' }, [['all', 'All Games'], ...Object.entries(C.CATS)].map(([k, v]) =>
       h('button', { class: 'tab' + (k === 'all' ? ' sel' : ''), onclick: (e) => { filter = k; tabs.querySelectorAll('.tab').forEach((t) => t.classList.remove('sel')); e.target.classList.add('sel'); render(); } }, v)));
@@ -176,19 +177,25 @@
       : h('p', null, 'Playing with ', h('b', null, 'real SOL'), '. ', h('a', { href: '#wallet' }, 'Deposit or withdraw')))
       : h('p', null, h('a', { href: '#login' }, 'Log in or create an account'), ' to play. New accounts get 10,000 free demo credits.');
     return h('div', { class: 'lobby' },
-      h('section', { class: 'hero' }, h('h1', null, '30 games. One edge — ours.'), cta),
+      h('section', { class: 'hero' }, h('h1', null, C.odds() ? '30 games. One edge — ours.' : '30 games. One winner — you?'), cta),
       h('div', { class: 'lobby-bar' }, tabs, search), grid);
   }
 
   function gamePage(g) {
     const root = h('div', { class: 'game-root' });
-    const info = h('details', { class: 'rules' }, h('summary', null, 'Rules, payouts & house edge'),
-      h('div', { class: 'rules-body' }, g.rules ? h('div', { html: g.rules }) : null,
-        g.edges ? h('table', { class: 'edge-table' }, h('tr', null, h('th', null, 'Bet'), h('th', null, 'Pays'), h('th', null, 'House edge')),
-          g.edges.map(([b, p, e]) => h('tr', null, h('td', null, b), h('td', null, p), h('td', null, e)))) : null));
+    const odds = C.odds();
+    // Without odds: neutral rules and a Bet/Pays table (no edges, RTPs or probabilities).
+    const payRows = (g.edges || []).filter(([b, p]) => p && !/÷|chance|probab|RTP|^target/i.test(p) && !/^(Overall|Every|Any |Each guess|\d-guess)/i.test(b))
+      .map(([b, p]) => [b, String(p).replace(/\s*\(1 in [^)]*\)/, '')]);
+    const info = h('details', { class: 'rules' }, h('summary', null, odds ? 'Rules, payouts & house edge' : 'Rules & payouts'),
+      h('div', { class: 'rules-body' }, h('div', { html: odds ? g.rules || '' : (C.HOWTO && C.HOWTO[g.id]) || '' }),
+        odds && g.edges ? h('table', { class: 'edge-table' }, h('tr', null, h('th', null, 'Bet'), h('th', null, 'Pays'), h('th', null, 'House edge')),
+          g.edges.map(([b, p, e]) => h('tr', null, h('td', null, b), h('td', null, p), h('td', null, e)))) : null,
+        !odds && payRows.length ? h('table', { class: 'edge-table' }, h('tr', null, h('th', null, 'Bet'), h('th', null, 'Pays')),
+          payRows.map(([b, p]) => h('tr', null, h('td', null, b), h('td', null, p)))) : null));
     const page = h('div', { class: 'game-page' },
       h('div', { class: 'game-head' }, h('a', { href: '#lobby', class: 'btn small ghost' }, '← Lobby'),
-        h('h2', null, g.icon + ' ' + g.name), h('span', { class: 'mode-pill ' + S.mode }, S.mode === 'real' ? 'REAL SOL' : 'DEMO'), h('span', { class: 'edge-pill' }, 'House edge ' + g.edge)),
+        h('h2', null, g.icon + ' ' + g.name), h('span', { class: 'mode-pill ' + S.mode }, S.mode === 'real' ? 'REAL SOL' : 'DEMO'), odds ? h('span', { class: 'edge-pill' }, 'House edge ' + g.edge) : null),
       root, info);
     setTimeout(() => {
       const c = g.mount(root, g);
@@ -288,6 +295,23 @@
     return wrap;
   }
 
+  function accountPage() {
+    const cur = h('input', { type: 'password', placeholder: 'Current password', autocomplete: 'current-password' });
+    const nx = h('input', { type: 'password', placeholder: 'New password (8+ characters)', autocomplete: 'new-password' });
+    const nx2 = h('input', { type: 'password', placeholder: 'Repeat new password', autocomplete: 'new-password' });
+    const btn = h('button', { class: 'btn', type: 'submit' }, 'Change password');
+    return h('div', { class: 'auth-wrap' }, h('form', { class: 'panel auth', onsubmit: async (e) => {
+      e.preventDefault();
+      if (nx.value !== nx2.value) return C.toast('New passwords do not match', 'err');
+      btn.disabled = true;
+      const r = await C.try(() => C.api('POST', '/api/password', { current: cur.value, next: nx.value }));
+      btn.disabled = false;
+      if (r) { cur.value = nx.value = nx2.value = ''; C.toast('Password changed. Other devices have been signed out.', 'win'); }
+    } }, h('h2', null, 'Account'), h('p', { class: 'muted' }, 'Signed in as ', h('b', null, S.user.username), S.user.role === 'admin' ? ' (admin)' : ''),
+    h('h3', null, 'Change password'), cur, nx, nx2, btn,
+    h('button', { class: 'btn ghost', type: 'button', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); location.hash = '#login'; } }, 'Log out')));
+  }
+
   async function historyPage() {
     const r = await C.try(() => C.api('GET', '/api/history?mode=' + S.mode));
     const n = names();
@@ -306,8 +330,8 @@
     const tot = rows.reduce((a, x) => ({ w: a.w + x.wagered, p: a.p + x.won, n: a.n + x.rounds }), { w: 0, p: 0, n: 0 });
     return h('div', { class: 'panel' }, h('h2', null, `Your statistics (${S.mode === 'real' ? 'real SOL' : 'demo'})`),
       h('div', { class: 'kpis' }, kpi('Balance', C.fmt(C.balance())), kpi('Rounds', tot.n), kpi('Total wagered', C.fmt(tot.w)), kpi('Total returned', C.fmt(tot.p)), kpi('Net result', C.fmt(tot.p - tot.w)), kpi('Your RTP', tot.w ? ((tot.p / tot.w) * 100).toFixed(2) + '%' : '—')),
-      rows.length ? h('table', { class: 'data' }, h('tr', null, ['Game', 'Rounds', 'Wagered', 'Returned', 'Net', 'Your RTP', 'House edge'].map((x) => h('th', null, x))),
-        rows.map((x) => h('tr', null, h('td', null, n[x.game] || x.game), h('td', null, x.rounds), h('td', null, C.fmt(x.wagered)), h('td', null, C.fmt(x.won)), h('td', { class: x.won - x.wagered >= 0 ? 'pos' : 'neg' }, C.fmt(x.won - x.wagered)), h('td', null, x.wagered ? ((x.won / x.wagered) * 100).toFixed(2) + '%' : '—'), h('td', null, edges[x.game] || ''))))
+      rows.length ? h('table', { class: 'data' }, h('tr', null, ['Game', 'Rounds', 'Wagered', 'Returned', 'Net', 'Your RTP', C.odds() ? 'House edge' : null].filter(Boolean).map((x) => h('th', null, x))),
+        rows.map((x) => h('tr', null, h('td', null, n[x.game] || x.game), h('td', null, x.rounds), h('td', null, C.fmt(x.wagered)), h('td', null, C.fmt(x.won)), h('td', { class: x.won - x.wagered >= 0 ? 'pos' : 'neg' }, C.fmt(x.won - x.wagered)), h('td', null, x.wagered ? ((x.won / x.wagered) * 100).toFixed(2) + '%' : '—'), C.odds() ? h('td', null, edges[x.game] || '') : null)))
         : h('p', { class: 'muted' }, 'Play some games to see statistics.'));
   }
   const kpi = (l, v) => h('div', { class: 'kpi' }, h('div', { class: 'kpi-v' }, String(v)), h('div', { class: 'kpi-l' }, l));
@@ -327,12 +351,13 @@
     document.querySelectorAll('.topbar nav a').forEach((x) => x.classList.toggle('active', x.getAttribute('href') === '#' + (hash || 'lobby')));
     window.scrollTo(0, 0);
     document.title = 'Royal Edge Casino';
-    const needLogin = ['history', 'stats', 'wallet', 'admin'].includes(hash) || C.games.some((g) => g.id === hash);
+    const needLogin = ['history', 'stats', 'wallet', 'admin', 'account'].includes(hash) || C.games.some((g) => g.id === hash);
     if (hash === 'login') return a.appendChild(authPage());
+    if (hash === 'account' && S.user) return a.appendChild(accountPage());
     if (needLogin && !S.user) { location.hash = '#login'; return; }
     const g = C.games.find((x) => x.id === hash);
     if (g) { document.title = g.name + ' — Royal Edge Casino'; return a.appendChild(gamePage(g)); }
-    const page = { history: historyPage, stats: statsPage, edges: edgesPage, wallet: walletPage, admin: adminPage }[hash];
+    const page = { history: historyPage, stats: statsPage, edges: C.odds() ? edgesPage : null, wallet: walletPage, admin: adminPage }[hash];
     if (page) { const el = await page(); if (location.hash.replace(/^#/, '') === hash) { a.innerHTML = ''; a.appendChild(el); } return; }
     a.appendChild(lobby());
   }
@@ -357,10 +382,11 @@
       shown = { v, mode: S.mode };
       modeBtns.forEach((b) => b.classList.toggle('sel', b.dataset.mode === S.mode));
       document.body.classList.toggle('real-mode', S.mode === 'real');
+      document.body.classList.toggle('no-odds', !C.odds());
       document.getElementById('refill').style.display = S.mode === 'demo' ? '' : 'none';
       modeBox.style.display = S.user ? '' : 'none';
       userBox.innerHTML = '';
-      if (S.user) userBox.append(h('a', { href: '#wallet', class: 'btn small gold' }, 'Deposit'), h('span', { class: 'uname' }, S.user.username), h('button', { class: 'btn small ghost', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); location.hash = '#login'; } }, 'Log out'));
+      if (S.user) userBox.append(h('a', { href: '#wallet', class: 'btn small gold' }, 'Deposit'), h('a', { class: 'uname', href: '#account', title: 'Account' }, '👤 ' + S.user.username), h('button', { class: 'btn small ghost', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); location.hash = '#login'; } }, 'Log out'));
       else userBox.append(h('a', { href: '#login', class: 'btn small gold' }, 'Log in'));
       const adm = document.getElementById('nav-admin'); if (adm) adm.style.display = S.user && S.user.role === 'admin' ? '' : 'none';
     };

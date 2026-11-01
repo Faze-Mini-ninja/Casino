@@ -48,9 +48,9 @@
     }
     return () => { alive = false; };
   }
-  C.register({ n: 6, id: 'baccarat-tie', statId: 'baccarat', name: 'Baccarat — Tie Bet', icon: '🤝', cat: 'cards', edge: '14.36%', blurb: 'Back the Tie at 8:1 — the classic sucker bet.', rules: RULES, edges: EDGES, focus: ['tie'], mount });
+  C.register({ n: 6, id: 'baccarat-tie', statId: 'baccarat', name: 'Baccarat — Tie Bet', icon: '🤝', cat: 'cards', edge: '14.36%', blurb: 'Back the Tie at 8:1.', rules: RULES, edges: EDGES, focus: ['tie'], mount });
   C.register({ n: 7, id: 'baccarat-side', statId: 'baccarat', name: 'Baccarat — Side Bets', icon: '💎', cat: 'cards', edge: '7.6–14%', blurb: 'Pairs, Perfect Pair, Dragon 7 and Panda 8.', rules: RULES, edges: EDGES, focus: ['ppair', 'bpair', 'epair', 'perfect', 'dragon7', 'panda8'], mount });
-  C.register({ n: 8, id: 'baccarat', name: 'Baccarat — Player/Banker', icon: '🎴', cat: 'cards', edge: '1.24%', blurb: 'Punto banco: Player 1.24%, Banker 1.06%.', rules: RULES, edges: EDGES, focus: ['player', 'banker'], mount });
+  C.register({ n: 8, id: 'baccarat', name: 'Baccarat — Player/Banker', icon: '🎴', cat: 'cards', edge: '1.24%', blurb: 'Punto banco: bet on Player or Banker.', rules: RULES, edges: EDGES, focus: ['player', 'banker'], mount });
   const css = document.createElement('style');
   css.textContent = `.bac-hands{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:18px}
   .bac-main{display:grid;grid-template-columns:1fr 1.4fr 1.2fr 1.4fr 1fr;gap:8px}.bac-side{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}

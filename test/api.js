@@ -3,7 +3,7 @@
 'use strict';
 const os = require('os'), path = require('path'), fs = require('fs');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'casino-test-'));
-Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PORT: '0', PLAY_RATE_PER_5S: '100000', SOLANA_CLUSTER: 'devnet' });
+Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PORT: '0', PLAY_RATE_PER_5S: '100000', ADMIN_USERNAME: 'owner', ADMIN_PASSWORD: 'owner-password-1', SOLANA_CLUSTER: 'devnet' });
 const { server } = require('../server/index.js');
 let cookie = '', base = '', fails = 0;
 const api = async (method, p, body) => {
@@ -16,7 +16,8 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
 (async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
   let r = await api('POST', '/api/register', { username: 'tester', password: 'password123' });
-  ok(r.user && r.user.role === 'admin' && r.balances.demo === 1000000, 'register gives 10,000 demo credits + admin for first user');
+  ok(r.user && r.user.role === 'player' && r.balances.demo === 1000000, 'register gives 10,000 demo credits; first user is NOT admin when ADMIN_USERNAME is set');
+  ok((await api('GET', '/api/me')).config.showOdds === false, 'odds hidden by default');
   const bal = async () => (await api('GET', '/api/me')).balances.demo;
   // security checks
   ok((await play('slots', null, { bet: -5 }))._status === 400, 'negative bet rejected');
@@ -82,11 +83,19 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
   ok((await api('GET', '/api/wallet')).address === null, 'wallet works with chain disabled');
   // ledger reconciles with balance
   const { q } = require('../server/db');
-  const led = q("SELECT SUM(delta) s FROM ledger WHERE user_id = 1 AND mode = 'demo'").get().s;
+  const led = q("SELECT SUM(delta) s FROM ledger WHERE user_id = (SELECT id FROM users WHERE username = 'tester') AND mode = 'demo'").get().s;
   ok(led === (await bal()), `ledger sum ${led} equals balance`);
-  // second user is not admin, can't see admin
-  cookie = ''; await api('POST', '/api/register', { username: 'player2', password: 'password123' });
-  ok((await api('GET', '/api/admin/overview'))._status === 403, 'non-admin blocked from admin');
+  // players can't see admin; the configured admin can
+  ok((await api('GET', '/api/admin/overview'))._status === 403, 'player blocked from admin');
+  // password change: wrong current rejected, new one works, old one stops working
+  ok((await api('POST', '/api/password', { current: 'nope', next: 'newpassword456' }))._status === 400, 'wrong current password rejected');
+  ok((await api('POST', '/api/password', { current: 'password123', next: 'newpassword456' })).ok, 'password changed');
+  ok((await api('GET', '/api/me')).user, 'still signed in on this device after change');
+  cookie = ''; ok((await api('POST', '/api/login', { username: 'tester', password: 'password123' }))._status === 401, 'old password no longer works');
+  ok((await api('POST', '/api/login', { username: 'tester', password: 'newpassword456' })).user, 'new password works');
+  cookie = ''; r = await api('POST', '/api/login', { username: 'owner', password: 'owner-password-1' });
+  ok(r.user && r.user.role === 'admin', 'configured admin can sign in');
+  ok((await api('GET', '/api/admin/overview'))._status === 200, 'admin sees admin overview');
   server.close(); fs.rmSync(dir, { recursive: true, force: true });
   console.log(fails ? `API TEST FAILED (${fails})` : 'API TEST OK'); process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -3,7 +3,7 @@
   const edgeTot = (t) => { const ways = { 4: 3, 5: 6, 6: 10, 7: 15, 8: 21, 9: 25, 10: 27 }[t <= 10 ? t : 21 - t]; return ((1 - ways * (L.SICBO_TOTALS[t] + 1) / 216) * 100).toFixed(2) + '%'; };
   C.register({
     n: 12, id: 'sicbo', name: 'Sic Bo', icon: '🎲', cat: 'dice', edge: '2.8–33.3%',
-    blurb: 'Three-dice Chinese classic. Triples and doubles carry 30%+ edges.',
+    blurb: 'Three-dice Chinese classic. Triples pay up to 150:1.',
     rules: '<p>Three dice are shaken. Small (4–10) and Big (11–17) lose on any triple. Single-number bets pay 1:1, 2:1 or 3:1 for one, two or three matching dice.</p>',
     edges: [['Small / Big / Odd / Even', '1:1', '2.78%'], ['Single number', '1:1 / 2:1 / 3:1', '7.87%'], ['Two-dice combination', '5:1', '16.67%'], ['Specific double', '8:1', '33.33%'], ['Any triple', '24:1', '30.56%'], ['Specific triple', '150:1', '30.09%'],
       ...Object.entries(L.SICBO_TOTALS).filter(([t]) => t <= 10).map(([t, p]) => [`Total ${t} / ${21 - t}`, p + ':1', edgeTot(+t)])],

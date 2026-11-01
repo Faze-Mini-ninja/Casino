@@ -25,7 +25,7 @@
         if (chance() > 95) { target = over ? 5 : 95; slider.value = target; }
         modeBtn.textContent = over ? `Roll Over ${target}` : `Roll Under ${target}`;
         const m = L.diceMult(chance());
-        info.innerHTML = `<div class="stat-line">Win chance <b>${chance().toFixed(2)}%</b></div><div class="stat-line">Multiplier <b>${m.toFixed(4)}×</b></div><div class="stat-line">Profit on win <b>${C.fmt(bet.value * m - bet.value)}</b></div>`;
+        info.innerHTML = (C.odds() ? `<div class="stat-line">Win chance <b>${chance().toFixed(2)}%</b></div>` : '') + `<div class="stat-line">Multiplier <b>${m.toFixed(4)}×</b></div><div class="stat-line">Profit on win <b>${C.fmt(bet.value * m - bet.value)}</b></div>`;
         const pct = target;
         track.style.setProperty('--split', pct + '%');
         track.classList.toggle('over', over);

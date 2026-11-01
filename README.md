@@ -17,7 +17,18 @@ cp .env.example .env      # optional — defaults are fine for devnet
 npm start                 # http://localhost:8080
 ```
 
-The **first account you register becomes the admin** (the Admin tab appears in the menu).
+### Signing in
+Players register and sign in with a **username and password** (Account page: change password, log out).
+Set your own admin login in `.env`. The account is created at startup, or has its password reset if it already exists:
+```
+ADMIN_USERNAME=owner
+ADMIN_PASSWORD=a-long-unique-password
+```
+With these set, every newly registered account is an ordinary player. Without them (local testing only), the first account registered becomes admin.
+
+### Odds display
+Odds are **hidden from players by default**. Players still see what every bet pays, but no house edges, RTPs, win
+probabilities or "1 in X" odds, and the House Edges page is hidden. Set `SHOW_ODDS=true` to show them; some licences require RTP to be published.
 
 ### Try a devnet deposit
 1. Register, open **Wallet**, copy today's deposit address.
