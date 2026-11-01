@@ -56,7 +56,7 @@
           el.append(h('div', { class: 'he-name' }, s.name, H && button === i ? h('span', { class: 'he-btn' }, 'D') : null),
             h('div', { class: 'cards' }, (s.cards || []).map((c) => C.cardEl(c, { hidden: !show || (s.folded && s.bot) }))),
             h('div', { class: 'he-info' }, s.last || ' ', s.total ? ` • in pot ${C.fmt(s.total)}` : ''),
-            showdown && s.hand && !s.folded ? h('div', { class: 'he-hand' }, s.hand) : null);
+            showdown && s.hand && !s.folded ? h('div', { class: 'he-hand' }, s.hand) : '');
         });
         boardEl.innerHTML = '';
         if (H) H.board.forEach((c) => boardEl.appendChild(C.cardEl(c)));
@@ -76,7 +76,7 @@
           actEl.append(
             h('button', { class: 'btn red', onclick: () => res('fold') }, 'Fold'),
             h('button', { class: 'btn green', onclick: () => res('call') }, toCall ? `Call ${C.fmt(toCall)}` : 'Check'),
-            canRaise ? h('button', { class: 'btn blue', onclick: () => res('raise') }, (toCall ? 'Raise to ' : 'Bet ') + C.fmt(toCall + size)) : null);
+            canRaise ? h('button', { class: 'btn blue', onclick: () => res('raise') }, (toCall ? 'Raise to ' : 'Bet ') + C.fmt(toCall + size)) : '');
           H.resolve = res;
         }).then((a) => { actEl.innerHTML = ''; return a; });
       }

@@ -160,3 +160,69 @@ canvas { max-width: 100%; display: block; }
 .mtile.disabled { cursor: not-allowed; }
 input[type=checkbox] { width: 18px; height: 18px; padding: 0; accent-color: var(--gold); }
 label.row { font-size: 13px; color: var(--muted); flex-wrap: nowrap; }
+
+/* ===================== Mobile / iPhone ===================== */
+button, .spot, .chip, .mtile, .kcell, .tile, canvas, .card.clickable { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.layout > *, .roulette > * { min-width: 0; }
+canvas { height: auto; }
+@media (max-width: 820px) {
+  html, body { font-size: 14px; }
+  input, select { font-size: 16px; } /* stops iOS zooming into inputs */
+  .topbar { padding: 8px 12px; gap: 6px 10px; padding-top: max(8px, env(safe-area-inset-top)); }
+  .logo { font-size: 16px; flex: 1; }
+  .wallet { padding: 4px 4px 4px 10px; gap: 6px; }
+  .bal-label { display: none; }
+  .balance { font-size: 16px; min-width: 0; }
+  .topbar nav { order: 3; flex: 0 0 100%; flex-wrap: nowrap; overflow-x: auto; gap: 2px; scrollbar-width: none; }
+  .topbar nav::-webkit-scrollbar { display: none; }
+  .topbar nav a { padding: 4px 10px; font-size: 13px; white-space: nowrap; }
+  .disclaimer { font-size: 10px; padding: 4px 8px; }
+  main { padding: 10px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  .hero { padding: 12px 4px 6px; } .hero h1 { font-size: 24px; } .hero p { font-size: 13px; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; width: 100%; scrollbar-width: none; } .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; padding: 6px 12px; }
+  .search { width: 100%; min-width: 0; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .tile { padding: 12px; gap: 3px; } .tile-icon { font-size: 30px; } .tile-name { font-size: 14px; } .tile-blurb { font-size: 11px; } .tile-edge { font-size: 11px; }
+  .game-head { gap: 8px; margin-bottom: 8px; } .game-head h2 { font-size: 18px; } .edge-pill { font-size: 11px; padding: 2px 8px; }
+  .game-root { padding: 10px; border-radius: 14px; min-height: 0; }
+  /* game first, settings underneath */
+  .layout { gap: 12px; }
+  .layout > .stage { order: -1; min-height: 0; gap: 10px; }
+  .side { padding: 12px; gap: 10px; }
+  .bet-amt { width: 100%; flex: 1; min-width: 0; }
+  .btn.big { padding: 12px 20px; font-size: 16px; min-width: 120px; }
+  .msg { font-size: 15px; min-height: 26px; }
+  .felt { padding: 10px; border-width: 5px; border-radius: 16px; }
+  .card { width: 52px; height: 74px; } .card .cr { font-size: 15px; top: 3px; left: 5px; } .card .cs { top: 20px; left: 5px; font-size: 13px; } .card .cbig { font-size: 24px; right: 5px; bottom: 4px; }
+  .cards { gap: 5px; min-height: 76px; }
+  .chip { width: 40px; height: 40px; font-size: 11px; border-width: 3px; }
+  .hint { display: none; }
+  .spot { padding: 6px 3px; min-height: 40px; font-size: 13px; }
+  .stack { min-width: 24px; height: 24px; font-size: 10px; top: -6px; right: -6px; }
+  .die { width: 46px; height: 46px; padding: 6px; } .die .pip { width: 8px; height: 8px; }
+  .big-num { font-size: 48px; }
+  .rules { padding: 10px 12px; } .edge-table, table.data { font-size: 12px; } table.data th, table.data td { padding: 5px 6px; }
+  .panel { padding: 12px; overflow-x: auto; }
+  /* per game */
+  .slot-reel { width: 28vw; max-width: 100px; } .slot-cell { height: 72px; font-size: 42px; }
+  .rleft canvas, .roulette canvas { width: min(320px, 86vw); }
+  .rnums { grid-template-columns: repeat(12, 1fr) 34px; gap: 2px; } .rzeros { width: 34px; } .rnum { min-height: 32px; font-size: 11px; padding: 2px 0; }
+  .rgrid { gap: 2px; } .rtable { padding: 6px; }
+  .bac-main .bspot.big { min-height: 54px; font-size: 15px; }
+  .he-table { height: 520px; border-width: 6px; border-radius: 30px; }
+  .he-seat { min-width: 0; padding: 4px 6px; max-width: 46%; } .he-seat .card { width: 40px; height: 58px; } .he-seat .card .cbig { font-size: 18px; } .he-seat .card .cr { font-size: 13px; } .he-seat .card .cs { top: 17px; font-size: 11px; }
+  .he-seat.s1 { top: 30%; } .he-seat.s3 { top: 30%; }
+  .he-center { top: 54%; } .he-board .card { width: 40px; height: 58px; } .he-board .card .cbig { font-size: 18px; }
+  .he-name { font-size: 12px; } .he-info, .he-hand { font-size: 10px; text-align: center; }
+  .vp-cards .card { width: 17vw; height: 24vw; max-width: 64px; max-height: 92px; } .vp-hold { font-size: 11px; }
+  .hilo-card .card { width: 100px; height: 140px; }
+  .coin { width: 140px; height: 140px; } .coin .face { font-size: 60px; }
+  .bingo-card { width: calc(50% - 7px); min-width: 150px; padding: 5px; } .bc-cell { font-size: 12px; }
+  .lir-spot { width: 70px; height: 70px; }
+  .keno-board { gap: 3px; } .kcell { font-size: 12px; border-radius: 6px; }
+  .sc-cell { font-size: 20px; }
+  .dt-card { min-height: 76px; }
+  .war-vs { font-size: 26px; }
+  .craps .cspot { font-size: 11px; }
+}
