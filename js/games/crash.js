@@ -33,7 +33,7 @@
         for (let s = 0; s <= 60; s++) { const tt = t * s / 60; const mv = Math.exp(RATE * tt / 1000); const x = 40 + tt / maxT * (W - 60), y = H - 30 - (mv - 1) / (maxM - 1) * (H - 60); s ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
         ctx.stroke(); ctx.lineWidth = 1;
         const x = 40 + t / maxT * (W - 60), y = H - 30 - (Math.exp(RATE * t / 1000) - 1) / (maxM - 1) * (H - 60);
-        ctx.font = '28px serif'; ctx.fillText(crashed ? '💥' : '🚀', x - 14, y + 8);
+        { const im = C.artImg(crashed ? 'boom' : 'rocket'); if (im.complete) { ctx.save(); ctx.translate(x, y); if (!crashed) ctx.rotate(Math.PI / 4); ctx.drawImage(im, -20, -20, 40, 40); ctx.restore(); } }
         ctx.font = 'bold 64px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = crashed ? '#ff4d6d' : '#fff';
         ctx.fillText(m.toFixed(2) + '×', W / 2, H / 2 - 10);
         if (crashed) { ctx.font = 'bold 22px sans-serif'; ctx.fillText('CRASHED', W / 2, H / 2 + 24); }

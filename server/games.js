@@ -159,6 +159,81 @@ G.cases = { play(p) {
   return { wager: b, payout: floorU(b * m), detail: `${L.CASES[id].name} case: ${m}×`, result: { index: k, mult: m, rarity: t.items[k].rarity } };
 } };
 
+/* ---- 20 more games: single-shot ---- */
+G.darts = { play(p) {
+  const b = U(p.bet), risk = oneOf(p.risk, ['low', 'medium', 'high'], 'risk'), t = L.dartsTable(risk), k = L.pickWeighted(t.items), it = t.items[k];
+  return { wager: b, payout: floorU(b * it.m), detail: `${risk}: ${it.x} ${it.m}×`, result: { index: k, ring: it.x, mult: it.m } };
+} };
+G.race = { play(p) {
+  const b = U(p.bet), pick = int(p.horse, 0, L.HORSES.length - 1, 'horse'), odds = L.horseOdds(pick);
+  const winner = L.pickWeighted(L.HORSES.map((h) => ({ p: h.p })));
+  const rest = L.shuffle(L.HORSES.map((_, i) => i).filter((i) => i !== winner));
+  return { wager: b, payout: winner === pick ? floorU(b * odds) : 0, detail: `Backed ${L.HORSES[pick].name}, ${L.HORSES[winner].name} won`, result: { order: [winner, ...rest], winner, odds } };
+} };
+G.cups = { play(p) {
+  const b = U(p.bet), n = oneOf(Number(p.cups), [3, 5], 'cups'), pick = int(p.pick, 0, n - 1, 'cup'), ball = L.int(n), m = L.cupsMult(n);
+  return { wager: b, payout: ball === pick ? floorU(b * m) : 0, detail: `${n} cups: picked ${pick + 1}, ball under ${ball + 1}`, result: { ball, win: ball === pick, mult: m } };
+} };
+G.rps = { play(p) {
+  const b = U(p.bet), you = oneOf(p.hand, ['rock', 'paper', 'scissors'], 'hand'), house = L.pick(['rock', 'paper', 'scissors']);
+  const beats = { rock: 'scissors', paper: 'rock', scissors: 'paper' }, res = you === house ? 'tie' : beats[you] === house ? 'win' : 'lose';
+  return { wager: b, payout: res === 'win' ? floorU(b * L.rpsMult()) : res === 'tie' ? b : 0, detail: `${you} vs ${house}: ${res}`, result: { house, res } };
+} };
+G.colors = { play(p) {
+  const { bets, total } = betMap(p.bets, (k) => ['red', 'black', 'green'].includes(k));
+  const n = L.int(15), col = L.colorOf15(n);
+  return { wager: total, payout: bets[col] ? bets[col] * L.COLORS_PAYS[col] : 0, detail: `${n} ${col}`, result: { n, color: col } };
+} };
+G.pick3 = { play(p) {
+  const b = U(p.bet), mode = oneOf(p.mode, ['straight', 'box'], 'mode');
+  if (!Array.isArray(p.digits) || p.digits.length !== 3) fail('Pick three digits');
+  const mine = p.digits.map((x) => int(x, 0, 9, 'digit'));
+  if (mode === 'box' && L.pick3Kind(mine) === 'triple') fail('Box bets need at least two different digits');
+  const draw = [L.int(10), L.int(10), L.int(10)];
+  let m = 0;
+  if (mode === 'straight') m = draw.join('') === mine.join('') ? L.PICK3.straight : 0;
+  else m = [...draw].sort().join('') === [...mine].sort().join('') ? L.PICK3[L.pick3Kind(mine)] : 0;
+  return { wager: b, payout: b * m, detail: `${mode} ${mine.join('')} vs ${draw.join('')}`, result: { draw, mult: m } };
+} };
+G.miniroulette = { play(p) {
+  const { bets, total } = betMap(p.bets, (k) => /^n:([0-9]|1[0-2])$/.test(k) || ['red', 'black', 'odd', 'even', 'low', 'high', 'c1', 'c2', 'c3'].includes(k));
+  const n = L.int(13); let pay = 0; const winners = [];
+  for (const [id, amt] of Object.entries(bets)) if (L.miniCovers(id).includes(n)) { pay += amt * (L.miniPays(id) + 1); winners.push(id); }
+  return { wager: total, payout: pay, detail: 'Result ' + n, result: { n, winners } };
+} };
+G.andarbahar = { play(p) {
+  const { bets, total } = betMap(p.bets, (k) => k === 'andar' || k === 'bahar');
+  const r = L.andarDeal();
+  return { wager: total, payout: bets[r.winner] ? floorU(bets[r.winner] * L.ANDAR_PAYS[r.winner]) : 0, detail: `Joker ${cs(r.joker)}: ${r.winner} after ${r.dealt} cards`, result: r };
+} };
+function threeDiceFaces(p, faces, name) {
+  const { bets, total } = betMap(p.bets, (k) => faces.includes(k));
+  const d = [L.int(6), L.int(6), L.int(6)].map((i) => faces[i]); let pay = 0; const winners = [];
+  for (const [f, amt] of Object.entries(bets)) { const k = d.filter((x) => x === f).length; if (k) { pay += amt * (k + 1); winners.push(f); } }
+  return { wager: total, payout: pay, detail: `${name}: ${d.join(' ')}`, result: { dice: d, winners } };
+}
+G.chuckaluck = { play(p) { return threeDiceFaces(p, ['1', '2', '3', '4', '5', '6'], 'Chuck-a-luck'); } };
+G.crownanchor = { play(p) { return threeDiceFaces(p, L.CROWN, 'Crown & anchor'); } };
+G.uo7 = { play(p) {
+  const { bets, total } = betMap(p.bets, (k) => k in L.UO7);
+  const a = L.range(1, 6), b2 = L.range(1, 6), t = a + b2, hit = t < 7 ? 'under' : t === 7 ? 'seven' : 'over';
+  return { wager: total, payout: bets[hit] ? bets[hit] * L.UO7[hit] : 0, detail: `${a}+${b2}=${t}`, result: { dice: [a, b2], hit } };
+} };
+G.duel = { play(p) {
+  const { bets, total } = betMap(p.bets, (k) => k in L.DUEL);
+  const you = [L.range(1, 6), L.range(1, 6)], dealer = [L.range(1, 6), L.range(1, 6)], ys = you[0] + you[1], ds = dealer[0] + dealer[1];
+  const res = ys > ds ? 'player' : ys === ds ? 'tie' : 'dealer';
+  return { wager: total, payout: bets[res] ? bets[res] * L.DUEL[res] : 0, detail: `You ${ys} vs dealer ${ds}`, result: { you, dealer, res } };
+} };
+G.pokerdice = { play(p) {
+  const b = U(p.bet), d = [0, 0, 0, 0, 0].map(() => L.range(1, 6)), k = L.pokerDice(d), m = k >= 0 ? L.POKERDICE[k][1] : 0;
+  return { wager: b, payout: floorU(b * m), detail: k >= 0 ? L.POKERDICE[k][0] : 'No hand', result: { dice: d, hand: k, mult: m } };
+} };
+for (const id of ['fruits', 'gems', 'sevens']) G[id] = { play(p) {
+  const b = U(p.bet), r = L.slotSpin2(id);
+  return { wager: b, payout: floorU(b * r.mult), detail: `${L.SLOT_THEMES[id].name}: ${r.mult}×`, result: r };
+} };
+
 /* ---------------- multi-step games ---------------- */
 const deck = (n = 1) => L.shuffle(L.newDeck(n));
 
@@ -583,6 +658,74 @@ G.reddog = {
     fail('Unknown action');
   },
   abandon(s) { return rdFinish(s, false); },
+};
+
+// Pump: pump the balloon up to 25 times; it may pop on any pump.
+G.pump = {
+  start(p) { const b = U(p.bet), diff = oneOf(p.diff, Object.keys(L.PUMP), 'difficulty'); return { wager: b, state: { b, diff, k: 0, e: L.EDGE.pump }, view: { k: 0 }, done: false }; },
+  act(s, a) {
+    if (a === 'cashout') { if (!s.k) fail('Pump at least once first'); const m = L.pumpMult(s.diff, s.k, s.e); return { state: s, view: { k: s.k, mult: m, popped: false }, done: true, payout: floorU(s.b * m), detail: `${s.diff}: ${s.k} pumps, ${m}×` }; }
+    if (a !== 'pump') fail('Unknown action');
+    if (L.random() < L.PUMP[s.diff]) return { state: s, view: { k: s.k, popped: true }, done: true, payout: 0, detail: `${s.diff}: popped on pump ${s.k + 1}` };
+    s.k++;
+    if (s.k >= L.PUMP_MAX) return G.pump.act(s, 'cashout');
+    return { state: s, view: { k: s.k, mult: L.pumpMult(s.diff, s.k, s.e), next: L.pumpMult(s.diff, s.k + 1, s.e) }, done: false };
+  },
+  abandon(s) { return s.k ? G.pump.act(s, 'cashout') : { state: s, view: {}, done: true, payout: s.b, detail: 'Refunded (no pumps)' }; },
+};
+// Penalty shootout: pick a zone for each kick; the keeper guards 1 of 3 (or 2 of 5).
+G.penalty = {
+  start(p) { const b = U(p.bet), diff = oneOf(p.diff, Object.keys(L.PENALTY), 'difficulty'); return { wager: b, state: { b, diff, k: 0, e: L.EDGE.penalty }, view: { k: 0 }, done: false }; },
+  act(s, a, p) {
+    if (a === 'cashout') { if (!s.k) fail('Score at least once first'); const m = L.penaltyMult(s.diff, s.k, s.e); return { state: s, view: { k: s.k, mult: m }, done: true, payout: floorU(s.b * m), detail: `${s.diff}: ${s.k} goals, ${m}×` }; }
+    if (a !== 'kick') fail('Unknown action');
+    const d = L.PENALTY[s.diff], zone = int(p.zone, 0, d.zones - 1, 'zone');
+    const keeper = L.shuffle(Array.from({ length: d.zones }, (_, i) => i)).slice(0, d.keeper);
+    if (keeper.includes(zone)) return { state: s, view: { k: s.k, zone, keeper, saved: true }, done: true, payout: 0, detail: `${s.diff}: saved on kick ${s.k + 1}` };
+    s.k++;
+    if (s.k >= L.PENALTY_MAX) { const m = L.penaltyMult(s.diff, s.k, s.e); return { state: s, view: { k: s.k, zone, keeper, mult: m, saved: false }, done: true, payout: floorU(s.b * m), detail: `${s.diff}: perfect ${s.k}/${s.k}, ${m}×` }; }
+    return { state: s, view: { k: s.k, zone, keeper, saved: false, mult: L.penaltyMult(s.diff, s.k, s.e), next: L.penaltyMult(s.diff, s.k + 1, s.e) }, done: false };
+  },
+  abandon(s) { return s.k ? G.penalty.act(s, 'cashout') : { state: s, view: {}, done: true, payout: s.b, detail: 'Refunded (no kicks)' }; },
+};
+// Red or Black ladder.
+const rbCard = () => ({ r: L.range(2, 14), s: L.int(4) });
+G.redblack = {
+  start(p) { const b = U(p.bet); return { wager: b, state: { b, mult: 1, n: 0, e: L.EDGE.redblack, trail: [] }, view: { mult: 1, n: 0 }, done: false }; },
+  act(s, a, p) {
+    if (a === 'cashout') { if (!s.n) fail('Make at least one correct guess first'); return { state: s, view: { mult: s.mult, n: s.n }, done: true, payout: floorU(s.b * s.mult), detail: `${s.n} correct, ${s.mult.toFixed(2)}×` }; }
+    if (a !== 'guess') fail('Unknown action');
+    const kind = p.guess === 'red' || p.guess === 'black' ? 'color' : /^suit:[0-3]$/.test(p.guess || '') ? 'suit' : fail('Invalid guess');
+    const c = rbCard(), red = c.s === 1 || c.s === 2;
+    const ok = kind === 'color' ? (p.guess === 'red') === red : c.s === +p.guess.slice(5);
+    s.trail.push(c);
+    if (!ok) return { state: s, view: { card: c, ok: false, n: s.n }, done: true, payout: 0, detail: `Lost after ${s.n} correct` };
+    s.mult = Math.floor(s.mult * L.redblackStep(kind, s.e) * 10000) / 10000; s.n++;
+    if (s.n >= 10) return { ...G.redblack.act(s, 'cashout'), view: { card: c, ok: true, mult: s.mult, n: s.n } };
+    return { state: s, view: { card: c, ok: true, mult: s.mult, n: s.n }, done: false };
+  },
+  abandon(s) { return s.n ? G.redblack.act(s, 'cashout') : { state: s, view: {}, done: true, payout: s.b, detail: 'Refunded (no guesses)' }; },
+};
+// Casino Hold'em: ante, see your 2 cards + flop, then call (2× ante) or fold.
+G.casinoholdem = {
+  start(p, ctx) {
+    const a = U(p.ante); ctx.need(a * 3, 'You need 3× the ante (ante + 2× call)');
+    const d = deck(1), s = { a, P: [d.pop(), d.pop()], D: [d.pop(), d.pop()], B: [d.pop(), d.pop(), d.pop(), d.pop(), d.pop()] };
+    return { wager: a, state: s, view: { P: s.P, flop: s.B.slice(0, 3), pName: L.handName(L.best5([...s.P, ...s.B.slice(0, 3)]).score) }, done: false };
+  },
+  act(s, a, p, ctx) {
+    const call = a === 'call'; if (!call && a !== 'fold') fail('Unknown action');
+    if (call) ctx.need(s.a * 2);
+    const pb = L.best5([...s.P, ...s.B]), db = L.best5([...s.D, ...s.B]), qual = L.cheQualifies(db.score);
+    const anteMult = L.CHE_ANTE[L.catR(pb.score)] || 1;
+    let pay = 0, note;
+    if (!call) note = 'Folded';
+    else if (!qual) { pay = s.a * (anteMult + 1) + s.a * 2; note = `Dealer doesn't qualify: ante pays ${anteMult}:1, call pushes`; }
+    else if (pb.score > db.score) { pay = s.a * (anteMult + 1) + s.a * 4; note = `You win with ${L.handName(pb.score)}: ante ${anteMult}:1, call 1:1`; }
+    else if (pb.score === db.score) { pay = s.a * 3; note = 'Tie — push'; } else note = `Dealer wins with ${L.handName(db.score)}`;
+    return { extra: call ? s.a * 2 : 0, state: s, view: { P: s.P, D: s.D, B: s.B, pName: L.handName(pb.score), dName: L.handName(db.score), qual, note }, done: true, payout: pay, detail: note };
+  },
+  abandon(s, ctx) { return G.casinoholdem.act(s, 'fold', {}, ctx); },
 };
 
 const ROUND_GAMES = Object.keys(G).filter((k) => G[k].start);

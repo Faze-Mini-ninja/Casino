@@ -163,4 +163,34 @@ for (const id of Object.keys(L.CASES)) report('Cases', L.CASES[id].name, L.caseT
   }
   report('Red Dog', 'per initial bet (raise on 7+)', 1 + net / wag, 'sim');
 }
+// ---- 20 more games ----
+for (const r of ['low', 'medium', 'high']) report('Darts', r, L.dartsTable(r).rtp, 'exact');
+L.HORSES.forEach((hh, i) => report('Horse Race', hh.name, L.horseOdds(i) * hh.p, 'exact'));
+for (const n of [3, 5]) report('Cups', `${n} cups`, L.cupsMult(n) / n, 'exact');
+report('Rock Paper Scissors', 'any', (L.rpsMult() + 1) / 3, 'exact');
+report('Red or Black', 'colour / suit guess', 1 - L.EDGE.redblack, 'exact');
+report('Pump', 'any cash-out', 1 - L.EDGE.pump, 'exact');
+report('Penalty', 'any cash-out', 1 - L.EDGE.penalty, 'exact');
+report('Colors', 'red / black / green', 14 / 15, 'exact');
+report('Pick 3', 'straight', L.PICK3.straight / 1000, 'exact'); report('Pick 3', 'box (6-way)', 6 * L.PICK3.box6 / 1000, 'exact'); report('Pick 3', 'box (3-way)', 3 * L.PICK3.box3 / 1000, 'exact');
+report('Mini Roulette', 'all bets', 12 / 13, 'exact');
+{ let a = 0, b = 0; const n = N(1e6); for (let i = 0; i < n; i++) { const r = L.andarDeal(); if (r.winner === 'andar') a += 1.9; else b += 2; } report('Andar Bahar', 'Andar (0.9:1)', a / n, 'sim'); report('Andar Bahar', 'Bahar (1:1)', b / n, 'sim'); }
+{ let r = 0; for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) for (let c = 1; c <= 6; c++) { const k = [a, b, c].filter((x) => x === 1).length; r += (k ? k + 1 : 0) / 216; } report('Chuck-a-Luck / Crown & Anchor', 'single face', r); }
+{ let u = 0, sv = 0, o = 0; for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) { const t = a + b; if (t < 7) u += 2 / 36; else if (t === 7) sv += 5 / 36; else o += 2 / 36; } report('Under/Over 7', 'under', u); report('Under/Over 7', 'seven', sv); report('Under/Over 7', 'over', o); }
+{ const p = Array(13).fill(0); for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) p[a + b] += 1 / 36; const tie = p.reduce((s, x) => s + x * x, 0); report('Dice Duel', 'player', (1 - tie) / 2 * 2); report('Dice Duel', 'tie (7:1)', tie * 8); }
+{ let r = 0; for (let i = 0; i < 7776; i++) { let x = i; const d = []; for (let k = 0; k < 5; k++) { d.push(x % 6 + 1); x = Math.floor(x / 6); } const k = L.pokerDice(d); if (k >= 0) r += L.POKERDICE[k][1] / 7776; } report('Poker Dice', 'one roll', r, 'exact'); }
+for (const id of ['fruits', 'gems', 'sevens']) report(L.SLOT_THEMES[id].name, 'all lines', L.slotTable(id).rtp, 'exact');
+{ // Casino Hold'em: call with pair or better / any ace / any flush or straight draw-ish simplification: call unless high card without an ace
+  const n = N(4e5); let net = 0, wag = 0;
+  for (let i = 0; i < n; i++) {
+    const d = L.shuffle(L.newDeck(1)), P = d.slice(0, 2), D = d.slice(2, 4), B = d.slice(4, 9);
+    const flopScore = L.best5([...P, ...B.slice(0, 3)]).score, call = L.cat5(flopScore) >= 1 || P.some((c) => c.r === 14);
+    wag += 1;
+    if (!call) { net -= 1; continue; }
+    wag += 2;
+    const pb = L.best5([...P, ...B]).score, db = L.best5([...D, ...B]).score, am = L.CHE_ANTE[L.catR(pb)] || 1;
+    if (!L.cheQualifies(db)) net += am; else if (pb > db) net += am + 2; else if (pb < db) net -= 3;
+  }
+  report("Casino Hold'em", 'per unit wagered (ante + call)', 1 + net / wag, 'sim');
+}
 console.table(rows);

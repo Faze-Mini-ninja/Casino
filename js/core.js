@@ -47,6 +47,7 @@
     let r;
     try { r = await C.api('POST', '/api/play', { game, action, params: game === 'fish' ? { ...params, ov } : params, mode: S.mode, ov }); }
     catch (e) { if (e.data && e.data.odds) { applyOdds(e.data.odds); setTimeout(route, 400); } throw e; }
+    if (C.sfx && action !== 'status') C.sfx('bet');
     if (r.preBalances) setUnits(r.preBalances);
     if (r.balances && r.preBalances) { r._t = setTimeout(() => setUnits(r.balances), 9000); }
     else setUnits(r.balances);
@@ -61,7 +62,13 @@
   }
   C.applyOdds = applyOdds;
   C.closed = (g) => !!(S.config.odds && S.config.odds.disabled.includes(g.round || g.statId || g.id));
-  C.settle = (r) => { if (r && r._t) { clearTimeout(r._t); r._t = null; } if (r && r.balances) setUnits(r.balances); };
+  C.settle = (r) => {
+    if (r && r._t) { clearTimeout(r._t); r._t = null; }
+    if (r && r.balances) setUnits(r.balances);
+    if (!r || !C.sfx || r._fx) return; r._fx = true;
+    const m = r.wager ? r.payout / r.wager : 0;
+    if (m >= 10 && C.bigWin) C.bigWin(m, r.payout - r.wager); else if (r.payout > r.wager) C.sfx('win'); else if (!r.payout) C.sfx('lose');
+  };
   /** Wrap a game action so errors (already toasted) don't break the UI. Returns null on failure. */
   C.try = async (fn) => { try { return await fn(); } catch (e) { if (!e.shown && e.message !== 'login') { console.error(e); C.toast('Something went wrong', 'err'); } return null; } };
 
@@ -113,10 +120,12 @@
     return { el: h('div', { class: 'field' }, h('label', null, label), s), sel: s, get value() { return s.value; } };
   };
   C.cardEl = (c, opts = {}) => {
-    if (!c || opts.hidden) return h('div', { class: 'card back' + (opts.cls ? ' ' + opts.cls : '') });
-    const red = c.s === 1 || c.s === 2;
-    return h('div', { class: 'card' + (red ? ' red' : '') + (opts.cls ? ' ' + opts.cls : '') },
-      h('span', { class: 'cr' }, L.RANK_STR[c.r]), h('span', { class: 'cs' }, L.SUITS[c.s]), h('span', { class: 'cbig' }, L.SUITS[c.s]));
+    if (!c || opts.hidden) return h('div', { class: 'card back' + (opts.cls ? ' ' + opts.cls : '') }, h('span', { class: 'cback' }, 'K'));
+    const red = c.s === 1 || c.s === 2, rank = L.RANK_STR[c.r], suit = L.SUITS[c.s], face = c.r >= 11 && c.r <= 13;
+    return h('div', { class: 'card' + (red ? ' red' : '') + (face ? ' face' : '') + (c.r === 14 ? ' ace' : '') + (opts.cls ? ' ' + opts.cls : '') },
+      h('span', { class: 'corner tl' }, h('b', null, rank), h('i', null, suit)),
+      h('span', { class: 'cmid' }, face ? h('span', { class: 'fl' }, rank, h('small', null, suit)) : suit),
+      h('span', { class: 'corner br' }, h('b', null, rank), h('i', null, suit)));
   };
   C.msg = () => {
     const el = h('div', { class: 'msg' }, ' ');
@@ -167,9 +176,11 @@
   C.CATS = { table: 'Table Games', cards: 'Card & Poker', dice: 'Dice & Wheels', lottery: 'Slots & Lottery', originals: 'Originals' };
   // Lobby grouping and short display names (game files keep their own detailed names)
   const RECAT = { 'roulette-us': 'table', 'roulette-eu': 'table', blackjack: 'table', baccarat: 'table', 'baccarat-tie': 'table', 'baccarat-side': 'table', craps: 'table', sicbo: 'table', bigsix: 'table', dragontiger: 'table', war: 'table',
-    videopoker: 'poker', paigow: 'poker', threecard: 'poker', caribbean: 'poker', holdem: 'poker', letitride: 'poker', slots: 'lottery', keno: 'lottery', bingo: 'lottery', scratch: 'lottery', reddog: 'table' };
+    videopoker: 'poker', paigow: 'poker', threecard: 'poker', caribbean: 'poker', holdem: 'poker', letitride: 'poker', slots: 'lottery', keno: 'lottery', bingo: 'lottery', scratch: 'lottery', reddog: 'table',
+    miniroulette: 'table', andarbahar: 'table', chuckaluck: 'table', crownanchor: 'table', uo7: 'table', duel: 'table', casinoholdem: 'poker', pokerdice: 'poker', fruits: 'lottery', gems: 'lottery', sevens: 'lottery', pick3: 'lottery' };
   const SHORT = { blackjack: 'Blackjack', 'roulette-us': 'American Roulette', 'roulette-eu': 'European Roulette', baccarat: 'Baccarat', 'baccarat-tie': 'Baccarat Tie', 'baccarat-side': 'Baccarat Bonus',
-    craps: 'Craps', paigow: 'Pai Gow', bigsix: 'Big Six', threecard: 'Three Card Poker', caribbean: 'Caribbean Stud', holdem: "Hold'em", bingo: 'Bingo', scratch: 'Scratch Cards', war: 'Casino War', videopoker: 'Video Poker', reddog: 'Red Dog' };
+    craps: 'Craps', paigow: 'Pai Gow', bigsix: 'Big Six', threecard: 'Three Card Poker', caribbean: 'Caribbean Stud', holdem: "Hold'em", bingo: 'Bingo', scratch: 'Scratch Cards', war: 'Casino War', videopoker: 'Video Poker', reddog: 'Red Dog',
+    race: 'Horse Race', rps: 'Rock Paper Scissors', redblack: 'Red or Black', miniroulette: 'Mini Roulette', andarbahar: 'Andar Bahar', crownanchor: 'Crown & Anchor', uo7: 'Under / Over 7', casinoholdem: "Casino Hold'em" };
   C.register = (g) => { g.cat = RECAT[g.id] || 'originals'; g.short = SHORT[g.id] || g.name; C.games.push(g); };
   let cleanup = null;
   const app = () => document.getElementById('app');
@@ -211,7 +222,10 @@
   const iconize = (root = document) => root.querySelectorAll('[data-i]').forEach((el) => { if (!el.querySelector('svg')) el.prepend(C.icon(el.dataset.i)); });
 
   /* ---------------- generated game art ---------------- */
-  const GLYPH = { slots: '7', keno: '80', blackjack: '21', 'roulette-us': '00', 'roulette-eu': '0', 'baccarat-tie': '8:1', 'baccarat-side': '♦', baccarat: '9', craps: '11', videopoker: '♠', paigow: '♣', sicbo: '3D', bingo: 'B', plinko: '▼', dragontiger: '龍', threecard: '3', caribbean: '♥', holdem: 'A♠', letitride: '$', bigsix: '6', crash: '×', mines: '◆', limbo: '∞', dice: '%', hilo: '↕', tower: '▲', scratch: '★', fish: '≈', coinflip: '½', war: '⚔', wheel: '◎', cases: '▣', reddog: 'R' };
+  const GLYPH = { slots: '7', keno: '80', blackjack: '21', 'roulette-us': '00', 'roulette-eu': '0', 'baccarat-tie': '8:1', 'baccarat-side': '♦', baccarat: '9', craps: '11', videopoker: '♠', paigow: '♣', sicbo: '3D', bingo: 'B', plinko: '▼', dragontiger: '龍', threecard: '3', caribbean: '♥', holdem: 'A♠', letitride: '$', bigsix: '6', crash: '×', mines: '◆', limbo: '∞', dice: '%', hilo: '↕', tower: '▲', scratch: '★', fish: '≈', coinflip: '½', war: '⚔', wheel: '◎', cases: '▣', reddog: 'R',
+    pump: '↑', penalty: '⚽', darts: '◎', race: '1st', cups: '?', rps: '✌', redblack: '♥♠', colors: '×14', miniroulette: '12', andarbahar: 'A|B', chuckaluck: '⚂', crownanchor: '♛', uo7: '7', duel: 'VS', casinoholdem: 'A♥', pokerdice: '⚄', fruits: '', gems: '', sevens: '777', pick3: '3' };
+  // illustrated tiles: games whose thumbnail shows a drawn symbol instead of a glyph
+  const TILE_ART = { slots: ['seven'], fruits: ['cherry'], gems: ['g-purple'], sevens: ['seven'], mines: ['gem'], crash: ['rocket'], coinflip: ['coinHeads'], tower: ['star'], cups: ['cup'], rps: ['scissors'], pump: ['balloon', '#e53935'], crownanchor: ['crown'], scratch: ['star'], penalty: ['ball'] };
   const CAT_LABEL = { originals: 'Krush Originals', table: 'Table Games', poker: 'Poker', lottery: 'Slots & Lottery' };
   C.hue = (g) => (g.n * 47 + 190) % 360;
   function motif(cat) {
@@ -229,7 +243,7 @@
     return `<svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hh},78%,52%)"/><stop offset="1" stop-color="hsl(${(hh + 40) % 360},80%,26%)"/></linearGradient>
       <radialGradient id="${id}r" cx=".8" cy=".1" r=".9"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
       <rect width="300" height="400" fill="url(#${id})"/><rect width="300" height="400" fill="url(#${id}r)"/>${motif(g.cat)}
-      <text x="280" y="120" text-anchor="end" font-family="-apple-system,Segoe UI,Arial" font-weight="900" font-size="110" fill="#fff" fill-opacity=".9" style="paint-order:stroke" stroke="rgba(0,0,0,.12)" stroke-width="6">${GLYPH[g.id] || ''}</text>
+      ${TILE_ART[g.id] && C.art ? C.art(...TILE_ART[g.id]).replace('<svg ', '<svg x="110" y="18" width="180" height="180" ') : `<text x="280" y="120" text-anchor="end" font-family="-apple-system,Segoe UI,Arial" font-weight="900" font-size="${(GLYPH[g.id] || '').length > 2 ? 80 : 110}" fill="#fff" fill-opacity=".9" style="paint-order:stroke" stroke="rgba(0,0,0,.12)" stroke-width="6">${GLYPH[g.id] || ''}</text>`}
       <rect y="250" width="300" height="150" fill="url(#${id}s)"/><linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-opacity="0"/><stop offset="1" stop-opacity=".45"/></linearGradient></svg>`;
   };
   const tileEl = (g) => h('a', { class: 'tile' + (C.closed(g) ? ' closed' : ''), href: '#' + g.id },
@@ -299,7 +313,7 @@
       S.user ? promo('Deposit', 'Top up with SOL', 'Send SOL to your personal address. It hits your balance as soon as the network confirms it.', 'Deposit', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
         : promo('New here', '10,000 free credits to start', 'Play every game without depositing. Switch to SOL whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
       promo('Affiliates', 'Bring friends, get paid', `You earn ${pct}% commission on every real bet your friends place. Withdraw it whenever you like.`, 'Get my link', S.user ? '#referrals' : '#login', '#f97316', '#db2777', 'users'),
-      promo('Krush Originals', 'Crash. Mines. Wheel.', 'Instant games made in-house. New this week: Wheel and Cases.', 'Play now', '#cat-originals', '#2563eb', '#16a34a', 'zap'));
+      promo('New games', 'Pump. Penalty. Darts.', '20 new games just landed: video slots, Horse Race, Andar Bahar, Casino Hold\'em and more.', 'Play now', '#cat-originals', '#2563eb', '#16a34a', 'zap'));
     const feed = h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon('activity'), 'Latest bets')));
     if (!cat) feedEl().then((f) => feed.append(f));
     return h('div', { class: 'lobby' }, promos, h('div', { class: 'lobby-bar' }, h('div', { class: 'search-wrap' }, C.icon('search'), search), tabs), body, cat ? null : feed);
@@ -312,7 +326,7 @@
     const payRows = (g.edges || []).filter(([b, p]) => p && !/÷|chance|probab|RTP|^target/i.test(p) && !/^(Overall|Every|Any |Each guess|\d-guess)/i.test(b))
       .map(([b, p]) => [b, String(p).replace(/\s*\(1 in [^)]*\)/, '')]);
     const info = h('details', { class: 'rules' }, h('summary', null, C.icon('info'), odds ? 'Rules, payouts & house edge' : 'Rules & payouts'),
-      h('div', { class: 'rules-body' }, h('div', { html: odds ? g.rules || '' : (C.HOWTO && C.HOWTO[g.id]) || '' }),
+      h('div', { class: 'rules-body' }, h('div', { html: odds || (C.HOWTO_FROM_RULES && C.HOWTO_FROM_RULES.has(g.id)) ? g.rules || '' : (C.HOWTO && C.HOWTO[g.id]) || '' }),
         odds && g.edges ? h('table', { class: 'edge-table' }, h('tr', null, h('th', null, 'Bet'), h('th', null, 'Pays'), h('th', null, 'House edge')),
           g.edges.map(([b, p, e]) => h('tr', null, h('td', null, b), h('td', null, p), h('td', null, e)))) : null,
         !odds && payRows.length ? h('table', { class: 'edge-table' }, h('tr', null, h('th', null, 'Bet'), h('th', null, 'Pays')),

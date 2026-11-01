@@ -1,6 +1,6 @@
 # krush.casino
 
-A web casino with 33 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
+A web casino with 53 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
 Every bet, card and spin is decided on the server; the browser only animates the results.
 
 > **Devnet by default.** Out of the box it runs on Solana devnet, where coins have no value. The server
@@ -45,7 +45,7 @@ Roles go **player → mod → staff → admin**. The admin gives roles from **St
 | Dashboard | mod+ | Online now, 24h GGR, bets, deposits, open tickets, pending withdrawals |
 | Players | staff+ | Search, profiles (balances, per-game results, recent bets), mute. Admin: add/remove balance, roles, reset password, disable |
 | Live | mod+ | Games in progress and a live bet feed with player names |
-| Games & odds | admin | House edge per game (Crash, Mines, Limbo, Dice, Hi-Lo, Tower, Coin Flip, Fish, Wheel, Cases) and Plinko RTP, open/close games, tipping rules |
+| Games & odds | admin | House edge per game (Crash, Mines, Limbo, Dice, Hi-Lo, Tower, Coin Flip, Fish, Wheel, Cases, Pump, Penalty, Darts, Horse Race, Cups, Rock Paper Scissors, Red or Black and the three video slots) and Plinko RTP, open/close games, tipping rules |
 | Support | mod+ | Reply to and close player tickets |
 | Chat | mod+ | Delete messages, mute players |
 | Announcement | staff+ | Site-wide banner, pushed live |
@@ -121,7 +121,7 @@ an audit of the payments code, and monitoring/alerting for the hot wallet and th
 
 ```bash
 npm test         # house edges + API, referral and social/staff tests against throwaway databases
-npm run smoke    # headless browser signs up and plays all 30 games (needs Playwright)
+npm run smoke    # headless browser signs up and plays all 53 games (needs Playwright)
 ```
 
 ## Games and house edges
@@ -153,11 +153,29 @@ npm run smoke    # headless browser signs up and plays all 30 games (needs Playw
 | 31 | Wheel | ≈7% (adjustable) |
 | 32 | Cases | ≈10% (adjustable) |
 | 33 | Red Dog | ≈2.8% |
+| 34 | Pump | 8% (adjustable) |
+| 35 | Penalty Shootout | 7% (adjustable) |
+| 36 | Darts | ≈8.5% (adjustable) |
+| 37 | Horse Race | 10% (adjustable) |
+| 38 | Cups | 7% (adjustable) |
+| 39 | Rock Paper Scissors | 6% (adjustable) |
+| 40 | Red or Black | 5% per guess (adjustable) |
+| 41 | Colors | 6.67% |
+| 42 | Mini Roulette | 7.69% |
+| 43 | Andar Bahar | ≈2.0% Andar / ≈3.1% Bahar |
+| 44 / 45 | Chuck-a-Luck / Crown & Anchor | 7.87% |
+| 46 | Under / Over 7 | 16.67% |
+| 47 | Dice Duel | 11.27% (Tie bet 9.88%) |
+| 48 | Casino Hold'em | ≈2.2% of the ante with good strategy |
+| 49 | Poker Dice | 11.27% |
+| 50 / 51 | Fruit Frenzy / Gem Rush (5×3, 10 lines) | 12% (adjustable) |
+| 52 | Lucky 7s (3×3, 5 lines) | 15% (adjustable) |
+| 53 | Pick 3 | 30% |
 
 ## Layout
 ```
 server/index.js     HTTP server, auth, API routes, admin
-server/games.js     all 30 games' server-side logic
+server/games.js     all games' server-side logic
 server/play.js      round engine (debit → play → settle → record, one DB transaction)
 server/payments.js  daily deposit wallets, crediting, sweeps, withdrawals, watcher loop
 server/wallet.js    HD key derivation (SLIP-0010, Phantom-compatible)
@@ -174,5 +192,7 @@ js/chat.js          chat panel and tip dialog
 js/support.js       player support page
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
-js/games/*.js       one UI file per game
+js/games/*.js       one UI file per game (more-*.js hold games 34–53)
+js/art.js           drawn SVG symbols (fruit, gems, bars, sevens, coins, cups, balloons…) used by the games and lobby tiles
+js/fx.js            synthesised sound effects, mute button, big-win celebration
 ```

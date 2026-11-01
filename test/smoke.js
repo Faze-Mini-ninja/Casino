@@ -51,7 +51,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       if (id === 'hilo') { await clickText('BET'); await wait(300); if (!(await clickText('Higher'))) await clickText('Lower'); await wait(300); await clickText('CASH OUT'); await wait(300); continue; }
       if (id === 'crash') { await clickText('BET'); await wait(2500); await clickText('CASH OUT'); await wait(3000); continue; }
       if (id === 'scratch') { await clickText('BUY TICKET'); await clickText('Reveal all'); continue; }
-      if (id === 'fish') { const box = await page.locator('canvas').boundingBox(); for (let i = 0; i < 8; i++) await page.mouse.click(box.x + 100 + i * 90, box.y + 120); await wait(2500); continue; }
+      if (id === 'fish') { const box = await page.locator('#app canvas').first().boundingBox(); for (let i = 0; i < 8; i++) await page.mouse.click(box.x + 100 + i * 90, box.y + 120); await wait(2500); continue; }
       if (id === 'blackjack') { await clickText('DEAL'); await wait(400); await clickText('Stand'); await wait(1800); continue; }
       if (['threecard', 'caribbean'].includes(id)) { await clickText('DEAL'); await clickText('PLAY') || await clickText('RAISE'); await wait(200); continue; }
       if (id === 'letitride') { await clickText('DEAL'); await clickText('LET IT RIDE'); await clickText('PULL BACK'); continue; }
@@ -60,11 +60,19 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       if (id === 'wheel') { await clickText('SPIN'); await wait(3600); continue; }
       if (id === 'cases') { await clickText('OPEN CASE'); await wait(4700); continue; }
       if (id === 'reddog') { await clickText('DEAL'); await wait(700); await clickText('CALL'); await wait(600); continue; }
+      if (id === 'pump') { await clickText('BET'); await wait(300); await clickText('PUMP'); await wait(500); await clickText('CASH OUT'); await wait(300); continue; }
+      if (id === 'penalty') { await clickText('BET'); await wait(300); await click('.zone', 0); await wait(1100); await clickText('CASH OUT'); await wait(300); continue; }
+      if (id === 'redblack') { await clickText('BET'); await wait(300); await clickText('RED'); await wait(900); await clickText('CASH OUT'); await wait(300); continue; }
+      if (id === 'cups') { await clickText('SHUFFLE'); await wait(2200); await click('.cupb', 0); await wait(1000); continue; }
+      if (id === 'rps') { await click('.rps-btn', round % 3); await wait(1400); continue; }
+      if (id === 'race') { if (round) continue; await clickText('START RACE'); await wait(8800); continue; }
+      if (id === 'casinoholdem') { await clickText('DEAL'); await wait(1100); await clickText(round ? 'CALL' : 'FOLD'); await wait(1300); continue; }
+      if (id === 'pick3') { if (round === 1) await clickText('Quick pick'); await clickText('DRAW'); await wait(2300); continue; }
       if (id === 'coinflip') { await clickText('HEADS'); await wait(1700); continue; }
       if (id === 'plinko') { await clickText('DROP BALL'); await wait(2500); continue; }
       const main = page.locator('.btn.big').filter({ visible: true }).first();
       if (await main.count()) await main.click({ timeout: 2000 }).catch(() => {});
-      await wait(['roulette-us', 'roulette-eu'].includes(id) ? 4600 : id === 'bigsix' ? 5300 : id === 'bingo' ? 4000 : id === 'keno' ? 1800 : 1600);
+      await wait(['roulette-us', 'roulette-eu'].includes(id) ? 4600 : id === 'bigsix' ? 5300 : id === 'bingo' ? 4000 : id === 'colors' ? 4200 : id === 'miniroulette' ? 3600 : id === 'andarbahar' ? 4200 : ['fruits', 'gems', 'sevens'].includes(id) ? 2400 : id === 'keno' ? 1800 : 1600);
     }
     await wait(300);
     await page.screenshot({ path: path.join(SHOTS, `${id}.png`) });
@@ -77,6 +85,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   if (errors.length) { console.log('ERRORS:'); errors.forEach((e) => console.log(' -', e)); }
   await browser.close(); srv.kill(); fs.rmSync(tmp, { recursive: true, force: true });
   const bad = results.filter((r) => r.errors || !r.rounds);
-  if (tiles !== 33 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
+  if (tiles !== 53 || errors.length || bad.length) { console.log('SMOKE FAILED', bad.map((b) => b.id)); process.exit(1); }
   console.log('SMOKE OK');
 })().catch((e) => { console.error(e); process.exit(1); });

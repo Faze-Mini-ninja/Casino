@@ -9,7 +9,7 @@
     mount(root) {
       const bet = C.betInput({ value: 10 });
       const msg = C.msg();
-      const coin = h('div', { class: 'coin' }, h('div', { class: 'face heads' }, 'H'), h('div', { class: 'face tails' }, 'T'));
+      const coin = h('div', { class: 'coin' }, h('div', { class: 'face heads', html: C.art('coinHeads') }), h('div', { class: 'face tails', html: C.art('coinTails') }));
       const hist = h('div', { class: 'history-strip' });
       let busy = false, rot = 0, streak = 0;
       const streakEl = h('div', { class: 'stat-line' });

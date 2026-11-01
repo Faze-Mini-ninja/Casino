@@ -40,7 +40,7 @@
         tiles.forEach((t, i) => {
           if (st.open.includes(i)) return;
           const bomb = minesAt.includes(i);
-          t.className = 'mtile open ' + (i === hitIdx ? '' : 'ghost ') + (bomb ? 'bomb' : 'gem'); t.textContent = bomb ? '💣' : '💎';
+          t.className = 'mtile open ' + (i === hitIdx ? '' : 'ghost ') + (bomb ? 'bomb' : 'gem'); t.innerHTML = ''; t.append(C.artEl(bomb ? 'bomb' : 'gem'));
         });
       }
       async function pick(i) {
@@ -49,9 +49,9 @@
         busy = false; if (!r) return;
         if (r.done && r.view.hit != null) {
           reveal(r.view.mines, i); C.settle(r);
-          msg.set('💥 Boom! You hit a mine', 'lose'); return finish();
+          msg.set('Boom! You hit a mine', 'lose'); return finish();
         }
-        st.open.push(i); tiles[i].className = 'mtile open gem'; tiles[i].textContent = '💎';
+        st.open.push(i); tiles[i].className = 'mtile open gem'; tiles[i].innerHTML = ''; tiles[i].append(C.artEl('gem')); C.sfx && C.sfx('cash');
         if (r.done) return cashed(r); // cleared the board
         btn.disabled = false; preview();
         msg.set(`${st.open.length} gem${st.open.length > 1 ? 's' : ''} • ${r.view.mult.toFixed(2)}× = ${C.fmt(st.b * r.view.mult)}`);

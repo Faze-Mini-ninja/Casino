@@ -1,6 +1,9 @@
 (function () {
   const C = Casino, L = Lib, h = C.h;
   const SYMS = L.SLOT_SYMBOLS.map((s) => s.s);
+  const ART = { '🍒': 'cherry', '🍋': 'lemon', '🍊': 'orange', '🔔': 'bell', '⭐': 'star', '7️⃣': 'seven' };
+  const put = (el, sym) => { el.innerHTML = C.art(ART[sym]); };
+  const trio = (sym) => h('span', { class: 'pt-art' }, [0, 1, 2].map(() => C.artEl(ART[sym])));
   C.register({
     n: 1, id: 'slots', name: 'Slots', icon: '🎰', cat: 'lottery', edge: '20.2%',
     blurb: 'Classic 3-reel fruit machine with a 200× jackpot.',
@@ -11,11 +14,11 @@
       const msg = C.msg();
       let alive = true, spinning = false, auto = false;
       const reels = [0, 1, 2].map(() => {
-        const cells = [0, 1, 2].map(() => h('div', { class: 'slot-cell' }, L.pick(SYMS)));
+        const cells = [0, 1, 2].map(() => { const c = h('div', { class: 'slot-cell' }); put(c, L.pick(SYMS)); return c; });
         return { el: h('div', { class: 'slot-reel' }, cells), cells };
       });
-      const table = h('div', { class: 'pays-list' }, Object.entries(L.SLOT_PAYS).map(([s, p]) => h('div', { 'data-s': s }, h('span', null, s + ' ' + s + ' ' + s), h('b', null, p + '×'))),
-        h('div', { 'data-s': 'two' }, h('span', null, '🍒 🍒 any'), h('b', null, '1×')));
+      const table = h('div', { class: 'pays-list' }, Object.entries(L.SLOT_PAYS).map(([s, p]) => h('div', { 'data-s': s }, trio(s), h('b', null, p + '×'))),
+        h('div', { 'data-s': 'two' }, h('span', { class: 'pt-art' }, C.artEl('cherry'), C.artEl('cherry'), h('small', null, 'any')), h('b', null, '1×')));
       const spinBtn = h('button', { class: 'btn big', onclick: () => spin() }, 'SPIN');
       const autoBtn = h('button', { class: 'btn ghost', onclick: () => { auto = !auto; autoBtn.textContent = auto ? 'Stop Auto' : 'Auto Spin'; if (auto && !spinning) spin(); } }, 'Auto Spin');
       root.appendChild(h('div', { class: 'layout' },
@@ -32,12 +35,12 @@
         msg.set('Spinning…');
         table.querySelectorAll('div').forEach((d) => d.classList.remove('hit'));
         const line = r.result.line;
-        const timers = reels.map((r) => setInterval(() => r.cells.forEach((c) => (c.textContent = L.pick(SYMS))), 60));
+        const timers = reels.map((r) => setInterval(() => r.cells.forEach((c) => put(c, L.pick(SYMS))), 60));
         reels.forEach((r) => r.el.classList.add('blur'));
         for (let i = 0; i < 3; i++) {
           await C.sleep(450 + i * 300);
           clearInterval(timers[i]); reels[i].el.classList.remove('blur');
-          reels[i].cells[0].textContent = L.pick(SYMS); reels[i].cells[1].textContent = line[i]; reels[i].cells[2].textContent = L.pick(SYMS);
+          put(reels[i].cells[0], L.pick(SYMS)); put(reels[i].cells[1], line[i]); put(reels[i].cells[2], L.pick(SYMS)); C.sfx && C.sfx('tick');
         }
         const m = r.result.mult, pay = r.payout;
         C.settle(r);

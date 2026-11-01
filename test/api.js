@@ -32,7 +32,17 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
     baccarat: { bets: { player: 10, tie: 2, ppair: 1, dragon7: 1 } }, craps: { bets: { any7: 5, hard8: 5, field: 5 } }, sicbo: { bets: { big: 10, 'triple:3': 1, 'combo:2-5': 2, 't:10': 1 } },
     bingo: { bet: 2, cards: 3 }, plinko: { bet: 3, rows: 16, risk: 'high' }, dragontiger: { bets: { dragon: 10, suitedTie: 1 } }, bigsix: { bets: { 1: 5, joker: 1 } },
     limbo: { bet: 4, target: 2.5 }, dice: { bet: 4, target: 30, over: true }, scratch: { price: 5 }, coinflip: { bet: 7, call: 'T' },
+    wheel: { bet: 5, segments: 30, risk: 'medium' }, cases: { bet: 3, case: 'gamble' },
+    darts: { bet: 3, risk: 'high' }, race: { bet: 4, horse: 2 }, cups: { bet: 3, cups: 5, pick: 1 }, rps: { bet: 3, hand: 'paper' }, colors: { bets: { red: 3, green: 1 } },
+    pick3: { bet: 1, mode: 'box', digits: [1, 1, 7] }, miniroulette: { bets: { 'n:0': 1, red: 3, c2: 2, high: 1 } }, andarbahar: { bets: { andar: 3, bahar: 2 } },
+    chuckaluck: { bets: { 3: 2, 6: 1 } }, crownanchor: { bets: { crown: 2, heart: 1 } }, uo7: { bets: { under: 2, seven: 1 } }, duel: { bets: { player: 3, tie: 1 } },
+    pokerdice: { bet: 4 }, fruits: { bet: 5 }, gems: { bet: 5 }, sevens: { bet: 5 },
   };
+  // input validation on the new games
+  ok((await play('pick3', null, { bet: 1, mode: 'box', digits: [4, 4, 4] }))._status === 400, 'pick3 box with a triple rejected');
+  ok((await play('miniroulette', null, { bets: { 'n:13': 1 } }))._status === 400, 'mini roulette 13 rejected');
+  ok((await play('cups', null, { bet: 1, cups: 3, pick: 3 }))._status === 400, 'cups pick out of range rejected');
+  ok((await play('race', null, { bet: 1, horse: 99 }))._status === 400, 'unknown horse rejected');
   for (const [g, p] of Object.entries(singles)) {
     for (let i = 0; i < 20; i++) {
       const b0 = await bal(); r = await play(g, null, p);
@@ -56,6 +66,11 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
     hilo: async () => { r = await play('hilo', 'start', { bet: 5 }); const k = r.view.card.rank, dir = k === 1 ? 'lo' : k === 13 ? 'hi' : k <= 7 ? 'hi' : 'lo'; r = await play('hilo', dir, {}); return r.done ? r : play('hilo', 'cashout', {}); },
     crash: async () => { r = await play('crash', 'start', { bet: 5, auto: 1.1 }); if (r.done) return r; await new Promise((s) => setTimeout(s, 900)); return play('crash', 'status', {}); },
     holdem: async () => { r = await play('holdem', 'start', { bb: 2 }); let n = 0; while (!r.done && n++ < 30) r = await play('holdem', 'call', {}); return r; },
+    pump: async () => { await play('pump', 'start', { bet: 5, diff: 'medium' }); r = await play('pump', 'pump', {}); if (!r.done) r = await play('pump', 'pump', {}); return r.done ? r : play('pump', 'cashout', {}); },
+    penalty: async () => { await play('penalty', 'start', { bet: 5, diff: 'normal' }); r = await play('penalty', 'kick', { zone: 1 }); return r.done ? r : play('penalty', 'cashout', {}); },
+    redblack: async () => { await play('redblack', 'start', { bet: 5 }); r = await play('redblack', 'guess', { guess: 'red' }); if (!r.done) r = await play('redblack', 'guess', { guess: 'suit:2' }); return r.done ? r : play('redblack', 'cashout', {}); },
+    casinoholdem: async () => { await play('casinoholdem', 'start', { ante: 5 }); return play('casinoholdem', Math.random() < 0.8 ? 'call' : 'fold', {}); },
+    reddog: async () => { r = await play('reddog', 'start', { ante: 5 }); return r.done ? r : play('reddog', 'call', {}); },
   };
   for (const [g, f] of Object.entries(rounds)) {
     for (let i = 0; i < 12; i++) {

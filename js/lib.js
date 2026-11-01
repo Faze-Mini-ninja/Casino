@@ -455,7 +455,8 @@
 
   /* ---- 21-26, 29: "original" style games ---- */
   // House edges for the parametric games. The server can change these live (admin → Games); rounds lock the edge at start.
-  L.EDGE = { crash: 0.08, mines: 0.1, limbo: 0.08, dice: 0.06, hilo: 0.06, tower: 0.1, coinflip: 0.1, fish: 0.2, wheel: 0.07, cases: 0.1 };
+  L.EDGE = { crash: 0.08, mines: 0.1, limbo: 0.08, dice: 0.06, hilo: 0.06, tower: 0.1, coinflip: 0.1, fish: 0.2, wheel: 0.07, cases: 0.1,
+    pump: 0.08, penalty: 0.07, darts: 0.08, race: 0.1, cups: 0.07, rps: 0.06, redblack: 0.05, fruits: 0.12, gems: 0.12, sevens: 0.15 };
   L.DEFAULT_EDGE = { ...L.EDGE };
   L.crashPoint = (e = L.EDGE.crash) => { const u = 1 - L.random(); return Math.max(1, Math.floor((1 - e) / u * 100) / 100); };
   L.limboResult = (e = L.EDGE.limbo) => { const u = 1 - L.random(); return Math.min(1e6, Math.max(1, Math.floor((1 - e) / u * 100) / 100)); };
@@ -543,6 +544,171 @@
 
   /* ---- 30. Casino War (6 decks) ---- */
   L.WAR_TIE_PAYS = 10;
+
+
+  /* =============== 20 more games =============== */
+  const tableOf = (items, e) => { // items: [mult, weight, extra]; scaled so RTP = 1 - e
+    const tw = items.reduce((a, it) => a + it[1], 0), mean = items.reduce((a, [m, w]) => a + m * w, 0) / tw;
+    const out = items.map(([m, w, x]) => ({ m: Math.floor((m * (1 - e) / mean) * 100) / 100, p: w / tw, x }));
+    return { items: out, rtp: out.reduce((a, it) => a + it.m * it.p, 0) };
+  };
+  L.pickWeighted = (items) => { let x = L.random(), k = 0; for (; k < items.length - 1; k++) { if (x < items[k].p) break; x -= items[k].p; } return k; };
+
+  // Pump: each pump pops with a fixed chance; cash out any time.
+  L.PUMP = { easy: 0.04, medium: 0.1, hard: 0.2, expert: 0.33 };
+  L.PUMP_MAX = 25;
+  L.pumpMult = (diff, k, e = L.EDGE.pump) => Math.floor((1 - e) / Math.pow(1 - L.PUMP[diff], k) * 100) / 100;
+
+  // Penalty shootout: keeper guards 1 of 3 corners (2 of 5 on hard). Up to 5 kicks.
+  L.PENALTY = { normal: { zones: 3, keeper: 1 }, hard: { zones: 5, keeper: 2 } };
+  L.PENALTY_MAX = 5;
+  L.penaltyMult = (diff, k, e = L.EDGE.penalty) => { const d = L.PENALTY[diff], p = (d.zones - d.keeper) / d.zones; return Math.floor((1 - e) / Math.pow(p, k) * 100) / 100; };
+
+  // Darts: rings with multipliers by risk.
+  L.DART_RINGS = ['miss', 'single', 'treble', 'double', 'outer bull', 'bullseye'];
+  const DARTS = {
+    low: [[0, 10, 'miss'], [0.6, 42, 'single'], [1.3, 26, 'treble'], [1.6, 12, 'double'], [2.5, 7, 'outer bull'], [5, 3, 'bullseye']],
+    medium: [[0, 30, 'miss'], [0.4, 30, 'single'], [1.6, 18, 'treble'], [3, 13, 'double'], [7, 6, 'outer bull'], [18, 3, 'bullseye']],
+    high: [[0, 52, 'miss'], [0, 26, 'single'], [2.2, 10, 'treble'], [6, 7, 'double'], [16, 3.6, 'outer bull'], [70, 1.4, 'bullseye']],
+  };
+  const dcache = {};
+  L.dartsTable = (risk, e = L.EDGE.darts) => dcache[risk + e] || (dcache[risk + e] = tableOf(DARTS[risk], e));
+
+  // Horse race: six runners with fixed win chances; odds = (1 - edge) / chance.
+  L.HORSES = [
+    { name: 'Midnight Run', color: '#3d8bff', p: 0.30 }, { name: 'Copper Kettle', color: '#f97316', p: 0.22 }, { name: 'Lucky Clover', color: '#22c55e', p: 0.17 },
+    { name: 'Red Baron', color: '#e11d48', p: 0.13 }, { name: 'Silver Lining', color: '#94a3b8', p: 0.11 }, { name: 'Long Shot', color: '#a855f7', p: 0.07 },
+  ];
+  L.horseOdds = (i, e = L.EDGE.race) => Math.floor((1 - e) / L.HORSES[i].p * 100) / 100;
+
+  // Cups: find the ball under 3 or 5 cups.
+  L.cupsMult = (n, e = L.EDGE.cups) => Math.floor(n * (1 - e) * 100) / 100;
+  // Rock paper scissors vs the house: tie returns the bet, a win pays this multiplier.
+  L.rpsMult = (e = L.EDGE.rps) => Math.floor((2 - 3 * e) * 100) / 100;
+  // Red or black ladder (infinite deck): colour p = 1/2, suit p = 1/4.
+  L.redblackStep = (kind, e = L.EDGE.redblack) => (1 - e) / (kind === 'suit' ? 0.25 : 0.5);
+
+  // Colors: 15 pockets — 0 green, 1–7 red, 8–14 black.
+  L.colorOf15 = (n) => (n === 0 ? 'green' : n <= 7 ? 'red' : 'black');
+  L.COLORS_PAYS = { red: 2, black: 2, green: 14 };
+
+  // Pick 3 lottery (digits 0–9 ×3).
+  L.PICK3 = { straight: 700, box6: 115, box3: 230 };
+  L.pick3Kind = (d) => (d[0] === d[1] && d[1] === d[2] ? 'triple' : d[0] === d[1] || d[1] === d[2] || d[0] === d[2] ? 'box3' : 'box6');
+
+  // Mini roulette: 0–12. Red = 1,3,5,7,9,11? classic mini wheel colours alternate.
+  L.MINI_REDS = new Set([1, 3, 5, 7, 9, 11]);
+  L.miniCovers = (bet) => {
+    const all = Array.from({ length: 12 }, (_, i) => i + 1);
+    if (bet.startsWith('n:')) return [+bet.slice(2)];
+    return { red: all.filter((n) => L.MINI_REDS.has(n)), black: all.filter((n) => !L.MINI_REDS.has(n)), odd: all.filter((n) => n % 2), even: all.filter((n) => !(n % 2)), low: all.filter((n) => n <= 6), high: all.filter((n) => n > 6),
+      c1: [1, 4, 7, 10], c2: [2, 5, 8, 11], c3: [3, 6, 9, 12] }[bet] || [];
+  };
+  L.miniPays = (bet) => { const n = L.miniCovers(bet).length; return n === 1 ? 11 : n === 4 ? 2 : 1; };
+
+  // Andar Bahar (single deck). Andar gets the first card.
+  L.ANDAR_PAYS = { andar: 1.9, bahar: 2 }; // total return per unit
+  L.andarDeal = () => {
+    const d = L.shuffle(L.newDeck(1)), joker = d.pop(), andar = [], bahar = [];
+    for (let i = 0; ; i++) { const c = d.pop(); (i % 2 ? bahar : andar).push(c); if (c.r === joker.r) return { joker, andar, bahar, winner: i % 2 ? 'bahar' : 'andar', dealt: i + 1 }; }
+  };
+
+  // Chuck-a-luck and Crown & Anchor: 3 dice, bet on a face; pays 1/2/3 to 1.
+  L.CROWN = ['crown', 'anchor', 'heart', 'spade', 'diamond', 'club'];
+  // Under / Over 7.
+  L.UO7 = { under: 2, seven: 5, over: 2 }; // total return
+  // Dice duel: 2d6 each, higher total wins; dealer wins ties. Tie bet pays 7:1.
+  L.DUEL = { player: 2, tie: 8 };
+  // Poker dice: five dice, one roll.
+  L.POKERDICE = [['Five of a kind', 100], ['Four of a kind', 8], ['Full house', 4], ['Straight', 4], ['Three of a kind', 1.7], ['Two pair', 0.5]];
+  L.pokerDice = (d) => {
+    const c = {}; d.forEach((x) => (c[x] = (c[x] || 0) + 1));
+    const g = Object.values(c).sort((a, b) => b - a), s = [...d].sort().join('');
+    if (g[0] === 5) return 0; if (g[0] === 4) return 1; if (g[0] === 3 && g[1] === 2) return 2;
+    if (s === '12345' || s === '23456') return 3; if (g[0] === 3) return 4; if (g[0] === 2 && g[1] === 2) return 5;
+    return -1;
+  };
+
+  // Casino Hold'em: ante; call 2× after the flop. Ante pays by the bonus table when you win or the dealer doesn't qualify.
+  L.CHE_ANTE = { 9: 100, 8: 20, 7: 10, 6: 3, 5: 2 }; // by catR; everything else 1:1
+  L.cheQualifies = (score) => { const c = L.cat5(score); if (c >= 2) return true; if (c === 1) return Math.floor(score / 15 ** 4) % 15 >= 4; return false; };
+
+  /* ---- video slot engine (independent weighted cells, paylines + scatter) ---- */
+  const LINES5 = [[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2], [0, 0, 1, 2, 2], [2, 2, 1, 0, 0], [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 2, 1]];
+  const LINES3 = [[1, 1, 1], [0, 0, 0], [2, 2, 2], [0, 1, 2], [2, 1, 0]];
+  L.SLOT_THEMES = {
+    fruits: { name: 'Fruit Frenzy', reels: 5, rows: 3, lines: LINES5,
+      symbols: [['cherry', 20], ['lemon', 18], ['orange', 16], ['plum', 14], ['grape', 11], ['melon', 8], ['bell', 5], ['seven', 2.6], ['wild', 2.4], ['scatter', 2.2]],
+      pays: { cherry: [5, 15, 40], lemon: [5, 15, 40], orange: [8, 20, 60], plum: [8, 20, 60], grape: [12, 40, 100], melon: [15, 60, 150], bell: [25, 100, 300], seven: [50, 250, 1000], wild: [50, 250, 1000] },
+      scatter: { 3: 2, 4: 10, 5: 50 } },
+    gems: { name: 'Gem Rush', reels: 5, rows: 3, lines: LINES5,
+      symbols: [['g-blue', 19], ['g-green', 18], ['g-purple', 16], ['g-orange', 14], ['g-red', 11], ['g-pink', 8], ['crown', 4.4], ['diamond', 2.4], ['wild', 2.6], ['scatter', 2.2]],
+      pays: { 'g-blue': [5, 12, 40], 'g-green': [5, 12, 40], 'g-purple': [8, 20, 60], 'g-orange': [8, 25, 75], 'g-red': [12, 40, 120], 'g-pink': [15, 60, 160], crown: [30, 120, 400], diamond: [60, 300, 1500], wild: [60, 300, 1500] },
+      scatter: { 3: 2, 4: 12, 5: 60 } },
+    sevens: { name: 'Lucky 7s', reels: 3, rows: 3, lines: LINES3,
+      symbols: [['cherry', 22], ['bar', 18], ['bar2', 12], ['bar3', 8], ['bell', 7], ['seven', 3.2], ['wild', 2.2]],
+      pays: { cherry: [6], bar: [10], bar2: [20], bar3: [40], bell: [60], seven: [200], wild: [400] },
+      scatter: null },
+  };
+  /** Evaluate one payline: {sym, n, pay} or null. pays index = n - 3 (5-reel) or 0 (3-reel). */
+  function lineWin(theme, cells) {
+    let sym = null, n = 0;
+    for (const c of cells) {
+      if (c === 'scatter') break;
+      if (c === 'wild') { n++; continue; }
+      if (sym === null) { sym = c; n++; continue; }
+      if (c === sym) { n++; continue; }
+      break;
+    }
+    if (sym === null) sym = 'wild';
+    if (n < 3) return null;
+    const pt = theme.pays[sym]; if (!pt) return null;
+    const pay = pt[Math.min(n, theme.reels) - 3];
+    return pay ? { sym, n, pay } : null;
+  }
+  const slotCache = {};
+  /** Exact base RTP (before scaling) for a theme: line EV + scatter EV, both per unit of total bet. */
+  function slotBase(id) {
+    if (slotCache[id]) return slotCache[id];
+    const t = L.SLOT_THEMES[id], syms = t.symbols.map((x) => x[0]), W = t.symbols.reduce((a, x) => a + x[1], 0), q = t.symbols.map((x) => x[1] / W);
+    let lineEv = 0; const cells = new Array(t.reels), idx = new Array(t.reels).fill(0);
+    const total = syms.length ** t.reels;
+    for (let i = 0; i < total; i++) {
+      let x = i, p = 1;
+      for (let r = 0; r < t.reels; r++) { idx[r] = x % syms.length; x = Math.floor(x / syms.length); cells[r] = syms[idx[r]]; p *= q[idx[r]]; }
+      const w = lineWin(t, cells); if (w) lineEv += p * w.pay;
+    }
+    let scatEv = 0;
+    if (t.scatter) {
+      const N = t.reels * t.rows, qs = q[syms.indexOf('scatter')];
+      const keys = Object.keys(t.scatter).map(Number).sort((x, y) => y - x);
+      for (let c = 0; c <= N; c++) { const k = keys.find((x) => c >= x); if (k) scatEv += L.comb(N, c) * qs ** c * (1 - qs) ** (N - c) * t.scatter[k]; }
+    }
+    return (slotCache[id] = { lineEv, scatEv, base: lineEv + scatEv, q, W });
+  }
+  const scaledCache = {};
+  /** Paytable scaled so RTP = 1 - EDGE[id] (rounded down to cents). */
+  L.slotTable = (id, e = L.EDGE[id]) => {
+    const key = id + e; if (scaledCache[key]) return scaledCache[key];
+    const t = L.SLOT_THEMES[id], b = slotBase(id), f = (1 - e) / b.base;
+    const pays = Object.fromEntries(Object.entries(t.pays).map(([k, v]) => [k, v.map((x) => Math.floor(x * f * 100) / 100)]));
+    const scatter = t.scatter ? Object.fromEntries(Object.entries(t.scatter).map(([k, v]) => [k, Math.floor(v * f * 100) / 100])) : null;
+    const rtp = b.lineEv * f + b.scatEv * f; // rounding makes the true RTP very slightly lower
+    return (scaledCache[key] = { ...t, pays, scatter, rtp, f });
+  };
+  /** Spin a theme. Returns grid[reel][row], line wins, scatter count and total multiplier of the bet. */
+  L.slotSpin2 = (id, e = L.EDGE[id]) => {
+    const t = L.slotTable(id, e), b = slotBase(id), items = t.symbols.map((x, i) => ({ id: x[0], p: b.q[i] }));
+    const grid = Array.from({ length: t.reels }, () => Array.from({ length: t.rows }, () => items[L.pickWeighted(items)].id));
+    const wins = [];
+    t.lines.forEach((ln, li) => { const w = lineWin(t, ln.map((row, r) => grid[r][row])); if (w) wins.push({ line: li, ...w, pay: w.pay }); });
+    const lineMult = wins.reduce((a, w) => a + w.pay, 0) / t.lines.length;
+    let scat = 0; grid.forEach((col) => col.forEach((c) => { if (c === 'scatter') scat++; }));
+    const keys = t.scatter ? Object.keys(t.scatter).map(Number).sort((x, y) => y - x) : [];
+    const sk = keys.find((k) => scat >= k);
+    const scatMult = sk ? t.scatter[sk] : 0;
+    return { grid, wins, scatter: scat, scatterPay: scatMult, mult: Math.floor((lineMult + scatMult) * 10000) / 10000 };
+  };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = L;
   else root.Lib = L;

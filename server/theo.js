@@ -52,6 +52,21 @@ function theoOf(game, p, wager, state) {
     case 'hilo': return wager * ((state && state.e) ?? L.EDGE.hilo);
     case 'wheel': return wager * (1 - L.wheelTable(Number(p.segments), p.risk).rtp);
     case 'cases': return wager * (1 - L.caseTable(p.case).rtp);
+    case 'darts': return wager * (1 - L.dartsTable(p.risk).rtp);
+    case 'race': return wager * (1 - L.horseOdds(Number(p.horse)) * L.HORSES[Number(p.horse)].p);
+    case 'cups': return wager * (1 - L.cupsMult(Number(p.cups)) / Number(p.cups));
+    case 'rps': return wager * (1 - (L.rpsMult() + 1) / 3);
+    case 'colors': return wager * (1 / 15);
+    case 'pick3': return wager * 0.29;
+    case 'miniroulette': return wager * (1 / 13);
+    case 'andarbahar': return mapTheo(p.bets, (k) => (k === 'andar' ? 0.02 : 0.03));
+    case 'chuckaluck': case 'crownanchor': return wager * 0.0787;
+    case 'uo7': return wager * (1 / 6);
+    case 'duel': return mapTheo(p.bets, (k) => (k === 'tie' ? 0.098 : 0.112));
+    case 'pokerdice': return wager * 0.11;
+    case 'fruits': case 'gems': case 'sevens': return wager * (1 - L.slotTable(game).rtp);
+    case 'pump': case 'penalty': case 'redblack': return wager * ((state && state.e) ?? L.EDGE[game]);
+    case 'casinoholdem': return wager * 0.008; // ≈2.2% of the ante with good strategy ≈ 0.8% of everything wagered
     case 'reddog': return wager * 0.02; // ≈2.8% of the initial bet, less once raises are counted
     case 'fish': return wager * L.EDGE.fish;
     case 'videopoker': return wager * 0.06;

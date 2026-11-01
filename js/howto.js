@@ -38,4 +38,7 @@
     coinflip: `<p>Call heads or tails. A correct call pays ${L.COIN_MULT.toFixed(2)}× your bet.</p>`,
     war: `<p>6 decks, Ace high. Higher card wins 1:1. On a tie you may surrender (lose half your bet) or go to war: match your bet, three cards are burned and one more card each is dealt; if yours is equal or higher, your raise wins 1:1 and the original bet pushes. Optional Tie bet pays ${L.WAR_TIE_PAYS}:1.</p>`,
   };
+  // Newer games keep player-facing rules (no edges or probabilities) in their own definition.
+  Casino.HOWTO_FROM_RULES = new Set(['pump', 'penalty', 'darts', 'race', 'cups', 'rps', 'redblack', 'colors', 'miniroulette', 'andarbahar', 'chuckaluck', 'crownanchor', 'uo7', 'duel',
+    'casinoholdem', 'pokerdice', 'fruits', 'gems', 'sevens', 'pick3']);
 })();

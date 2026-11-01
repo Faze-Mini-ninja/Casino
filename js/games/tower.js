@@ -35,17 +35,17 @@
         bet.disable(true); dSel.sel.disabled = true; btn.textContent = 'CASH OUT'; btn.className = 'btn big green'; btn.disabled = true;
         msg.set('Pick a tile on the bottom floor'); setActive();
       }
-      const revealAll = (traps) => rows.forEach((cells, f) => cells.forEach((c, i) => { if (!c.classList.contains('open')) { const t = traps[f].includes(i); c.className = 'mtile open ghost ' + (t ? 'bomb' : 'gem'); c.textContent = t ? '💀' : '⭐'; } }));
+      const revealAll = (traps) => rows.forEach((cells, f) => cells.forEach((c, i) => { if (!c.classList.contains('open')) { const t = traps[f].includes(i); c.className = 'mtile open ghost ' + (t ? 'bomb' : 'gem'); c.innerHTML = ''; c.append(C.artEl(t ? 'bomb' : 'star')); } }));
       async function pick(f, c) {
         if (!st || busy || f !== st.floor) return; busy = true;
         const r = await C.try(() => C.play('tower', 'pick', { c }));
         busy = false; if (!r) return;
         const cell = rows[f][c];
         if (r.done && r.view.traps && r.view.traps[f].includes(c)) {
-          cell.className = 'mtile open bomb'; cell.textContent = '💀'; revealAll(r.view.traps); C.settle(r);
+          cell.className = 'mtile open bomb'; cell.innerHTML = ''; cell.append(C.artEl('bomb')); revealAll(r.view.traps); C.settle(r);
           msg.set('Trap! Bet lost', 'lose'); return end();
         }
-        cell.className = 'mtile open gem'; cell.textContent = '⭐';
+        cell.className = 'mtile open gem'; cell.innerHTML = ''; cell.append(C.artEl('star')); C.sfx && C.sfx('cash');
         st.floor++;
         if (r.done) return cashed(r);
         btn.disabled = false;
