@@ -3,6 +3,7 @@
 const L = require('../js/lib.js');
 const { q, tx, debit, credit, balance, balances, BalanceError } = require('./db');
 const { G, GameError, U, FISH } = require('./games');
+const referrals = require('./referrals');
 
 const toCredits = (u) => Math.round(u) / 100;
 const now = () => Date.now();
@@ -19,7 +20,10 @@ function settle(userId, mode, roundId, game, payout) { if (payout > 0) credit(us
 function finishRound(row, r, userId) {
   const mode = row.mode, wager = row.wager + (r.extra || 0);
   if (r.extra) debit(userId, mode, r.extra, 'bet:' + row.game, row.id);
-  if (r.done) { const pay = Math.floor(r.payout || 0); settle(userId, mode, row.id, row.game, pay); updRound.run('done', null, wager, pay, r.detail || '', now(), row.id); }
+  if (r.done) {
+    const pay = Math.floor(r.payout || 0); settle(userId, mode, row.id, row.game, pay); updRound.run('done', null, wager, pay, r.detail || '', now(), row.id);
+    referrals.accrue(userId, mode, row.game, wager, row.params ? JSON.parse(row.params) : {}, r.state);
+  }
   else updRound.run('active', JSON.stringify(r.state), wager, 0, '', now(), row.id);
   return wager;
 }
@@ -40,6 +44,7 @@ function play(userId, body) {
       const pre = balances(userId);
       const info = insRound.run(userId, mode, game, 'done', null, r.wager, pay, r.detail, now(), now());
       settle(userId, mode, info.lastInsertRowid, game, pay);
+      referrals.accrue(userId, mode, game, r.wager, params);
       return { result: r.result, wager: toCredits(r.wager), payout: toCredits(pay), done: true, preBalances: pre, balances: balances(userId) };
     }
     if (action === 'start') {
@@ -52,7 +57,8 @@ function play(userId, body) {
       debit(userId, mode, r.wager, 'bet:' + game);
       const pre = balances(userId);
       const info = insRound.run(userId, mode, game, 'active', JSON.stringify(r.state), r.wager, 0, '', now(), now());
-      const row = { id: info.lastInsertRowid, mode, game, wager: r.wager };
+      const ps = JSON.stringify(params); q('UPDATE rounds SET params = ? WHERE id = ?').run(ps, info.lastInsertRowid);
+      const row = { id: info.lastInsertRowid, mode, game, wager: r.wager, params: ps };
       if (r.done) finishRound(row, r, userId);
       return { view: r.view, done: !!r.done, wager: toCredits(r.wager), payout: toCredits(r.done ? r.payout : 0), preBalances: pre, balances: balances(userId) };
     }
@@ -86,6 +92,7 @@ function fish(userId, mode, action, p) {
       q("UPDATE fish_shots SET status = 'done' WHERE id = ?").run(shot.id);
       const rid = insRound.run(userId, shot.mode, 'fish', 'done', null, shot.units, pay, caught ? `Caught ${m}× fish` : `Missed catch (${m}× fish)`, now(), now()).lastInsertRowid;
       settle(userId, shot.mode, rid, 'fish', pay);
+      referrals.accrue(userId, shot.mode, 'fish', shot.units);
       return { caught, payout: toCredits(pay), balances: balances(userId) };
     }
     if (action === 'expire') {

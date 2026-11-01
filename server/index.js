@@ -10,6 +10,7 @@ const { q, tx, credit, balances, BalanceError, LAMPORTS_PER_UNIT } = require('./
 const { play, abandon, refundStaleShots, GameError } = require('./play');
 const pay = require('./payments');
 const { hotWallet } = require('./wallet');
+const referrals = require('./referrals');
 
 /* ---------- auth ---------- */
 const hash = (pw, salt) => crypto.scryptSync(pw, salt, 64, { N: 16384 }).toString('hex');
@@ -48,7 +49,7 @@ function readJson(req) {
 }
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
-const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS });
+const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS, referralShare: referrals.SHARE });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
@@ -59,12 +60,16 @@ const routes = {
     need(/^[A-Za-z0-9_]{3,20}$/.test(username), 400, 'Username: 3–20 letters, numbers or _');
     need(password.length >= 8 && password.length <= 200, 400, 'Password must be at least 8 characters');
     need(!q('SELECT 1 FROM users WHERE username = ?').get(username), 409, 'That username is taken');
+    const refCode = String(body.refCode || '').trim();
+    need(!refCode || referrals.findByCode(refCode), 400, 'Referral code not found — check it or leave it empty');
     const salt = crypto.randomBytes(16).toString('hex');
     const id = tx(() => {
       // Without ADMIN_USERNAME configured (local dev), the first account becomes admin.
       const first = !cfg.ADMIN_USERNAME && !q('SELECT 1 FROM users LIMIT 1').get();
       const uid = Number(q('INSERT INTO users (username, pass_hash, salt, role, created) VALUES (?,?,?,?,?)').run(username, hash(password, salt), salt, first ? 'admin' : 'player', Date.now()).lastInsertRowid);
       credit(uid, 'demo', Math.round(cfg.DEMO_START_CREDITS * 100), 'demo-signup');
+      q('UPDATE users SET ref_code = ? WHERE id = ?').run(referrals.newCode(), uid);
+      if (refCode) referrals.attach(uid, refCode);
       return uid;
     });
     createSession(res, id);
@@ -88,6 +93,15 @@ const routes = {
     tx(() => { q('UPDATE users SET pass_hash = ?, salt = ? WHERE id = ?').run(hash(next, salt), salt, u.id); q('DELETE FROM sessions WHERE user_id = ?').run(u.id); });
     createSession(res, u.id); // keep this device signed in; all others are signed out
     return { ok: true };
+  },
+  'GET /api/referrals': async (req, res, body, ip, u) => { need(u, 401, 'Please log in'); return referrals.summary(u.id); },
+  'POST /api/referrals/claim': async (req, res, body, ip, u) => {
+    need(u, 401, 'Please log in'); need(!limited('claim:' + u.id, 10, 60000), 429, 'Slow down');
+    try { const n = referrals.claim(u.id); return { claimed: n / 100, balances: balances(u.id) }; } catch (e) { throw new HttpError(400, e.message); }
+  },
+  'POST /api/referrals/code': async (req, res, body, ip, u) => {
+    need(u, 401, 'Please log in');
+    try { referrals.attach(u.id, body.code); return referrals.summary(u.id); } catch (e) { throw new HttpError(400, e.message); }
   },
   'POST /api/logout': async (req, res) => {
     const m = /(?:^|;\s*)sid=([0-9a-f]{64})/.exec(req.headers.cookie || ''); if (m) q('DELETE FROM sessions WHERE token = ?').run(m[1]);
@@ -139,7 +153,8 @@ const routes = {
     const liab = q('SELECT COALESCE(SUM(real_units),0) s FROM users').get().s;
     return { cluster: cfg.cluster, hotWallet: hot, hotSol, treasury: cfg.TREASURY_ADDRESS || '(not set — sweeps stay in hot wallet)', hotFloatSol: cfg.HOT_FLOAT_SOL,
       playerBalancesSol: solOf(liab), days, house, sweeps: q('SELECT s.*, a.address FROM sweeps s JOIN deposit_addresses a ON a.id = s.address_id ORDER BY s.id DESC LIMIT 20').all().map((s) => ({ ...s, sol: s.lamports / 1e9 })),
-      watcher: pay.watcherStatus(), users: q('SELECT COUNT(*) n FROM users').get().n };
+      watcher: pay.watcherStatus(), users: q('SELECT COUNT(*) n FROM users').get().n,
+      referrals: (() => { const t = referrals.totals(); return { share: referrals.SHARE, referredPlayers: t.referred, pendingSol: solOf(t.pending / 1000), paidSol: solOf(t.paid / 1000) }; })() };
   },
   'GET /api/admin/withdrawals': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');

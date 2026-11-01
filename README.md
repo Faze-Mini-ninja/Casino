@@ -30,6 +30,15 @@ With these set, every newly registered account is an ordinary player. Without th
 Odds are **hidden from players by default**. Players still see what every bet pays, but no house edges, RTPs, win
 probabilities or "1 in X" odds, and the House Edges page is hidden. Set `SHOW_ODDS=true` to show them; some licences require RTP to be published.
 
+### Referrals
+Every account has a referral link (`…/#ref-CODE`) on the **Refer & Earn** page. Players who sign up through it,
+or enter the code before their first real-money bet, are linked to the referrer for good.
+The referrer earns `REFERRAL_SHARE` (default 25%, max 50%) of the house's **theoretical** profit on those players'
+real-money bets: stake × that bet's house edge. It's paid win or lose, so it doesn't swing with luck. Hold'em pays a
+share of the rake the player contributed to. Commission builds up and is claimed into the referrer's real balance in one click.
+Every edge used is exact or slightly under, so referring your own second account only earns back part of the
+house edge and never turns a profit.
+
 ### Try a devnet deposit
 1. Register, open **Wallet**, copy today's deposit address.
 2. Get free devnet SOL from https://faucet.solana.com, or in Phantom turn on *Settings → Developer Settings → Testnet Mode*, pick Devnet and airdrop.
@@ -115,6 +124,8 @@ server/payments.js  daily deposit wallets, crediting, sweeps, withdrawals, watch
 server/wallet.js    HD key derivation (SLIP-0010, Phantom-compatible)
 server/chain.js     Solana RPC wrapper
 server/db.js        SQLite schema, balances, ledger
+server/referrals.js referral codes, commission accrual and claims
+server/theo.js      theoretical house profit per round (basis for commission)
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
 js/games/*.js       one UI file per game

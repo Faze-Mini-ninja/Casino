@@ -208,15 +208,17 @@
     let mode = 'login';
     const user = h('input', { placeholder: 'Username', autocomplete: 'username', autocapitalize: 'off' });
     const pass = h('input', { type: 'password', placeholder: 'Password (8+ characters)', autocomplete: 'current-password' });
+    let saved = ''; try { saved = localStorage.getItem('casino.ref') || ''; } catch (e) { /* ignore */ }
+    const ref = h('input', { placeholder: 'Referral code (optional)', autocapitalize: 'characters', autocomplete: 'off', value: saved, style: 'display:none' });
     const title = h('h2', null, 'Log in');
     const btn = h('button', { class: 'btn big', type: 'submit' }, 'Log in');
-    const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');
+    const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; ref.style.display = mode === 'login' ? 'none' : ''; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');
     const form = h('form', { class: 'panel auth', onsubmit: async (e) => {
       e.preventDefault(); btn.disabled = true;
-      const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value }));
+      const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim() }));
       btn.disabled = false;
-      if (r) { applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : 'Account created — 10,000 demo credits added', 'win'); location.hash = '#lobby'; }
-    } }, title, user, pass, btn, sw,
+      if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : 'Account created — 10,000 demo credits added', 'win'); location.hash = '#lobby'; }
+    } }, title, user, pass, ref, btn, sw,
     h('p', { class: 'muted small' }, 'You must be 18+ and allowed to gamble where you live. Gambling can be addictive — set limits and never deposit more than you can afford to lose.'));
     return h('div', { class: 'auth-wrap' }, form);
   }
@@ -277,7 +279,7 @@
     const act = async (id, action) => { if (await C.try(() => C.api('POST', '/api/admin/withdrawal', { id, action }))) { C.toast('Done', 'win'); route(); } };
     const tbl = (cols, rows) => (rows.length ? h('table', { class: 'data' }, h('tr', null, cols.map((c) => h('th', null, c))), rows) : h('p', { class: 'muted' }, 'None.'));
     wrap.append(h('h2', null, 'Admin'),
-      h('div', { class: 'kpis' }, kpi('Network', o.cluster), kpi('Hot wallet', typeof o.hotSol === 'number' ? C.fmtSol(o.hotSol) + ' SOL' : 'unavailable'), kpi('Player balances (liability)', C.fmtSol(o.playerBalancesSol) + ' SOL'), kpi('Users', o.users),
+      h('div', { class: 'kpis' }, kpi('Network', o.cluster), kpi('Hot wallet', typeof o.hotSol === 'number' ? C.fmtSol(o.hotSol) + ' SOL' : 'unavailable'), kpi('Player balances (liability)', C.fmtSol(o.playerBalancesSol) + ' SOL'), kpi('Users', o.users), kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.fmtSol(o.referrals.pendingSol)} owed · ${C.fmtSol(o.referrals.paidSol)} paid SOL`),
         kpi('Watcher', o.watcher.lastError ? 'error' : o.watcher.lastRun ? 'ok ' + new Date(o.watcher.lastRun).toLocaleTimeString() : 'not run')),
       o.watcher.lastError ? h('div', { class: 'notice err' }, 'Cannot reach Solana RPC: ' + o.watcher.lastError) : null,
       typeof o.hotSol === 'string' ? h('div', { class: 'notice err small' }, o.hotSol) : null,
@@ -293,6 +295,34 @@
       h('h3', null, 'House results (real money)'),
       tbl(['Game', 'Rounds', 'Wagered SOL', 'Paid SOL', 'House SOL'], o.house.map((r) => h('tr', null, h('td', null, names()[r.game] || r.game), h('td', null, r.rounds), h('td', null, C.fmtSol(r.wageredSol)), h('td', null, C.fmtSol(r.paidSol)), h('td', { class: r.houseSol >= 0 ? 'pos' : 'neg' }, C.fmtSol(r.houseSol))))));
     return wrap;
+  }
+
+  async function referralsPage() {
+    const r = await C.try(() => C.api('GET', '/api/referrals'));
+    if (!r) return h('div');
+    const link = location.origin + location.pathname + '#ref-' + r.code;
+    const pct = Math.round(r.share * 100);
+    const total = r.referrals.reduce((a, x) => ({ w: a.w + x.wagered, c: a.c + x.commission }), { w: 0, c: 0 });
+    const claimBtn = h('button', { class: 'btn green', disabled: r.pending < 0.01 ? true : null, onclick: async () => {
+      claimBtn.disabled = true;
+      const c = await C.try(() => C.api('POST', '/api/referrals/claim'));
+      if (c) { setUnits(c.balances); C.toast(`Claimed ${C.fmt(c.claimed)} credits (≈${C.fmtSol(C.solOf(c.claimed))} SOL) to your real balance`, 'win'); route(); } else claimBtn.disabled = false;
+    } }, 'Claim to real balance');
+    const codeIn = h('input', { placeholder: 'Enter a referral code', autocapitalize: 'characters' });
+    return h('div', { class: 'wallet-page' },
+      h('div', { class: 'panel' }, h('h2', null, '🤝 Refer friends, earn forever'),
+        h('p', null, `Share your link. You earn `, h('b', null, `${pct}% of the casino's profit margin`), ` on every real-money bet your referred players make, win or lose, for as long as they play. Commission builds up below; claim it into your real balance any time.`),
+        h('div', { class: 'addr' }, link),
+        h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => C.copy(link) }, 'Copy link'), h('button', { class: 'btn small ghost', onclick: () => C.copy(r.code) }, 'Copy code ' + r.code))),
+      h('div', { class: 'kpis' }, kpi('Ready to claim', C.fmt(r.pending) + ' cr'), kpi('≈ SOL', C.fmtSol(C.solOf(r.pending))), kpi('Claimed so far', C.fmt(r.paid) + ' cr'), kpi('Players referred', r.referrals.length), kpi('Their real wagers', C.fmt(total.w) + ' cr')),
+      h('div', { class: 'row' }, claimBtn, h('span', { class: 'muted small' }, 'Commission is earned on real-money (SOL) play only, not demo credits.')),
+      h('div', { class: 'panel' }, h('h3', null, 'Your referrals'),
+        r.referrals.length ? h('table', { class: 'data' }, h('tr', null, ['Player', 'Joined', 'Rounds', 'Wagered', 'Your commission'].map((x) => h('th', null, x))),
+          r.referrals.map((x) => h('tr', null, h('td', null, x.name), h('td', null, new Date(x.joined).toLocaleDateString()), h('td', null, x.rounds), h('td', null, C.fmt(x.wagered)), h('td', { class: 'pos' }, C.fmt(x.commission)))))
+          : h('p', { class: 'muted' }, 'Nobody has signed up with your link yet.')),
+      r.referredBy ? h('p', { class: 'muted small' }, `You were referred by ${r.referredBy}.`)
+        : r.canAddCode ? h('div', { class: 'panel' }, h('h3', null, 'Were you referred?'), h('p', { class: 'muted small' }, 'You can add a referral code until your first real-money bet.'),
+          h('div', { class: 'row' }, codeIn, h('button', { class: 'btn small', onclick: async () => { if (await C.try(() => C.api('POST', '/api/referrals/code', { code: codeIn.value }))) { C.toast('Referral code added', 'win'); route(); } } }, 'Add code'))) : null);
   }
 
   function accountPage() {
@@ -351,13 +381,14 @@
     document.querySelectorAll('.topbar nav a').forEach((x) => x.classList.toggle('active', x.getAttribute('href') === '#' + (hash || 'lobby')));
     window.scrollTo(0, 0);
     document.title = 'Royal Edge Casino';
-    const needLogin = ['history', 'stats', 'wallet', 'admin', 'account'].includes(hash) || C.games.some((g) => g.id === hash);
+    if (hash.startsWith('ref-')) { try { localStorage.setItem('casino.ref', hash.slice(4).toUpperCase()); } catch (e) { /* ignore */ } location.hash = S.user ? '#referrals' : '#login'; if (!S.user) setTimeout(() => { const sw = document.querySelector('.auth a'); if (sw && /Create/.test(sw.textContent)) sw.click(); }, 50); return; }
+    const needLogin = ['history', 'stats', 'wallet', 'admin', 'account', 'referrals'].includes(hash) || C.games.some((g) => g.id === hash);
     if (hash === 'login') return a.appendChild(authPage());
     if (hash === 'account' && S.user) return a.appendChild(accountPage());
     if (needLogin && !S.user) { location.hash = '#login'; return; }
     const g = C.games.find((x) => x.id === hash);
     if (g) { document.title = g.name + ' — Royal Edge Casino'; return a.appendChild(gamePage(g)); }
-    const page = { history: historyPage, stats: statsPage, edges: C.odds() ? edgesPage : null, wallet: walletPage, admin: adminPage }[hash];
+    const page = { history: historyPage, stats: statsPage, edges: C.odds() ? edgesPage : null, wallet: walletPage, admin: adminPage, referrals: referralsPage }[hash];
     if (page) { const el = await page(); if (location.hash.replace(/^#/, '') === hash) { a.innerHTML = ''; a.appendChild(el); } return; }
     a.appendChild(lobby());
   }
@@ -385,6 +416,7 @@
       document.body.classList.toggle('no-odds', !C.odds());
       document.getElementById('refill').style.display = S.mode === 'demo' ? '' : 'none';
       modeBox.style.display = S.user ? '' : 'none';
+      document.querySelector('.wallet').style.display = S.user ? '' : 'none';
       userBox.innerHTML = '';
       if (S.user) userBox.append(h('a', { href: '#wallet', class: 'btn small gold' }, 'Deposit'), h('a', { class: 'uname', href: '#account', title: 'Account' }, '👤 ' + S.user.username), h('button', { class: 'btn small ghost', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); location.hash = '#login'; } }, 'Log out'));
       else userBox.append(h('a', { href: '#login', class: 'btn small gold' }, 'Log in'));
