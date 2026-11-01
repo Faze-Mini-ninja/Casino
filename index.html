@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Royal Edge Casino — 30 games (play money)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎰</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="logo">🎰 <span>Royal Edge</span> Casino</a>
+    <nav>
+      <a href="#/">Lobby</a>
+      <a href="#/history">History</a>
+      <a href="#/stats">Stats</a>
+      <a href="#/edges">House Edges</a>
+    </nav>
+    <div class="wallet">
+      <span class="bal-label">Balance</span>
+      <span id="balance" class="balance">0.00</span>
+      <button id="refill" class="btn small gold" title="Free play-money top-up">+ Credits</button>
+    </div>
+  </header>
+  <div class="disclaimer">Play-money only — credits have no cash value and cannot be bought or withdrawn. 18+. The house edge is real: in the long run the casino always wins.</div>
+  <main id="app"></main>
+  <div id="toasts"></div>
+
+  <script src="js/lib.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/games/slots.js"></script>
+  <script src="js/games/keno.js"></script>
+  <script src="js/games/blackjack.js"></script>
+  <script src="js/games/roulette.js"></script>
+  <script src="js/games/baccarat.js"></script>
+  <script src="js/games/craps.js"></script>
+  <script src="js/games/videopoker.js"></script>
+  <script src="js/games/paigow.js"></script>
+  <script src="js/games/sicbo.js"></script>
+  <script src="js/games/bingo.js"></script>
+  <script src="js/games/plinko.js"></script>
+  <script src="js/games/dragontiger.js"></script>
+  <script src="js/games/threecard.js"></script>
+  <script src="js/games/caribbean.js"></script>
+  <script src="js/games/holdem.js"></script>
+  <script src="js/games/letitride.js"></script>
+  <script src="js/games/bigsix.js"></script>
+  <script src="js/games/crash.js"></script>
+  <script src="js/games/mines.js"></script>
+  <script src="js/games/limbo.js"></script>
+  <script src="js/games/dice.js"></script>
+  <script src="js/games/hilo.js"></script>
+  <script src="js/games/tower.js"></script>
+  <script src="js/games/scratch.js"></script>
+  <script src="js/games/fish.js"></script>
+  <script src="js/games/coinflip.js"></script>
+  <script src="js/games/war.js"></script>
+  <script>Casino.start();</script>
+</body>
+</html>

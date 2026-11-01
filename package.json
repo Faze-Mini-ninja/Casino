@@ -1,0 +1,13 @@
+{
+  "name": "royal-edge-casino",
+  "version": "1.0.0",
+  "description": "Play-money web casino with 30 games and published house edges",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/rtp.js",
+    "test:quick": "node test/rtp.js --quick",
+    "smoke": "node test/smoke.js"
+  },
+  "license": "MIT"
+}
