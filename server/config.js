@@ -63,6 +63,7 @@ module.exports = {
   MIN_DEPOSIT: { SOL: num('MIN_DEPOSIT_SOL', 0.01), USDC: num('MIN_DEPOSIT_USDC', 1), ETH: num('MIN_DEPOSIT_ETH', 0.002), LTC: num('MIN_DEPOSIT_LTC', 0.01) },
   WITHDRAW_FEE: { SOL: num('WITHDRAW_FEE_SOL', 0.000005), USDC: num('WITHDRAW_FEE_USDC', 0.5), ETH: num('WITHDRAW_FEE_ETH', 0.0005), LTC: num('WITHDRAW_FEE_LTC', 0.0002) }, // charged in the coin
   MIN_WITHDRAW_USD: num('MIN_WITHDRAW_USD', 5),
+  DEPOSIT_FEE_PCT: num('DEPOSIT_FEE_PCT', 5), // % of each deposit's dollar value kept as a fee; the rest is credited
   SWEEP_MIN_SOL: num('SWEEP_MIN_SOL', 0.002),
   ADDRESS_WATCH_DAYS: num('ADDRESS_WATCH_DAYS', 30), // keep crediting deposits to older daily addresses for this long
   AUTO_APPROVE_USD: num('AUTO_APPROVE_USD', 100), // withdrawals up to this are sent automatically…
@@ -91,3 +92,4 @@ module.exports = {
   AML_DAILY_FLAG_USD: num('AML_DAILY_FLAG_USD', 5000), // flag a player whose deposits in 24 h reach this
   AML_MIN_TURNOVER: num('AML_MIN_TURNOVER', 1), // withdrawals before wagering this multiple of recent deposits wait for review (0 = off)
 };
+if (!(module.exports.DEPOSIT_FEE_PCT >= 0 && module.exports.DEPOSIT_FEE_PCT < 50)) throw new Error('DEPOSIT_FEE_PCT must be between 0 and 50');

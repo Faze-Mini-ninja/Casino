@@ -62,7 +62,7 @@ function readJson(req) {
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const usdOf = (units) => Math.round(units || 0) / 100; // ledger units are cents
 const coinInfo = () => chains.enabled().map((a) => ({ id: a, name: chains.ASSETS[a].name, network: chains.ASSETS[a].network, confirm: chains.ASSETS[a].confirm, minDeposit: cfg.MIN_DEPOSIT[a], withdrawFee: cfg.WITHDRAW_FEE[a] }));
-const publicConfig = () => ({ licenseText: cfg.LICENSE_TEXT, cluster: cfg.cluster, testnet: cfg.TESTNET, coins: coinInfo(), minWithdrawUsd: cfg.MIN_WITHDRAW_USD, autoApproveUsd: cfg.AUTO_APPROVE_USD, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
+const publicConfig = () => ({ licenseText: cfg.LICENSE_TEXT, depositFeePct: cfg.DEPOSIT_FEE_PCT, cluster: cfg.cluster, testnet: cfg.TESTNET, coins: coinInfo(), minWithdrawUsd: cfg.MIN_WITHDRAW_USD, autoApproveUsd: cfg.AUTO_APPROVE_USD, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), rg: rg.status(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
@@ -160,8 +160,8 @@ const routes = {
     need(u, 401, 'Please log in');
     const depositBlock = rg.depositBlock(u.id), room = rg.depositRoom(u.id);
     const addresses = cfg.CHAIN_ENABLED && !depositBlock ? pay.depositAddresses(u.id) : {};
-    const deposits = q('SELECT d.txid, d.asset, d.base, d.units, d.price, d.kind, d.ts, a.address FROM deposits d JOIN addresses a ON a.id = d.address_id WHERE d.user_id = ? ORDER BY d.ts DESC LIMIT 50').all(u.id)
-      .map((d) => ({ ...d, coin: chains.toCoin(d.asset, d.base), usd: usdOf(d.units), credits: usdOf(d.units), url: pay.explorer(d.asset, d.txid) }));
+    const deposits = q('SELECT d.txid, d.asset, d.base, d.units, d.gross_units, d.fee_units, d.price, d.kind, d.ts, a.address FROM deposits d JOIN addresses a ON a.id = d.address_id WHERE d.user_id = ? ORDER BY d.ts DESC LIMIT 50').all(u.id)
+      .map((d) => ({ ...d, coin: chains.toCoin(d.asset, d.base), usd: usdOf(d.units), credits: usdOf(d.units), grossUsd: d.gross_units == null ? usdOf(d.units) : usdOf(d.gross_units), feeUsd: usdOf(d.fee_units || 0), url: pay.explorer(d.asset, d.txid) }));
     const withdrawals = q('SELECT id, dest, units, asset, base, price, status, signature, note, created FROM withdrawals WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(u.id)
       .map((w) => ({ ...w, coin: chains.toCoin(w.asset, w.base), usd: usdOf(w.units), credits: usdOf(w.units), url: w.signature ? pay.explorer(w.asset, w.signature) : null }));
     return { addresses, depositBlock, depositRoom: room == null ? null : room / 100, deposits, withdrawals, prices: cfg.CHAIN_ENABLED ? await prices.all() : {}, balances: balances(u.id), config: publicConfig() };

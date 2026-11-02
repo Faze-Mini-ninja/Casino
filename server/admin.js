@@ -33,6 +33,7 @@ module.exports = function adminRoutes({ need, audit }) {
         pendingWithdrawals: q("SELECT COUNT(*) n FROM withdrawals WHERE status = 'pending'").get().n,
         openFlags: q("SELECT COUNT(*) n FROM aml_flags WHERE status = 'open'").get().n,
         depositsUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM deposits WHERE kind = 'deposit' AND ts > ?").get(day).s),
+        depositFeesUsd: usdOf(q("SELECT COALESCE(SUM(fee_units),0) s FROM deposits WHERE kind = 'deposit' AND ts > ?").get(day).s),
         topGames: q("SELECT game, COUNT(*) n, SUM(wager) w FROM rounds WHERE status = 'done' AND updated > ? GROUP BY game ORDER BY n DESC LIMIT 6").all(day).map((g) => ({ game: g.game, bets: g.n, wagered: C2(g.w) })),
       };
     },

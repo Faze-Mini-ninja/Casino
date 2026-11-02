@@ -52,9 +52,12 @@ const pay = require('../server/payments');
   ltc.st.incoming[A.LTC.address] = [{ asset: 'LTC', txid: 'l1', base: 50_000_000 }]; // 0.5 LTC
   await pay.runOnce();
   let b1 = balances(uid).real;
-  ok(b1 - b0 === 7500 + 2000 + 3000 + 4000, `credited $75 SOL + $20 USDC + $30 ETH + $40 LTC (got $${(b1 - b0) / 100})`);
+  ok(b1 - b0 === 7125 + 1900 + 2850 + 3800, `$75 SOL + $20 USDC + $30 ETH + $40 LTC credited minus the 5% fee (got $${(b1 - b0) / 100})`);
+  const d1 = q("SELECT units, gross_units, fee_units FROM deposits WHERE txid = 's1'").get();
+  ok(d1.gross_units === 7500 && d1.fee_units === 375 && d1.units === 7125, '0.5 SOL: worth $75, $3.75 fee, $71.25 credited');
+  ok(q("SELECT delta FROM ledger WHERE ref = 'SOL:s1'").get().delta === 7125, 'ledger records the credited amount');
   ok(q("SELECT kind FROM deposits WHERE txid = 's3'").get().kind === 'below-minimum', '0.001 SOL is below the minimum and not credited');
-  ok(events.length === 5 && events.some((e) => e.belowMinimum) && events.find((e) => e.asset === 'ETH').usd === 30, 'player is notified for every deposit');
+  ok(events.length === 5 && events.some((e) => e.belowMinimum) && events.find((e) => e.asset === 'ETH').usd === 28.5 && events.find((e) => e.asset === 'ETH').grossUsd === 30 && events.find((e) => e.asset === 'ETH').feeUsd === 1.5, 'player is notified for every deposit');
   await pay.runOnce();
   ok(balances(uid).real === b1 && events.length === 5, 'second pass credits nothing twice');
   ok(sol.st.sweeps.length === 2 && eth.st.sweeps.length === 1 && ltc.st.sweeps.length === 1, 'deposit addresses swept to the hot wallets');

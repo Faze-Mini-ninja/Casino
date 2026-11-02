@@ -33,6 +33,8 @@ q(`CREATE TABLE IF NOT EXISTS cashouts (
   txid TEXT, meta TEXT, note TEXT, created INTEGER NOT NULL, updated INTEGER NOT NULL)`).run();
 for (const [col, def] of [['asset', "TEXT NOT NULL DEFAULT 'SOL'"], ['base', 'INTEGER'], ['price', 'REAL'], ['meta', 'TEXT']]) { try { q(`ALTER TABLE withdrawals ADD COLUMN ${col} ${def}`).run(); } catch { /* exists */ } }
 try { q('ALTER TABLE deposit_addresses ADD COLUMN last_sig TEXT').run(); } catch { /* exists */ }
+// deposits.units is what was credited; gross_units is the full dollar value and fee_units the deposit fee kept
+for (const c of ['gross_units', 'fee_units']) { try { q(`ALTER TABLE deposits ADD COLUMN ${c} INTEGER`).run(); } catch { /* exists */ } }
 if (!q('SELECT 1 FROM addresses LIMIT 1').get() && q('SELECT 1 FROM deposit_addresses LIMIT 1').get()) {
   tx(() => {
     // ids are kept: the Solana key of a deposit address is derived from its row id
@@ -81,13 +83,15 @@ async function scanRow(m, row) {
   tx(() => {
     for (const f of fresh) {
       const coin = C.toCoin(f.asset, f.base), ok = coin >= (cfg.MIN_DEPOSIT[f.asset] || 0);
-      const units = ok ? Math.floor(coin * px[f.asset] * 100 + 1e-6) : 0;
-      const ins = q('INSERT OR IGNORE INTO deposits (txid, address_id, asset, user_id, base, units, price, kind, ts) VALUES (?,?,?,?,?,?,?,?,?)')
-        .run(f.txid, row.id, f.asset, row.user_id, f.base, units, px[f.asset], ok ? 'deposit' : 'below-minimum', Date.now());
+      const gross = Math.floor(coin * px[f.asset] * 100 + 1e-6); // full dollar value, in cents
+      const fee = ok ? Math.round(gross * cfg.DEPOSIT_FEE_PCT / 100) : 0;
+      const units = ok ? gross - fee : 0; // credited
+      const ins = q('INSERT OR IGNORE INTO deposits (txid, address_id, asset, user_id, base, units, price, kind, ts, gross_units, fee_units) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+        .run(f.txid, row.id, f.asset, row.user_id, f.base, units, px[f.asset], ok ? 'deposit' : 'below-minimum', Date.now(), gross, fee);
       if (!ins.changes) continue;
       if (units > 0) { credit(row.user_id, 'real', units, 'deposit', `${f.asset}:${f.txid}`); compliance.onDeposit(row.user_id, units, f.asset, f.txid); }
-      log(`${ok ? 'credited' : 'below minimum:'} ${coin} ${f.asset} ($${(units / 100).toFixed(2)}) to user ${row.user_id} (${f.txid})`);
-      notes.push({ to: row.user_id, asset: f.asset, coin, usd: units / 100, credits: units / 100, belowMinimum: !ok, signature: f.txid });
+      log(`${ok ? 'credited' : 'below minimum:'} ${coin} ${f.asset} worth $${(gross / 100).toFixed(2)}${ok ? `, fee $${(fee / 100).toFixed(2)}, credited $${(units / 100).toFixed(2)}` : ''} to user ${row.user_id} (${f.txid})`);
+      notes.push({ to: row.user_id, asset: f.asset, coin, usd: units / 100, credits: units / 100, grossUsd: gross / 100, feeUsd: fee / 100, belowMinimum: !ok, signature: f.txid });
     }
     q('UPDATE addresses SET cursor = ?, last_checked = ? WHERE id = ?').run(r.cursor == null ? row.cursor : typeof r.cursor === 'string' ? r.cursor : JSON.stringify(r.cursor), Date.now(), row.id);
   });

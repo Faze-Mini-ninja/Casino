@@ -46,7 +46,7 @@
         h('div', { class: 'kpis' },
           C.kpi('Online now', `${d.online.total}`, 'accent'), C.kpi('Signed-in players online', d.online.users), C.kpi('Real GGR (24h)', C.money(d.real.ggrUsd), d.real.ggrUsd >= 0 ? 'good' : 'bad'),
           C.kpi('Real wagered (24h)', C.money(d.real.wageredUsd)), C.kpi('Real bets (24h)', d.real.bets.toLocaleString()), C.kpi('Demo bets (24h)', d.demo.bets.toLocaleString()),
-          C.kpi('Deposits (24h)', C.money(d.depositsUsd)), C.kpi('Games in progress', d.activeRounds), C.kpi('New players (24h)', d.newUsers), C.kpi('Players total', d.users),
+          C.kpi('Deposits credited (24h)', C.money(d.depositsUsd)), C.kpi('Deposit fees (24h)', C.money(d.depositFeesUsd || 0), 'good'), C.kpi('Games in progress', d.activeRounds), C.kpi('New players (24h)', d.newUsers), C.kpi('Players total', d.users),
           C.kpi('Open tickets', d.openTickets, d.openTickets ? 'warn' : ''), C.kpi('Withdrawals to review', d.pendingWithdrawals, d.pendingWithdrawals ? 'warn' : ''), C.kpi('Compliance flags', d.openFlags, d.openFlags ? 'warn' : '')),
         h('div', { class: 'panel' }, h('h3', null, 'Most played (24h)'), tbl(['Game', 'Bets', 'Wagered (credits)'], d.topGames.map((g) => h('tr', null, h('td', null, gname(g.game)), h('td', null, g.bets), h('td', null, C.fmt(g.wagered)))), 'No bets in the last 24 hours.')));
     };

@@ -411,8 +411,8 @@
       h('div', { class: 'kpis' }, kpi('Real balance', C.money(real)), ...cfg.coins.filter((c) => w.prices[c.id]).map((c) => kpi(`1 ${c.id}`, C.money(w.prices[c.id])))),
       h('div', { class: 'row', style: 'gap:10px;margin-bottom:16px' }, h('button', { class: 'btn', onclick: open('deposit') }, 'Deposit'), h('button', { class: 'btn ghost', onclick: open('withdraw') }, 'Withdraw')),
       h('div', { class: 'panel' }, h('h3', null, 'Deposits'),
-        w.deposits.length ? h('table', { class: 'data' }, h('tr', null, ['Time', 'Coin', 'Amount', 'Credited', 'Status', 'Tx'].map((x) => h('th', null, x))),
-          w.deposits.map((d) => h('tr', null, h('td', null, new Date(d.ts).toLocaleString()), h('td', null, h('b', null, d.asset)), h('td', null, coinAmt(d.asset, d.coin)), h('td', null, d.usd ? C.money(d.usd) : '—'),
+        w.deposits.length ? h('table', { class: 'data' }, h('tr', null, ['Time', 'Coin', 'Amount', 'Value', 'Fee', 'Credited', 'Status', 'Tx'].map((x) => h('th', null, x))),
+          w.deposits.map((d) => h('tr', null, h('td', null, new Date(d.ts).toLocaleString()), h('td', null, h('b', null, d.asset)), h('td', null, coinAmt(d.asset, d.coin)), h('td', null, d.grossUsd ? C.money(d.grossUsd) : '—'), h('td', { class: 'muted' }, d.feeUsd ? C.money(d.feeUsd) : '—'), h('td', null, d.usd ? C.money(d.usd) : '—'),
             h('td', null, statusTag(d.kind === 'deposit' ? 'credited' : 'below-minimum')), h('td', null, txLink(d.url)))))
           : h('p', { class: 'muted' }, 'No deposits yet.'),
         h('h3', null, 'Withdrawals'),

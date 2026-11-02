@@ -61,14 +61,30 @@
       recent.innerHTML = ''; const list = w.deposits.slice(0, 4);
       if (!list.length) return;
       recent.append(h('div', { class: 'wl-k' }, 'Recent deposits'), ...list.map((d) => h('div', { class: 'wl-row' }, h('span', null, new Date(d.ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })),
-        h('b', null, `+${fmtCoin(d.asset, d.coin)} ${d.asset}`), h('span', { class: 'muted' }, d.usd ? C.money(d.usd) : ''), h('span', { class: 'tag-s ' + (d.kind === 'deposit' ? 'credited' : 'rejected') }, d.kind === 'deposit' ? 'credited' : 'below minimum'))));
+        h('b', null, `+${fmtCoin(d.asset, d.coin)} ${d.asset}`), h('span', { class: 'muted' }, d.kind === 'deposit' ? `${C.money(d.grossUsd)} → ${C.money(d.usd)}` : (d.grossUsd ? C.money(d.grossUsd) : '')), h('span', { class: 'tag-s ' + (d.kind === 'deposit' ? 'credited' : 'rejected') }, d.kind === 'deposit' ? 'credited' : 'below minimum'))));
+    };
+    /* "how much will I get" calculator: coin amount -> dollar value, fee and credited amount */
+    const fee = +cfg.depositFeePct || 0;
+    const calc = () => {
+      const p = px[cur]; if (!p) return null;
+      const amt = h('input', { type: 'number', min: '0', step: 'any', placeholder: `Amount in ${cur}`, inputmode: 'decimal' });
+      const out = h('div', { class: 'wl-calc-out' });
+      const paint = () => {
+        const a = +amt.value; out.innerHTML = '';
+        if (!(a > 0)) { out.append(h('span', { class: 'muted' }, `1 ${cur} ≈ ${C.money(p)}${fee ? ` · ${fee}% deposit fee` : ''}`)); return; }
+        const gross = Math.floor(a * p * 100) / 100, f = Math.round(gross * fee) / 100;
+        if (a < info[cur].minDeposit) { out.append(h('span', { class: 'neg' }, `Below the ${info[cur].minDeposit} ${cur} minimum — it would not be credited`)); return; }
+        out.append(h('span', null, 'Worth ', h('b', null, C.money(gross))), fee ? h('span', { class: 'muted' }, `Fee ${fee}%: −${C.money(f)}`) : null, h('span', null, 'You get ', h('b', { class: 'pos' }, C.money(gross - f))));
+      };
+      amt.addEventListener('input', paint); paint();
+      return h('div', { class: 'wl-calc' }, h('span', { class: 'wl-k' }, 'How much will I get?'), amt, out);
     };
     const paintDeposit = () => {
       depBox.innerHTML = '';
       const c = info[cur], a = w.addresses[cur];
       if (w.depositBlock) { depBox.append(h('div', { class: 'notice warn' }, w.depositBlock, ' ', h('a', { href: '#rg', onclick: () => close() }, 'Responsible gambling'))); return; }
       if (!a) { depBox.append(h('div', { class: 'notice' }, 'Deposits are not switched on yet on this site.')); return; }
-      depBox.append(
+      depBox.append(...[
         w.depositRoom != null ? h('p', { class: 'wl-room muted' }, `Your deposit limit lets you deposit ${C.money(w.depositRoom)} more right now. Anything above that is still credited but goes against your limit.`) : null,
         h('div', { class: 'wl-net' }, h('span', { class: 'muted' }, 'Network'), h('b', null, c.network), px[cur] ? h('span', { class: 'wl-px' }, `1 ${cur} ≈ ${C.money(px[cur])}`) : null),
         h('div', { class: 'wl-dep' },
@@ -76,13 +92,15 @@
           h('div', { class: 'wl-addr' }, h('span', { class: 'wl-k' }, `Your ${cur} deposit address`), h('div', { class: 'wl-addr-v' }, a.address),
             h('div', { class: 'wl-btns' }, copyBtn(a.address, 'Copy address'), cur === 'SOL' || cur === 'USDC' ? h('a', { class: 'btn small ghost', href: `solana:${a.address}` }, 'Open wallet app') : null), status)),
         h('div', { class: 'wl-warn' }, WARN[cur](c.network.replace(' (SPL)', ''))),
+        calc(),
         h('ul', { class: 'wl-notes' },
           h('li', null, `Minimum deposit ${c.minDeposit} ${cur}${px[cur] ? ` (≈ ${C.money(c.minDeposit * px[cur])})` : ''}.`),
+          fee ? h('li', null, `A ${fee}% deposit fee is taken from the dollar value; the rest is added to your balance.`) : null,
           h('li', null, `Credited automatically after ${c.confirm}, at the market price at that moment.`),
           h('li', null, `This address changes every day (UTC). Deposits to your older addresses still count for ${cfg.watchDays} days.`)),
         cfg.testnet ? h('div', { class: 'notice' }, `Test network: coins have no value. Free test coins: `, h('a', { href: 'https://faucet.solana.com', target: '_blank', rel: 'noopener' }, 'SOL'), ' · ',
           h('a', { href: 'https://faucet.circle.com', target: '_blank', rel: 'noopener' }, 'USDC'), ' · ', h('a', { href: 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia', target: '_blank', rel: 'noopener' }, 'Sepolia ETH'), ' · any Litecoin testnet faucet.') : null,
-        recent);
+        recent].filter(Boolean));
       paintRecent();
     };
 
@@ -137,8 +155,8 @@
 
     openState.onDeposit = (d) => {
       status.className = 'wl-status ' + (d.belowMinimum ? 'bad' : 'ok');
-      status.lastChild.textContent = d.belowMinimum ? `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} — below the minimum, not credited` : `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} — +${C.money(d.usd)} added`;
-      w.deposits.unshift({ ts: Date.now(), asset: d.asset, coin: d.coin, usd: d.usd, kind: d.belowMinimum ? 'below-minimum' : 'deposit' }); paintRecent();
+      status.lastChild.textContent = d.belowMinimum ? `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} — below the minimum, not credited` : `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} (${C.money(d.grossUsd)})${d.feeUsd ? ` — ${C.money(d.feeUsd)} fee` : ''} — +${C.money(d.usd)} added`;
+      w.deposits.unshift({ ts: Date.now(), asset: d.asset, coin: d.coin, usd: d.usd, grossUsd: d.grossUsd, feeUsd: d.feeUsd, kind: d.belowMinimum ? 'below-minimum' : 'deposit' }); paintRecent();
       setTimeout(paintBal, 400);
     };
   };
@@ -146,7 +164,7 @@
   /* every tab hears about credited deposits, wherever the player is */
   C.onStream('deposit', (d) => {
     if (d.belowMinimum) C.toast(`Deposit of ${fmtCoin(d.asset, d.coin)} ${d.asset} is below the minimum and was not credited`, 'err');
-    else { C.toast(`Deposit received: ${fmtCoin(d.asset, d.coin)} ${d.asset} → +${C.money(d.usd)}`, 'win'); C.sfx && C.sfx('cash'); }
+    else { C.toast(`Deposit received: ${fmtCoin(d.asset, d.coin)} ${d.asset} (${C.money(d.grossUsd)}) → +${C.money(d.usd)}${d.feeUsd ? ` after ${C.money(d.feeUsd)} fee` : ''}`, 'win'); C.sfx && C.sfx('cash'); }
     C.refreshMe();
     if (openState && openState.onDeposit) openState.onDeposit(d);
   }, true);
