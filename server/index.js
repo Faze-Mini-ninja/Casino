@@ -19,6 +19,7 @@ const adminRoutes = require('./admin');
 const stream = require('./stream');
 const rg = require('./compliance');
 const backup = require('./backup');
+const multi = require('./multi');
 
 /* ---------- schema additions: disabled accounts, admin audit log ---------- */
 try { q('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0').run(); } catch { /* exists */ }
@@ -293,7 +294,7 @@ const routes = {
   },
 };
 
-Object.assign(routes, socialRoutes({ need, HttpError, limited, audit }), adminRoutes({ need, audit }));
+Object.assign(routes, socialRoutes({ need, HttpError, limited, audit }), adminRoutes({ need, audit }), multi({ need, HttpError, limited }));
 
 /* ---------- static files ---------- */
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg' };
@@ -378,6 +379,7 @@ if (require.main === module) {
   server.listen(cfg.PORT, cfg.HOST, () => console.log(`krush.casino on http://localhost:${cfg.PORT}  (${cfg.cluster}, chain ${cfg.CHAIN_ENABLED ? 'on' : 'off'})`));
   pay.startWatcher();
   backup.start(require('./db').db);
+  multi.start();
   setInterval(() => { try { refundStaleShots(); q('DELETE FROM sessions WHERE expires < ?').run(Date.now()); } catch (e) { console.error(e); } }, 30000).unref();
 }
 module.exports = { server };

@@ -8,7 +8,7 @@
     ['announce', 'Announcement', 'mega', 'staff'], ['withdrawals', 'Withdrawals', 'wallet', 'admin'], ['compliance', 'Compliance', 'shield', 'admin'], ['treasury', 'Treasury', 'shield', 'admin'], ['log', 'Log', 'clock', 'admin'],
   ];
   const ROLE_LABEL = { player: 'Player', mod: 'Mod', staff: 'Staff', admin: 'Admin' };
-  const gname = (id) => { const g = C.games.find((x) => x.id === id) || C.games.find((x) => (x.statId || x.round) === id); return g ? (g.short || g.name) : id; };
+  const gname = (id) => { const g = C.games.find((x) => x.id === id) || C.games.find((x) => (x.statId || x.round) === id); return g ? (g.short || g.name) : (C.EXTRA_GAMES[id] || [id])[0]; };
   const ago = (t) => { const s = Math.max(0, (Date.now() - t) / 1000); return s < 60 ? `${Math.floor(s)}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : new Date(t).toLocaleDateString(); };
   const roleBadge = (r) => (r && r !== 'player' ? h('span', { class: 'badge-r ' + r }, ROLE_LABEL[r]) : null);
   const tbl = (cols, rows, empty = 'Nothing here yet.') => (rows.length ? h('div', { class: 'tbl-wrap' }, h('table', { class: 'data' }, h('thead', null, h('tr', null, cols.map((c) => h('th', null, c)))), h('tbody', null, rows))) : h('p', { class: 'muted' }, empty));

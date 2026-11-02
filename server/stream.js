@@ -47,6 +47,8 @@ bus.on('bet', (e) => {
 });
 bus.on('round', (e) => broadcast('round', { game: e.game, mode: e.mode, wager: C2(e.wager), user: nameOf(e.userId), userId: e.userId, roundId: e.roundId, t: e.t }, isStaff));
 bus.on('chat', (m) => broadcast('chat', m));
+bus.on('pvp', (m) => broadcast('pvp', m));
+bus.on('bjt', (t) => broadcast('bjt', t));
 bus.on('chat-del', (m) => broadcast('chat-del', m));
 bus.on('announce', (a) => broadcast('announce', a));
 bus.on('odds', (o) => broadcast('odds', o));

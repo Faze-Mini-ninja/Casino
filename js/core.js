@@ -189,7 +189,9 @@
   C.register = (g) => { g.cat = RECAT[g.id] || 'originals'; g.short = SHORT[g.id] || g.name; C.games.push(g); };
   let cleanup = null;
   const app = () => document.getElementById('app');
-  const names = () => Object.fromEntries(C.games.map((g) => [g.statId || g.id, g.name.replace(/ — .*/, '')]));
+  // multiplayer games (js/multi.js) are not lobby tiles, but appear in history, stats and the live feed
+  C.EXTRA_GAMES = { 'pvp-coinflip': ['PvP Coin Flip', '#pvp'], 'pvp-dice': ['PvP Dice Duel', '#pvp'], 'pvp-rps': ['PvP Rock Paper Scissors', '#pvp'], 'pvp-bj': ['PvP Blackjack Duel', '#pvp'], bjt: ['Live Blackjack', '#tables'] };
+  const names = () => ({ ...Object.fromEntries(Object.entries(C.EXTRA_GAMES).map(([k, v]) => [k, v[0]])), ...Object.fromEntries(C.games.map((g) => [g.statId || g.id, g.name.replace(/ — .*/, '')])) });
 
   /* ---------------- icons (24×24 line icons) ---------------- */
   const ICONS = {
@@ -279,10 +281,10 @@
 
   const byServerId = () => Object.fromEntries(C.games.map((g) => [g.statId || g.round || g.id, g]));
   C.betRow = (b, opts = {}) => {
-    const g = byServerId()[b.game] || { name: b.game, short: b.game, n: 0, id: '' };
+    const x = C.EXTRA_GAMES[b.game], g = byServerId()[b.game] || { name: x ? x[0] : b.game, short: x ? x[0] : b.game, n: 0, id: '', href: x ? x[1] : '' };
     const m = b.wager ? b.payout / b.wager : 0, cur = b.mode === 'real' ? ' ◎' : '', win = b.payout > b.wager;
     return h('tr', { class: opts.fresh ? 'fresh' : '' },
-      h('td', null, h('a', { class: 'g-cell', href: '#' + (g.id || '') }, g.id ? h('img', { class: 'g-thumb', src: `img/covers/${g.id}.webp`, alt: '', loading: 'lazy', onerror: (e) => e.target.replaceWith(h('span', { class: 'dot', style: `background:hsl(${C.hue(g)},70%,45%)` })) }) : h('span', { class: 'dot' }), g.short || g.name)),
+      h('td', null, h('a', { class: 'g-cell', href: g.href || '#' + (g.id || '') }, g.id ? h('img', { class: 'g-thumb', src: `img/covers/${g.id}.webp`, alt: '', loading: 'lazy', onerror: (e) => e.target.replaceWith(h('span', { class: 'dot', style: `background:hsl(${C.hue(g)},70%,45%)` })) }) : h('span', { class: 'dot' }), g.short || g.name)),
       h('td', { class: 'hide-m muted' }, opts.userLink && b.userId ? h('a', { href: '#admin-player-' + b.userId }, b.user) : b.user),
       h('td', { class: 'hide-m muted' }, new Date(b.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
       h('td', { class: 'r hide-m' }, C.fmt(b.wager) + cur), h('td', { class: 'r' + (m >= 10 ? ' big-mult' : '') }, m.toFixed(2) + '×'),
@@ -329,7 +331,7 @@
       promo('New slots', '8 new video slots', 'Free spins, 243 and 1024 ways, and a cabinet for every theme.', 'Play now', '#cat-slots', '#1d4ed8', '#7c3aed', 'slot', ['candy', 'pharaoh', 'dragon']));
     const feed = h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon('activity'), 'Latest bets')));
     if (!cat) feedEl().then((f) => feed.append(f));
-    return h('div', { class: 'lobby' }, promos, h('div', { class: 'lobby-bar' }, h('div', { class: 'search-wrap' }, C.icon('search'), search), tabs), body, cat ? null : feed);
+    return h('div', { class: 'lobby' }, promos, !cat && C.mpStrip ? C.mpStrip() : null, h('div', { class: 'lobby-bar' }, h('div', { class: 'search-wrap' }, C.icon('search'), search), tabs), body, cat ? null : feed);
   }
 
   function gamePage(g) {
@@ -352,8 +354,10 @@
       root.append(h('div', { class: 'closed-note' }, h('h3', null, `${g.short || g.name} is closed for maintenance`), h('p', { class: 'muted' }, 'We\'ll have it back shortly. Try another game in the meantime.'), h('a', { class: 'btn', href: '#lobby' }, 'Back to lobby')));
       return page;
     }
+    const ld = C.loader ? C.loader({ id: g.id, title: g.name, sub: CAT_LABEL[g.cat], img: `img/covers/${g.id}.webp`, icon: CAT_ICON[g.cat] }) : null;
     setTimeout(() => {
       const c = g.mount(root, g);
+      if (ld) ld.ready(root);
       // Stake-style: the primary action lives in the control panel, under the bet inputs
       const side = root.querySelector('.layout > .side'), stage = root.querySelector('.layout > .stage');
       if (side && stage && ['originals', 'lottery'].includes(g.cat) && g.id !== 'coinflip') {
@@ -365,7 +369,7 @@
           if (after) after.after(mv); else side.prepend(mv);
         }
       }
-      cleanup = () => { if (c) c(); if (g.round) C.api('POST', '/api/abandon', { game: g.round }).then((r) => r && r.balances && setUnits(r.balances)).catch(() => {}); };
+      cleanup = () => { if (ld) ld.close(); if (c) c(); if (g.round) C.api('POST', '/api/abandon', { game: g.round }).then((r) => r && r.balances && setUnits(r.balances)).catch(() => {}); };
     }, 0);
     return page;
   }
@@ -546,7 +550,7 @@
   C.refreshMe = async () => { const r = await C.try(() => C.api('GET', '/api/me')); if (r) applyMe(r); };
 
   /* ---------------- live updates (Server-Sent Events) ---------------- */
-  const STREAM_TYPES = ['chat', 'chat-del', 'online', 'bet', 'round', 'announce', 'odds', 'ticket', 'tipped', 'deposit'];
+  const STREAM_TYPES = ['chat', 'chat-del', 'online', 'bet', 'round', 'announce', 'odds', 'ticket', 'tipped', 'deposit', 'pvp', 'bjt'];
   const globalStream = {};
   let pageStream = {}, es = null, esUser;
   /** Subscribe to a live event. Page subscriptions are dropped on navigation; pass global=true to keep it. */

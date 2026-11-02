@@ -31,6 +31,8 @@ const mapTheo = (bets, edgeOf) => Object.entries(bets || {}).reduce((s, [k, v]) 
 function theoOf(game, p, wager, state) {
   p = p || {};
   if (L.SLOT_THEMES[game]) return wager * Math.max(0, 1 - L.slotTable(game).rtp);
+  if (String(game).startsWith('pvp-')) return Math.max(0, Number(p.rakeShare) || 0); // the house keeps only the rake, split between the two players
+  if (game === 'bjt') return wager * 0.005; // live blackjack, no side bets
   switch (game) {
     case 'slots': return wager * SLOTS;
     case 'keno': return wager * (1 - L.kenoRTP((p.picks || []).length || 1));

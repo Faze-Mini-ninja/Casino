@@ -38,6 +38,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const before = errors.length;
     const bal0 = await page.evaluate(() => Casino.balance());
     await page.goto(`http://localhost:${PORT}/#${id}`);
+    await page.waitForSelector('.game-loader', { state: 'detached', timeout: 10000 }).catch(() => {}); // loading screen first
     await wait(300);
     for (let round = 0; round < 3; round++) {
       if (await page.locator('.spot').count()) { await click('.spot', 1); await click('.spot', 3); }

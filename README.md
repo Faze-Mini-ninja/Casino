@@ -66,6 +66,18 @@ per-player odds control.
   (Staff Panel → Games & odds → tipping rules). Every tip is in the ledger.
 - **Support:** players open tickets on the Support page and see replies there; staff answer from the Staff Panel.
 
+### Multiplayer
+- **PvP Arena** (`#pvp`): Coin Flip, Dice Duel, Rock Paper Scissors and Blackjack Duel against other players.
+  A challenge holds the creator's stake; the joiner matches it; the winner gets both stakes minus `PVP_RAKE_PCT`
+  (default 5%) and ties are refunded. Rock-paper-scissors hands stay secret until both have picked; blackjack duel
+  hands show one card until both players have finished (30 s per move, then auto-stand). Unjoined challenges are
+  refunded after 30 minutes. Matches between two accounts on the same IP raise an AML flag.
+- **Live Blackjack** (`#tables`): three tables per mode, up to 5 players against one dealer. Betting closes
+  `BJT_BET_SECS` after the first bet, `BJT_TURN_SECS` per turn, blackjack 3:2, dealer stands on 17, double on two
+  cards, no splits. A hand cut off by a restart is refunded.
+- Every multiplayer stake is in the ledger, bet history, live feed and AML checks, and respects breaks and
+  self-exclusion. Referral commission is paid on the house's rake (PvP) or edge (live blackjack).
+
 ### Odds display
 Odds are **hidden from players by default**. Players still see what every bet pays, but no house edges, RTPs, win
 probabilities or "1 in X" odds, and the House Edges page is hidden. Set `SHOW_ODDS=true` to show them; some licences require RTP to be published.
@@ -227,6 +239,7 @@ server/play.js      round engine (debit → play → settle → record, one DB t
 server/payments.js  daily deposit wallets, crediting, sweeps, withdrawals, watcher loop
 server/compliance.js deposit limits, cool-off, self-exclusion, AML flags
 server/backup.js    hourly encrypted database backups, optional upload to S3-compatible storage
+server/multi.js     PvP Arena matches and live multiplayer blackjack tables
 server/wallet.js    HD key derivation (SLIP-0010, Phantom-compatible)
 server/chain.js     Solana RPC wrapper
 server/db.js        SQLite schema, balances, ledger
@@ -240,6 +253,8 @@ js/staff.js         Staff Panel UI
 js/chat.js          chat panel and tip dialog
 js/support.js       player support page
 js/rg.js            responsible-gambling page and the break/blocked notice
+js/loader.js        full-screen loading screen shown when a game opens
+js/multi.js         PvP Arena, Blackjack Duel and Live Blackjack pages
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
 js/games/*.js       one UI file per game (more-*.js hold games 34–53, video-slots.js all video slots)
