@@ -21,6 +21,11 @@
     lose: () => tone(220, 0.22, 'sine', 0.05, 0, 0.6),
     cash: () => { tone(1318, 0.08, 'square', 0.04); tone(1760, 0.14, 'square', 0.04, 0.06); },
     pop: () => tone(160, 0.18, 'sawtooth', 0.12, 0, 0.3),
+    spin: () => { tone(140, 0.32, 'triangle', 0.035, 0, 2.2); tone(70, 0.3, 'sine', 0.04, 0.02, 1.6); },
+    reel: () => { tone(95, 0.09, 'square', 0.05); tone(180, 0.05, 'triangle', 0.04, 0.005); },
+    scat: () => [1318, 1760, 2349].forEach((f, i) => tone(f, 0.14, 'sine', 0.07, i * 0.05)),
+    antic: () => tone(260, 0.9, 'sawtooth', 0.025, 0, 2.6),
+    coin: () => tone(1900 + Math.random() * 600, 0.04, 'square', 0.015),
   };
   C.sfx = (name) => { if (muted) return; try { (SOUNDS[name] || (() => {}))(); } catch (e) { /* audio unavailable */ } };
   C.isMuted = () => muted;

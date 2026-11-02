@@ -21,6 +21,7 @@
   C.setMode = (m) => { S.mode = m; try { localStorage.setItem('casino.mode', m); } catch (e) { /* ignore */ } emit(); };
   const setUnits = (b) => { if (b) { S.units = { demo: b.demo, real: b.real }; emit(); } };
   C.odds = () => !!S.config.showOdds;
+  C.config = () => S.config;
   C.solOf = (credits) => credits / (S.config.creditsPerSol || 1000);
 
   /* ---------------- API ---------------- */

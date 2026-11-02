@@ -1,67 +1,29 @@
+/* Classic Slots: 3 reels, one payline (the middle row), any two cherries return the stake. Runs on the shared slot client. */
 (function () {
-  const C = Casino, L = Lib, h = C.h;
-  const SYMS = L.SLOT_SYMBOLS.map((s) => s.s);
-  const ART = { '🍒': 'cherry', '🍋': 'lemon', '🍊': 'orange', '🔔': 'bell', '⭐': 'star', '7️⃣': 'seven' };
-  const put = (el, sym) => { el.innerHTML = C.art(ART[sym]); };
-  const trio = (sym) => h('span', { class: 'pt-art' }, [0, 1, 2].map(() => C.artEl(ART[sym])));
+  const C = Casino, L = Lib;
+  const ID = { '🍒': 'cherry', '🍋': 'lemon', '🍊': 'orange', '🔔': 'bell', '⭐': 'star', '7️⃣': 'seven' }; // server symbol → art name
+  const TITLE = { seven: 'Three 7s', star: 'Three stars', bell: 'Three bells', orange: 'Three oranges', lemon: 'Three lemons', cherry: 'Three cherries' };
+  const rules = '<p>Three reels, one payline (the middle row). Line up three matching symbols, or any two cherries on the line to get your stake back. Cherries are common, 7s are rare.</p>';
   C.register({
-    n: 1, id: 'slots', name: 'Slots', icon: '🎰', cat: 'lottery', edge: '20.2%',
+    n: 1, id: 'slots', name: 'Slots', icon: '7', cat: 'slots', edge: '20.2%',
     blurb: 'Classic 3-reel fruit machine with a 200× jackpot.',
-    rules: '<p>Three reels, one payline (the middle row). Line up three matching symbols, or any two cherries. Reel strips are weighted: cherries are common, 7s are rare. RTP 79.78% (exact).</p>',
+    rules: rules + '<p>RTP 79.78% (exact).</p>',
     edges: [['Three 7s', '200×', ''], ['Three stars', '80×', ''], ['Three bells', '40×', ''], ['Three oranges', '20×', ''], ['Three lemons', '12×', ''], ['Three cherries', '5×', ''], ['Any two cherries', '1× (stake back)', ''], ['Overall', '', '20.22%']],
     mount(root) {
-      const bet = C.betInput({ value: 10 });
-      const msg = C.msg();
-      let alive = true, spinning = false, auto = false;
-      const reels = [0, 1, 2].map(() => {
-        const cells = [0, 1, 2].map(() => { const c = h('div', { class: 'slot-cell' }); put(c, L.pick(SYMS)); return c; });
-        return { el: h('div', { class: 'slot-reel' }, cells), cells };
+      const symbols = L.SLOT_SYMBOLS.map((x) => [ID[x.s], x.w]);
+      const W = symbols.reduce((a, x) => a + x[1], 0);
+      const rnd = () => { let x = Math.random() * W; for (const [s, w] of symbols) { x -= w; if (x < 0) return s; } return 'cherry'; };
+      return C.slotGame(root, {
+        game: 'slots', theme: 'classic', name: 'Classic Slots', font: 'Bungee', reels: 3, rows: 3, symbols, lines: [[1, 1, 1]], ways: false, free: null, rulesHtml: rules,
+        adapt: (r) => {
+          const line = r.result.line.map((s) => ID[s]), m = r.result.mult;
+          const grid = line.map((s) => [rnd(), s, rnd()]);
+          const cells = m === 1 ? line.map((s, i) => (s === 'cherry' ? [i, 1] : null)).filter(Boolean) : [[0, 1], [1, 1], [2, 1]];
+          return { grid, wins: m > 0 ? [{ line: 0, sym: line[0], n: 3, cells, pay: m }] : [], scatter: 0, scatterPay: 0, baseMult: m, free: [], freeMult: 0, mult: m };
+        },
+        paytable: () => [...Object.entries(L.SLOT_PAYS).map(([s, m]) => ({ sym: ID[s], title: TITLE[ID[s]], pays: [['3×', m]] })),
+          { sym: 'cherry', title: 'Any two cherries', pays: [['2×', 1]] }],
       });
-      const table = h('div', { class: 'pays-list' }, Object.entries(L.SLOT_PAYS).map(([s, p]) => h('div', { 'data-s': s }, trio(s), h('b', null, p + '×'))),
-        h('div', { 'data-s': 'two' }, h('span', { class: 'pt-art' }, C.artEl('cherry'), C.artEl('cherry'), h('small', null, 'any')), h('b', null, '1×')));
-      const spinBtn = h('button', { class: 'btn big', onclick: () => spin() }, 'SPIN');
-      const autoBtn = h('button', { class: 'btn ghost', onclick: () => { auto = !auto; autoBtn.textContent = auto ? 'Stop Auto' : 'Auto Spin'; if (auto && !spinning) spin(); } }, 'Auto Spin');
-      root.appendChild(h('div', { class: 'layout' },
-        h('div', { class: 'side' }, bet.el, h('div', null, h('h3', null, 'Paytable'), table)),
-        h('div', { class: 'stage' },
-          h('div', { class: 'slot-machine' }, h('div', { class: 'slot-window' }, reels.map((r) => r.el), h('div', { class: 'payline' }))),
-          msg.el, h('div', { class: 'controls' }, spinBtn, autoBtn))));
-      async function spin() {
-        if (spinning || !alive) return;
-        const b = bet.value;
-        spinning = true; spinBtn.disabled = true; bet.disable(true);
-        const r = await C.try(() => C.play('slots', null, { bet: b }));
-        if (!r) { spinning = false; spinBtn.disabled = false; bet.disable(false); auto = false; autoBtn.textContent = 'Auto Spin'; return; }
-        msg.set('Spinning…');
-        table.querySelectorAll('div').forEach((d) => d.classList.remove('hit'));
-        const line = r.result.line;
-        const timers = reels.map((r) => setInterval(() => r.cells.forEach((c) => put(c, L.pick(SYMS))), 60));
-        reels.forEach((r) => r.el.classList.add('blur'));
-        for (let i = 0; i < 3; i++) {
-          await C.sleep(450 + i * 300);
-          clearInterval(timers[i]); reels[i].el.classList.remove('blur');
-          put(reels[i].cells[0], L.pick(SYMS)); put(reels[i].cells[1], line[i]); put(reels[i].cells[2], L.pick(SYMS)); C.sfx && C.sfx('tick');
-        }
-        const m = r.result.mult, pay = r.payout;
-        C.settle(r);
-        if (m > 0) {
-          msg.set(m === 1 ? 'Two cherries — stake back' : `WIN ${C.fmt(pay)}  (${m}×)`, 'win');
-          const key = m === 1 ? 'two' : line[0];
-          const row = table.querySelector(`[data-s="${key}"]`); if (row) row.classList.add('hit');
-        } else msg.set('No win', 'lose');
-        spinning = false; spinBtn.disabled = false; bet.disable(false);
-        if (auto && alive) setTimeout(spin, 600);
-      }
-      return () => { alive = false; auto = false; };
     },
   });
-  const css = document.createElement('style');
-  css.textContent = `.slot-machine{background:linear-gradient(180deg,#b8860b,#6b4a05);padding:14px;border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
-  .slot-window{position:relative;display:flex;gap:8px;background:#111;padding:10px;border-radius:14px}
-  .slot-reel{display:flex;flex-direction:column;background:linear-gradient(180deg,#ddd,#fff 30%,#fff 70%,#ccc);border-radius:10px;width:110px;overflow:hidden}
-  .slot-reel.blur .slot-cell{filter:blur(2px)}
-  .slot-cell{height:90px;font-size:56px;display:flex;align-items:center;justify-content:center}
-  .slot-cell:nth-child(1),.slot-cell:nth-child(3){opacity:.45;transform:scale(.8)}
-  .payline{position:absolute;left:4px;right:4px;top:50%;height:3px;background:rgba(255,40,60,.8);transform:translateY(-50%);pointer-events:none}`;
-  document.head.appendChild(css);
 })();

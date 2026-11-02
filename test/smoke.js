@@ -68,6 +68,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       if (id === 'race') { if (round) continue; await clickText('START RACE'); await wait(8800); continue; }
       if (id === 'casinoholdem') { await clickText('DEAL'); await wait(1100); await clickText(round ? 'CALL' : 'FOLD'); await wait(1300); continue; }
       if (id === 'pick3') { if (round === 1) await clickText('Quick pick'); await clickText('DRAW'); await wait(2300); continue; }
+      if (await page.locator('.sg-spin').count()) { await click('.sg-spin'); await wait(3000); continue; }
       if (id === 'coinflip') { await clickText('HEADS'); await wait(1700); continue; }
       if (id === 'plinko') { await clickText('DROP BALL'); await wait(2500); continue; }
       const main = page.locator('.btn.big').filter({ visible: true }).first();

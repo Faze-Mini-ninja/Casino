@@ -123,6 +123,7 @@ an audit of the payments code, and monitoring/alerting for the hot wallet and th
 npm test         # house edges + API, referral and social/staff tests against throwaway databases
 npm run smoke    # headless browser signs up and plays all 61 games (needs Playwright)
 npm run covers   # re-render the game cover images into img/covers/ (needs Playwright)
+npm run slot-art # re-render slot symbols, backgrounds and logos into img/slots/<theme>/ (needs Playwright)
 ```
 
 ## Games and house edges
@@ -205,9 +206,12 @@ js/support.js       player support page
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
 js/games/*.js       one UI file per game (more-*.js hold games 34–53, video-slots.js all video slots)
+js/games/slot-client.js  the slot game screen every slot runs on: scene, logo, reel cabinet, slot HUD,
+                    quick stop, anticipation, free spins, big-win celebration, in-game paytable
 js/art.js           drawn SVG symbols (fruit, gems, bars, sevens, coins, cups, balloons…) used by the games
 js/art-slots.js     symbol art for the themed video slots (plus card royals in each theme's typeface)
 js/covers.js        game cover illustrations; tools/build-covers.js renders them to img/covers/*.webp
+js/slot-assets.js   build-time slot art: polished symbols, background scenes, logos (tools/build-slot-art.js)
 fonts/              display typefaces for logos and symbols (open licences, see fonts/LICENSES.md)
 js/fx.js            synthesised sound effects, mute button, big-win celebration
 ```

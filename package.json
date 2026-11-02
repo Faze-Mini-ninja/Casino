@@ -10,7 +10,8 @@
     "test:api": "node test/api.js",
     "smoke": "node test/smoke.js",
     "gen-seed": "node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"",
-    "covers": "node tools/build-covers.js"
+    "covers": "node tools/build-covers.js",
+    "slot-art": "node tools/build-slot-art.js"
   },
   "license": "MIT",
   "dependencies": {

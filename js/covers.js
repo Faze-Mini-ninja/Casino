@@ -88,7 +88,8 @@
   /** Embed a symbol from the shared art set. */
   const art = (svgStr, x, y, size, rot = 0, extra = '') => `<g transform="translate(${x} ${y}) rotate(${rot})"${extra}>${svgStr.replace('<svg ', `<svg x="${-size / 2}" y="${-size / 2}" width="${size}" height="${size}" `)}</g>`;
   const A = (name, x, y, size, rot = 0, ...args) => art(C.art(name, ...args), x, y, size, rot);
-  const S = (theme, sym, x, y, size, rot = 0) => art(C.slotSymArt(theme, sym), x, y, size, rot);
+  // slot symbols use the polished sprite treatment when the build-time slot assets are loaded
+  const S = (theme, sym, x, y, size, rot = 0) => (window.SlotAssets ? art(window.SlotAssets.symbolSvg(theme, sym), x, y, size * 1.24, rot) : art(C.slotSymArt(theme, sym), x, y, size, rot));
   function wheel(cx, cy, r, cols, labels = [], opts = {}) {
     const n = cols.length, g = id('wh'), seg = (Math.PI * 2) / n, off = opts.off || -Math.PI / 2 - seg / 2;
     let s = `<defs>${rad(g, ['#fff6c8', '#d4a017', '#7a5200'], 0.4, 0.35, 0.7)}</defs><circle cx="${cx}" cy="${cy}" r="${r + r * 0.08}" fill="url(#${g})"/>`;
@@ -422,5 +423,5 @@
   }
   /** Shrink any logo line wider than its box (needs the SVG to be in the document). */
   function fit(root) { root.querySelectorAll('text[data-fit]').forEach((t) => { const max = +t.dataset.fit, w = t.getComputedTextLength(); if (w > max) { t.setAttribute('textLength', max); t.setAttribute('lengthAdjust', 'spacingAndGlyphs'); } }); }
-  window.Covers = { svg, fit, ids: () => Object.keys(R) };
+  window.Covers = { svg, fit, ids: () => Object.keys(R), kit: { id, rng, lin, rad, shadowF, blurF, shadow, bg, glow, rays, stars, bokeh, sparkles, clouds, floorGrid, card, chip, chipStack, die, A, S, art, wheel, ball, lottoBall, coinArt, burst, fish, suitPath } };
 })();

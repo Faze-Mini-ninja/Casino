@@ -20,6 +20,7 @@ const W = 480, H = 640; // stored size (3:4); rendered at 2× and downscaled for
     const errors = []; page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(`http://localhost:${PORT}/`);
     await page.addScriptTag({ path: path.join(ROOT, 'js', 'covers.js') });
+    await page.addScriptTag({ path: path.join(ROOT, 'js', 'slot-assets.js') });
     await page.evaluate(async () => {
       const fams = ['Lilita One', 'Bungee', 'Luckiest Guy', 'Rye', 'Russo One', 'Monoton', 'Pirata One', 'Titan One', 'Righteous', 'Anton', 'Fredoka'];
       await Promise.all([...fams.map((f) => document.fonts.load(`40px "${f}"`)), document.fonts.load('900 40px "Cinzel Decorative"')]);
