@@ -118,6 +118,12 @@
     return g;
   }
 
+  /** Pieces for the lobby cover (tools/build-covers.js): stadium image, a diving keeper and a ball, in scene coordinates. */
+  C.penaltyArt = () => {
+    const k = keeperSvg(); poseKeeper(k, POSE.reach); k.querySelector('.pk-body').setAttribute('transform', 'translate(470,300) scale(1.08) rotate(64 0 -70)'); k.querySelector('.pk-kshadow').setAttribute('transform', 'translate(500,320) scale(1.7,1)');
+    const b = ballSvg(); b.querySelector('.pk-bbody').setAttribute('transform', 'translate(560,196) scale(.7)'); b.querySelector('.pk-bshadow').setAttribute('transform', 'translate(560,320) scale(.3)');
+    return { bg: stadium().toDataURL('image/jpeg', 0.92), keeper: k.outerHTML, ball: b.outerHTML };
+  };
   C.register({
     n: 35, id: 'penalty', name: 'Penalty Shootout', icon: '⚽', cat: 'originals', edge: 'set by admin', round: 'penalty',
     blurb: 'Pick a corner, beat the keeper, five kicks to glory.',

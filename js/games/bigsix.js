@@ -84,6 +84,15 @@
     return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(f).map((v) => v.toString(16).padStart(2, '0')).join('');
   }
 
+  /** A still of the wheel (used by tools/build-covers.js for the lobby cover). */
+  C.bigSixArt = () => {
+    const fr = renderFrame(), fc = renderFace(), c = document.createElement('canvas'); c.width = N; c.height = N + 50; const g = c.getContext('2d');
+    g.drawImage(fr, 0, 34); g.drawImage(fc, CX - N / 2, CY + 34 - N / 2);
+    const gl = g.createRadialGradient(CX - 110, CY - 70, 10, CX - 60, CY - 40, R_FACE + 60); gl.addColorStop(0, 'rgba(255,255,255,.20)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(CX, CY + 34, R_FACE, 0, Math.PI * 2); g.fill();
+    g.save(); g.translate(CX, 34 + CY - R_FACE - 30); g.fillStyle = '#d9b45a'; g.fillRect(-26, -22, 52, 26); g.fillStyle = '#5a1420'; g.beginPath(); g.moveTo(-9, 0); g.lineTo(9, 0); g.lineTo(3, 46); g.lineTo(-3, 46); g.closePath(); g.fill(); g.restore();
+    return c.toDataURL('image/png');
+  };
   C.register({
     n: 20, id: 'bigsix', name: 'Big Six Wheel', icon: '🎡', cat: 'dice', edge: '11.1–24.07%',
     blurb: 'Money wheel with 54 slots. Joker & logo pay 40:1.',
