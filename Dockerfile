@@ -9,6 +9,7 @@ COPY js ./js
 COPY fonts ./fonts
 COPY img ./img
 COPY server ./server
+COPY tools/restore-backup.js ./tools/restore-backup.js
 ENV NODE_ENV=production DATA_DIR=/data PORT=8080 HOST=0.0.0.0
 VOLUME /data
 EXPOSE 8080

@@ -1,0 +1,5 @@
+# SITE_ADDRESS is your domain (HTTPS certificate is fetched automatically) or :80 for plain HTTP by IP address.
+{$SITE_ADDRESS} {
+	encode gzip
+	reverse_proxy casino:8080
+}

@@ -18,6 +18,7 @@ const { can } = socialRoutes;
 const adminRoutes = require('./admin');
 const stream = require('./stream');
 const rg = require('./compliance');
+const backup = require('./backup');
 
 /* ---------- schema additions: disabled accounts, admin audit log ---------- */
 try { q('ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0').run(); } catch { /* exists */ }
@@ -204,6 +205,13 @@ const routes = {
       watcher: pay.watcherStatus(), users: q('SELECT COUNT(*) n FROM users').get().n,
       referrals: (() => { const t = referrals.totals(); return { share: referrals.SHARE, referredPlayers: t.referred, pendingUsd: usdOf(t.pending / 1000), paidUsd: usdOf(t.paid / 1000) }; })() };
   },
+  /* ----- admin: backups ----- */
+  'GET /api/admin/backup': async (req, res, body, ip, u) => { need(u && u.role === 'admin', 403, 'Admins only'); return backup.status(); },
+  'POST /api/admin/backup/run': async (req, res, body, ip, u) => {
+    need(u && u.role === 'admin', 403, 'Admins only'); need(!limited('backup:' + u.id, 6, 3600000), 429, 'Too many manual backups, try later');
+    try { await backup.runBackup(require('./db').db); } catch (e) { throw new HttpError(500, 'Backup failed: ' + e.message); }
+    audit(u, 'backup', null, ''); return backup.status();
+  },
   /* ----- admin: user management ----- */
   'GET /api/admin/users': async (req, res, body, ip, u, url) => {
     need(can(u, 'staff'), 403, 'Staff only');
@@ -369,6 +377,7 @@ seedUsers();
 if (require.main === module) {
   server.listen(cfg.PORT, cfg.HOST, () => console.log(`krush.casino on http://localhost:${cfg.PORT}  (${cfg.cluster}, chain ${cfg.CHAIN_ENABLED ? 'on' : 'off'})`));
   pay.startWatcher();
+  backup.start(require('./db').db);
   setInterval(() => { try { refundStaleShots(); q('DELETE FROM sessions WHERE expires < ?').run(Date.now()); } catch (e) { console.error(e); } }, 30000).unref();
 }
 module.exports = { server };

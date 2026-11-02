@@ -83,6 +83,16 @@ module.exports = {
   SHOW_ODDS: env('SHOW_ODDS', 'false') === 'true', // show house edges / RTP / win probabilities to players
   TRUST_PROXY: env('TRUST_PROXY', 'false') === 'true', // set true behind a reverse proxy (for per-IP rate limits)
   COOKIE_SECURE: env('COOKIE_SECURE', cluster === 'mainnet-beta' ? 'true' : 'false') === 'true',
+  /* ----- backups (server/backup.js) ----- */
+  BACKUP_INTERVAL_MIN: num('BACKUP_INTERVAL_MIN', 60), // 0 = off
+  BACKUP_KEEP_LOCAL: num('BACKUP_KEEP_LOCAL', 48), // newest local copies kept in DATA_DIR/backups
+  BACKUP_KEY: env('BACKUP_KEY', ''), // encryption passphrase; empty = derived from MASTER_SEED
+  BACKUP_S3_ENDPOINT: env('BACKUP_S3_ENDPOINT', ''), // e.g. https://s3.us-west-004.backblazeb2.com
+  BACKUP_S3_REGION: env('BACKUP_S3_REGION', 'auto'), // e.g. us-west-004 for Backblaze; auto for Cloudflare R2
+  BACKUP_S3_BUCKET: env('BACKUP_S3_BUCKET', ''),
+  BACKUP_S3_PREFIX: env('BACKUP_S3_PREFIX', ''),
+  BACKUP_S3_KEY_ID: env('BACKUP_S3_KEY_ID', ''),
+  BACKUP_S3_SECRET: env('BACKUP_S3_SECRET', ''),
   LICENSE_TEXT: env('LICENSE_TEXT', ''), // shown in the site footer, e.g. your licence holder, number and regulator
   PROXY_HOPS: num('PROXY_HOPS', 1), // with TRUST_PROXY: reverse proxies in front of the server (the client IP is read this far from the right of X-Forwarded-For)
 

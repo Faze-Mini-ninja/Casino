@@ -17,6 +17,10 @@ cp .env.example .env      # optional — defaults are fine for devnet
 npm start                 # http://localhost:8080
 ```
 
+### Host it for free, with automatic backups
+See **[DEPLOY.md](DEPLOY.md)**: a free Google Cloud server, one setup command (`tools/setup-server.sh`: Docker,
+HTTPS via Caddy), hourly encrypted backups copied to free Backblaze B2 storage, restoring, updating and going live.
+
 ### Put it online (to test with friends)
 The repo includes a `Dockerfile`, so any Docker host works. On **Railway**:
 1. railway.app → **New Project → Deploy from GitHub repo** → pick this repo, and set the branch under *Settings → Source*.
@@ -222,6 +226,7 @@ server/games.js     all games' server-side logic
 server/play.js      round engine (debit → play → settle → record, one DB transaction)
 server/payments.js  daily deposit wallets, crediting, sweeps, withdrawals, watcher loop
 server/compliance.js deposit limits, cool-off, self-exclusion, AML flags
+server/backup.js    hourly encrypted database backups, optional upload to S3-compatible storage
 server/wallet.js    HD key derivation (SLIP-0010, Phantom-compatible)
 server/chain.js     Solana RPC wrapper
 server/db.js        SQLite schema, balances, ledger

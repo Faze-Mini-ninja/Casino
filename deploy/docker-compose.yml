@@ -1,0 +1,34 @@
+# krush.casino on one server: the casino plus Caddy for automatic HTTPS.
+# Started by tools/setup-server.sh; settings come from ../.env. Data lives in ../data (database + local backups).
+services:
+  casino:
+    build: ..
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        format: raw # take every value literally: passwords may contain $, # or spaces
+    environment:
+      DATA_DIR: /data
+      TRUST_PROXY: "true"
+      PROXY_HOPS: "1"
+    volumes:
+      - ../data:/data
+    expose:
+      - "8080"
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - casino
+volumes:
+  caddy_data:
+  caddy_config:

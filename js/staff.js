@@ -351,6 +351,24 @@
       o.cashouts.length ? tbl(['Time', 'Amount', 'To', 'Status'], o.cashouts.map((c) => h('tr', null, h('td', { class: 'muted' }, ago(c.created)), h('td', null, coin(c.coin, c.asset), c.url ? [' ', h('a', { href: c.url, target: '_blank', rel: 'noopener' }, '↗')] : null),
         h('td', { class: 'mono' }, short(c.dest)), h('td', null, h('span', { class: 'tag-s ' + c.status }, c.status), c.note ? h('div', { class: 'muted small' }, c.note) : null)))) : null);
   }
+  /* backups: status and "Back up now" */
+  function backupPanel() {
+    const box = h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Backups'), h('p', { class: 'muted' }, 'Loading…'));
+    const paint = (b) => {
+      box.innerHTML = '';
+      const last = b.lastOk ? `${new Date(b.lastOk.at).toLocaleString()} · ${(b.lastOk.bytes / 1024).toFixed(0)} KB${b.lastOk.uploaded ? ' · copied off-site' : ''}` : 'none yet';
+      const btn = h('button', { class: 'btn small', onclick: async () => { btn.disabled = true; btn.textContent = 'Backing up…'; const r = await C.try(() => C.api('POST', '/api/admin/backup/run', {})); if (r) { C.toast('Backup saved', 'win'); paint(r); } else { btn.disabled = false; btn.textContent = 'Back up now'; } } }, 'Back up now');
+      box.append(...[h('h3', { style: 'margin-top:0' }, 'Backups'),
+        h('div', { class: 'kpis' }, C.kpi('Automatic', b.enabled ? `every ${b.intervalMin} min` : 'off', b.enabled ? 'good' : 'bad'), C.kpi('Off-site copy', b.offsite ? 'on' : 'off', b.offsite ? 'good' : 'bad'), C.kpi('Copies on this server', b.local)),
+        b.lastError ? h('div', { class: 'notice err' }, 'Last backup failed: ', b.lastError) : null,
+        !b.offsite ? h('div', { class: 'notice warn' }, 'Backups are only on this server. If its disk is lost, so are they. Set BACKUP_S3_* (e.g. a free Backblaze B2 bucket) to copy every backup off-site.') : null,
+        h('p', null, 'Last backup: ', h('b', null, last)), btn,
+        h('p', { class: 'muted small' }, 'Backups are encrypted. Restoring needs the same MASTER_SEED (or BACKUP_KEY): keep it safe offline.')].filter(Boolean));
+    };
+    C.try(() => C.api('GET', '/api/admin/backup')).then((b) => b && paint(b));
+    return box;
+  }
+
   async function treasury() {
     const o = await C.try(() => C.api('GET', '/api/admin/overview')); if (!o) return h('div');
     const coin = (x, a) => (x == null ? 'unavailable' : `${(+x).toLocaleString(undefined, { maximumFractionDigits: a === 'USDC' ? 2 : 6 })} ${a}`);
@@ -360,6 +378,7 @@
         C.kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.money(o.referrals.pendingUsd)} owed`), C.kpi('Deposit watcher', errs.length ? 'error' : o.watcher.lastRun ? 'ok' : 'starting', errs.length ? 'bad' : 'good')),
       errs.map(([chain, e]) => h('div', { class: 'notice err' }, `Cannot reach ${chain}: ${e}`)),
       cashoutPanel(o, coin),
+      backupPanel(),
       h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Hot wallets'),
         tbl(['Coin', 'Balance', 'Value', 'Hot wallet address', 'Treasury'], o.wallets.map((w) => h('tr', null, h('td', null, h('b', null, w.asset), h('div', { class: 'muted small' }, w.network)), h('td', null, coin(w.balance, w.asset)), h('td', null, w.usd == null ? '—' : C.money(w.usd)),
           h('td', { class: 'mono small' }, w.hot, ' ', h('button', { class: 'btn small ghost', onclick: () => C.copy(w.hot) }, 'Copy')), h('td', { class: 'mono small' }, w.treasury || h('span', { class: 'muted' }, 'not set')))), 'Deposits are switched off (CHAIN_ENABLED=false).'),
