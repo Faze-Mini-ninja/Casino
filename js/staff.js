@@ -139,8 +139,7 @@
       h('a', { class: 'back-link', href: '#admin-players' }, '← All players'),
       h('div', { class: 'phead' }, h('div', { class: 'pavatar' }, u.username[0].toUpperCase()),
         h('div', null, h('h2', null, u.username, ' ', roleBadge(u.role), u.disabled ? h('span', { class: 'tag-s failed' }, 'Disabled') : null),
-          h('div', { class: 'muted small' }, `Player #${u.id} · joined ${new Date(u.created).toLocaleDateString()}`, u.referrer ? ` · referred by ${u.referrer}` : '', ` · referral code ${u.refCode || '—'}`,
-            ` · country ${u.country || '?'}${u.signupCountry && u.signupCountry !== u.country ? ` (signed up from ${u.signupCountry})` : ''}`))),
+          h('div', { class: 'muted small' }, `Player #${u.id} · joined ${new Date(u.created).toLocaleDateString()}`, u.referrer ? ` · referred by ${u.referrer}` : '', ` · referral code ${u.refCode || '—'}`))),
       h('div', { class: 'kpis' }, C.kpi('Real balance', C.money(u.real)), C.kpi('Demo balance', C.fmt(u.demo)), C.kpi('Deposited', C.money(t.depositedUsd)), C.kpi('Withdrawn', C.money(t.withdrawnUsd)),
         C.kpi('Real tips sent / received', `${C.fmt(t.tipsSent)} / ${C.fmt(t.tipsReceived)}`), C.kpi('Players referred', t.referrals)),
       actions.children.length ? actions : null,
@@ -159,8 +158,7 @@
     const lim = (k) => (r.rg.limits[k].limit == null ? 'none' : `${C.money(r.rg.limits[k].used)} / ${C.money(r.rg.limits[k].limit)}`);
     const months = h('select', null, h('option', { value: '6' }, '6 months'), h('option', { value: '12' }, '1 year'), h('option', { value: '60' }, '5 years'), h('option', { value: '0' }, 'Permanently'));
     return h('div', { class: 'panel' }, h('h3', null, 'Responsible gambling & AML'),
-      h('p', null, r.rg.block ? h('span', { class: 'tag-s failed' }, `${r.rg.block.kind === 'exclusion' ? 'Self-excluded' : 'Cool-off'} ${untilText(r.rg.block.until)}`) : h('span', { class: 'muted' }, 'No break or self-exclusion.'),
-        r.rg.geoBlocked ? h('span', { class: 'tag-s pending', style: 'margin-left:8px' }, `Last seen in a blocked country (${u.country || 'unknown'})`) : null),
+      h('p', null, r.rg.block ? h('span', { class: 'tag-s failed' }, `${r.rg.block.kind === 'exclusion' ? 'Self-excluded' : 'Cool-off'} ${untilText(r.rg.block.until)}`) : h('span', { class: 'muted' }, 'No break or self-exclusion.')),
       h('p', { class: 'muted small' }, `Deposit limits — 24 h: ${lim('daily')} · 7 days: ${lim('weekly')} · 30 days: ${lim('monthly')}`),
       C.can('admin') && u.role !== 'admin' ? h('div', { class: 'row' }, months, h('button', { class: 'btn small red', onclick: async () => {
         if (!confirm(`Exclude ${u.username}? It cannot be lifted early.`)) return;
@@ -192,11 +190,7 @@
           tbl(['Time', 'Player', 'Flag', 'Amount', 'Detail', status === 'open' ? 'Review' : 'Outcome'], rows, status === 'open' ? 'No open flags.' : 'Nothing here.')),
         h('div', { class: 'panel' }, h('h3', null, 'Active breaks and self-exclusions'),
           tbl(['Player', 'Type', 'Until', 'Since'], r.blocks.map((b) => h('tr', null, h('td', null, h('a', { href: '#admin-player-' + b.user_id }, b.username)), h('td', null, b.kind === 'exclusion' ? 'Self-exclusion' : 'Cool-off'),
-            h('td', null, b.until == null ? 'Permanent' : new Date(b.until).toLocaleString()), h('td', { class: 'muted' }, new Date(b.created).toLocaleDateString()))), 'None.')),
-        h('div', { class: 'panel' }, h('h3', null, 'Geo-blocking'),
-          r.settings.geoBlocking ? h('p', null, 'Real money is blocked in: ', h('b', null, r.settings.blockedCountries.join(', ')), `. Unknown location: ${r.settings.geoUnknown}.`)
-            : h('p', { class: 'neg' }, 'Geo-blocking is OFF (GEO_BLOCKING=false).'),
-          h('p', { class: 'muted small' }, 'Change the list with BLOCKED_COUNTRIES in the server settings.')));
+            h('td', null, b.until == null ? 'Permanent' : new Date(b.until).toLocaleString()), h('td', { class: 'muted' }, new Date(b.created).toLocaleDateString()))), 'None.')));
     };
     await paint();
     return wrap;

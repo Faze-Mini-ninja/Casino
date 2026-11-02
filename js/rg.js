@@ -1,16 +1,15 @@
 /* Responsible gambling: deposit limits, cool-off, self-exclusion, help links; plus the site-wide notice shown to
- * players who are on a break, self-excluded or in a country where real money is not offered. The server enforces all of it. */
+ * players who are on a break or self-excluded. The server enforces all of it. */
 (function () {
   'use strict';
   const C = Casino, h = C.h, S = C.S;
   const until = (t) => (t == null ? 'permanently' : 'until ' + new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }));
-  const regionName = (() => { try { const d = new Intl.DisplayNames(['en'], { type: 'region' }); return (c) => { try { return d.of(c); } catch (e) { return c; } }; } catch (e) { return (c) => c; } })();
 
   /* ---------- notice strip ---------- */
   const strip = h('div', { class: 'rg-strip', hidden: true });
   function paintStrip() {
     const r = S.user && S.rg;
-    const text = !r ? '' : r.block ? r.block.text : r.geoBlocked || '';
+    const text = r && r.block ? r.block.text : '';
     strip.hidden = !text; strip.innerHTML = '';
     if (text) strip.append(h('span', null, text), h('a', { href: '#rg' }, 'Details'));
   }
@@ -29,7 +28,7 @@
     const status = r.block
       ? h('div', { class: 'notice warn' }, h('b', null, r.block.kind === 'exclusion' ? 'Self-excluded' : 'Cool-off active'), ' ', until(r.block.until), '. ',
         r.block.kind === 'exclusion' ? 'You cannot play any games, deposit or tip. ' : 'You cannot play for real money, deposit or tip. ', 'Withdrawals stay open. This cannot be shortened.')
-      : r.geoBlocked ? h('div', { class: 'notice warn' }, r.geoBlocked) : null;
+      : null;
 
     // deposit limits
     const inputs = {};
@@ -86,9 +85,7 @@
         link('GamCare', 'https://www.gamcare.org.uk', 'free support, advice and counselling'),
         link('Gambling Therapy', 'https://www.gamblingtherapy.org', 'free online support in many languages'),
         link('BetBlocker', 'https://betblocker.org', 'free gambling-site blocker for every device')),
-      h('p', { class: 'muted small' }, 'You must be 18 or older to play. Underage gambling is an offence.'),
-      S.config.blockedCountries && S.config.blockedCountries.length
-        ? h('p', { class: 'muted small' }, 'Real-money play is not offered in: ', S.config.blockedCountries.map(regionName).join(', '), '.') : null);
+      h('p', { class: 'muted small' }, 'You must be 18 or older to play. Underage gambling is an offence.'));
 
     wrap.append(...[h('h2', null, 'Responsible gambling'), status, limits, coolOff, exclusion, help].filter(Boolean));
     return wrap;

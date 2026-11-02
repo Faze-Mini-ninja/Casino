@@ -1,28 +1,28 @@
-/* Compliance test: geo-blocking, age confirmation, deposit limits, cool-off, self-exclusion and AML flags,
- * through the HTTP API against a throwaway database (blockchain disabled; the country comes from a test header).
+/* Compliance test: age confirmation, deposit limits, cool-off, self-exclusion and AML flags,
+ * through the HTTP API against a throwaway database (blockchain disabled).
  * Usage: node test/compliance.js */
 'use strict';
 const os = require('os'), path = require('path'), fs = require('fs');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'casino-rg-'));
 Object.assign(process.env, {
   DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PORT: '0', SOLANA_CLUSTER: 'devnet',
-  ADMIN_USERNAME: 'owner', ADMIN_PASSWORD: 'owner-password-1', GEO_HEADER: 'x-test-country', GEO_UNKNOWN: 'block',
-  BLOCKED_COUNTRIES: 'US,GB', RG_INCREASE_DELAY_HOURS: '24', AML_DEPOSIT_FLAG_USD: '1000', AML_DAILY_FLAG_USD: '3000', AML_MIN_TURNOVER: '1',
+  ADMIN_USERNAME: 'owner', ADMIN_PASSWORD: 'owner-password-1', 
+  RG_INCREASE_DELAY_HOURS: '24', AML_DEPOSIT_FLAG_USD: '1000', AML_DAILY_FLAG_USD: '3000', AML_MIN_TURNOVER: '1',
 });
 const { server } = require('../server/index.js');
 const { q, credit } = require('../server/db');
 const rg = require('../server/compliance');
 let base = '', fails = 0;
 const ok = (cond, msg) => { if (!cond) { fails++; console.log('  FAIL:', msg); } else console.log('  ok', msg); };
-const client = (country) => {
+const client = () => {
   let cookie = '';
   const c = async (method, p, body) => {
-    const headers = { 'content-type': 'application/json', cookie }; if (c.country) headers['x-test-country'] = c.country;
+    const headers = { 'content-type': 'application/json', cookie };
     const r = await fetch(base + p, { method, headers, body: body ? JSON.stringify(body) : undefined });
     const sc = r.headers.get('set-cookie'); if (sc) cookie = sc.split(';')[0];
     const j = await r.json(); j._status = r.status; return j;
   };
-  c.country = country; return c;
+  return c;
 };
 const reg = (c, username) => c('POST', '/api/register', { username, password: 'password123', ageConfirm: true });
 // a confirmed deposit, as the payments watcher would record it
@@ -39,37 +39,21 @@ const flags = (uid) => q("SELECT kind FROM aml_flags WHERE user_id = ? AND statu
 (async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
 
-  const admin = client('DE');
+  const admin = client();
   await admin('POST', '/api/login', { username: 'owner', password: 'owner-password-1' });
   // sign-ups are rate-limited per IP, so extra accounts are created by the admin and logged in
-  const make = async (username) => { const c = client('DE'); await admin('POST', '/api/admin/users/create', { username, password: 'password123', demo: 0, real: 0 }); return [c, (await c('POST', '/api/login', { username, password: 'password123' })).user.id]; };
+  const make = async (username) => { const c = client(); await admin('POST', '/api/admin/users/create', { username, password: 'password123', demo: 0, real: 0 }); return [c, (await c('POST', '/api/login', { username, password: 'password123' })).user.id]; };
 
   console.log('sign-up');
-  const de = client('DE');
+  const de = client();
   ok((await de('POST', '/api/register', { username: 'noage', password: 'password123' }))._status === 400, 'sign-up without the 18+ confirmation is refused');
-  ok((await reg(client('US'), 'yankee'))._status === 403, 'sign-up from a blocked country is refused');
-  ok((await reg(client('gb'), 'brit'))._status === 403, 'country codes are case-insensitive');
   let r = await reg(de, 'hans');
-  ok(r.user && r.rg && !r.rg.geoBlocked && !r.rg.block, 'sign-up from an allowed country works and returns RG status');
-  ok(r.config.blockedCountries.join() === 'US,GB', 'blocked countries are published to the client');
+  ok(r.user && r.rg && !r.rg.block, 'sign-up with the confirmation works and returns RG status');
   const hans = r.user.id;
-  ok(q('SELECT signup_country, age_confirmed FROM users WHERE id = ?').get(hans).signup_country === 'DE', 'sign-up country recorded');
+  ok(q('SELECT age_confirmed FROM users WHERE id = ?').get(hans).age_confirmed === 1, 'age confirmation recorded');
   credit(hans, 'real', 50000, 'test');
 
-  console.log('geo-blocking an existing player');
-  ok((await de('POST', '/api/play', { game: 'dice', mode: 'real', params: { bet: 1, target: 50, over: true } }))._status === 200, 'real bet from an allowed country works');
-  de.country = 'US';
-  r = await de('POST', '/api/play', { game: 'dice', mode: 'real', params: { bet: 1, target: 50, over: true } });
-  ok(r._status === 403 && /not available in your country/.test(r.error), 'real bet from a blocked country refused');
-  ok((await de('POST', '/api/play', { game: 'dice', mode: 'demo', params: { bet: 1, target: 50, over: true } }))._status === 200, 'demo play still allowed from a blocked country');
-  r = await de('GET', '/api/wallet');
-  ok(r.depositBlock && Object.keys(r.addresses).length === 0, 'no deposit address shown from a blocked country');
-  ok((await de('GET', '/api/me')).rg.geoBlocked && q('SELECT country FROM users WHERE id = ?').get(hans).country === 'US', 'player told, and last country updated');
-  de.country = '';
-  ok((await de('POST', '/api/play', { game: 'dice', mode: 'real', params: { bet: 1, target: 50, over: true } }))._status === 403, 'unknown location blocks real money when GEO_UNKNOWN=block');
-  de.country = 'T1';
-  ok((await de('POST', '/api/play', { game: 'dice', mode: 'real', params: { bet: 1, target: 50, over: true } }))._status === 403, 'Tor (T1) counts as unknown');
-  de.country = 'DE';
+  ok((await de('POST', '/api/play', { game: 'dice', mode: 'real', params: { bet: 1, target: 50, over: true } }))._status === 200, 'real bet works');
 
   console.log('deposit limits');
   r = await de('POST', '/api/rg/limits', { daily: 100, weekly: 500, monthly: null });
@@ -89,7 +73,7 @@ const flags = (uid) => q("SELECT kind FROM aml_flags WHERE user_id = ? AND statu
   ok(flags(hans).includes('over-deposit-limit'), 'a deposit that crossed the limit is flagged');
 
   console.log('AML');
-  const amy = client('DE'); const amyId = (await reg(amy, 'amy')).user.id;
+  const amy = client(); const amyId = (await reg(amy, 'amy')).user.id;
   deposit(amyId, 1200);
   ok(flags(amyId).includes('large-deposit'), 'single deposit over AML_DEPOSIT_FLAG_USD flagged');
   deposit(amyId, 1000); deposit(amyId, 900);
@@ -114,9 +98,8 @@ const flags = (uid) => q("SELECT kind FROM aml_flags WHERE user_id = ? AND statu
   ok((await admin('POST', '/api/admin/compliance/clear', { id: fid, note: '' }))._status === 400, 'clearing needs a note');
   ok((await admin('POST', '/api/admin/compliance/clear', { id: fid, note: 'Checked source of funds' })).ok, 'admin clears a flag with a note');
   ok((await amy('GET', '/api/admin/compliance'))._status === 403, 'players cannot see the compliance tab');
-  await de('GET', '/api/me'); // country is refreshed on page load / login
   r = await admin('GET', '/api/admin/user?id=' + hans);
-  ok(r.user.country === 'DE' && r.flags.length && r.rg.limits.daily.limit === 50, 'player profile shows country, limits and flags');
+  ok(r.flags.length && r.rg.limits.daily.limit === 50, 'player profile shows limits and flags');
   ok((await admin('GET', '/api/admin/dash')).openFlags > 0, 'dashboard counts open flags');
 
   console.log('cool-off');

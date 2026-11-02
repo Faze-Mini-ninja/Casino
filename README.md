@@ -126,14 +126,10 @@ player ──coin──▶ today's deposit address ──sweep──▶ that coi
 - Use paid RPC/API providers in production (`RPC_URL`, `ETH_RPC_URL`, `LTC_API_URL`); the public endpoints are rate-limited.
 
 ## Compliance (`server/compliance.js`)
-- **Geo-blocking.** Players in `BLOCKED_COUNTRIES` can't sign up, deposit, bet or tip real money; they can still log in,
-  play demo games and withdraw. The country comes from the bundled GeoIP database (`geoip-country`, refreshed by
-  `npm update geoip-country`) or, if every request goes through Cloudflare, from its header (`GEO_HEADER=cf-ipcountry`).
-  Unknown locations and Tor are blocked on mainnet (`GEO_UNKNOWN`). The default list is a typical Anjouan
-  restricted list plus FATF high-risk countries: **check it against your licence**. VPNs are not detected.
+- **Geo-blocking** is not part of this app; it is handled by the operator's own system in front of it.
 - **Behind a proxy** set `TRUST_PROXY=true` and `PROXY_HOPS` to the number of proxies (Railway alone = 1; Cloudflare
-  in front of Railway = 2, or use `GEO_HEADER`), otherwise a player could fake their IP and country.
-- **Age.** Sign-up requires confirming 18+ and not being in a restricted country. (Real ID checks: add KYC.)
+  in front of Railway = 2), otherwise a player could fake their IP to dodge rate limits.
+- **Age.** Sign-up requires confirming 18+. (Real ID checks: add KYC.)
 - **Responsible gambling** (player page `#rg`): deposit limits per 24 h / 7 / 30 days (tighter is immediate, looser
   waits `RG_INCREASE_DELAY_HOURS`), cool-off 24 h–6 weeks (no real money), self-exclusion 6 months–permanent (no
   play at all). Neither can be lifted early, by anyone. Admins can also exclude a player. Crypto can't be refused, so
@@ -222,7 +218,7 @@ server/index.js     HTTP server, auth, API routes, admin
 server/games.js     all games' server-side logic
 server/play.js      round engine (debit → play → settle → record, one DB transaction)
 server/payments.js  daily deposit wallets, crediting, sweeps, withdrawals, watcher loop
-server/compliance.js geo-blocking, deposit limits, cool-off, self-exclusion, AML flags
+server/compliance.js deposit limits, cool-off, self-exclusion, AML flags
 server/wallet.js    HD key derivation (SLIP-0010, Phantom-compatible)
 server/chain.js     Solana RPC wrapper
 server/db.js        SQLite schema, balances, ledger

@@ -19,8 +19,7 @@
     "@scure/btc-signer": "^2.4.1",
     "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0",
-    "ethers": "^6.17.0",
-    "geoip-country": "^5.0.202610310241"
+    "ethers": "^6.17.0"
   },
   "engines": {
     "node": ">=22.13"

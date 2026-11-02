@@ -80,7 +80,7 @@ module.exports = function socialRoutes({ need, HttpError, limited, audit }) {
       const T = settings.tipping();
       if (mode === 'real') {
         need(T.enabled, 403, 'Real-money tipping is turned off right now');
-        const rg = require('./compliance'), blocked = rg.playBlock(u.id, 'real', rg.countryOf(req, ip));
+        const blocked = require('./compliance').playBlock(u.id, 'real');
         need(!blocked, 403, blocked);
         const wagered = q("SELECT COALESCE(SUM(wager),0) s FROM rounds WHERE user_id = ? AND mode = 'real' AND status = 'done'").get(u.id).s;
         need(wagered >= Math.round(T.minWagered * 100), 403, `You need to wager at least ${T.minWagered} real credits before you can tip`);

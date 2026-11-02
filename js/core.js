@@ -378,7 +378,7 @@
     const ref = h('input', { placeholder: 'Referral code (optional)', autocapitalize: 'characters', autocomplete: 'off', value: saved, style: 'display:none' });
     const invite = h('input', { placeholder: 'Invite code', autocomplete: 'off', style: 'display:none' });
     const ageBox = h('input', { type: 'checkbox' });
-    const age = h('label', { class: 'age', style: 'display:none' }, ageBox, h('span', null, 'I am 18 or older, gambling is legal where I live, and I am not in a country where real-money play is not offered.'));
+    const age = h('label', { class: 'age', style: 'display:none' }, ageBox, h('span', null, 'I am 18 or older and gambling is legal where I live.'));
     const title = h('h2', null, 'Log in');
     const btn = h('button', { class: 'btn big', type: 'submit' }, 'Log in');
     const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; ref.style.display = age.style.display = mode === 'login' ? 'none' : ''; invite.style.display = mode === 'login' || !S.config.inviteOnly ? 'none' : ''; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');

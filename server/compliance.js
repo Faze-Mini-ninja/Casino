@@ -1,10 +1,5 @@
-/* Compliance: geo-blocking, responsible gambling (deposit limits, cool-off, self-exclusion) and AML review flags.
- *
- * Geo-blocking
- *   The player's country comes from GEO_HEADER when set (e.g. cf-ipcountry behind Cloudflare), otherwise from the
- *   bundled GeoIP database (geoip-country) using the connecting IP. Players in BLOCKED_COUNTRIES cannot sign up,
- *   deposit, place real-money bets or send real-money tips. They can still log in and withdraw what they hold.
- *   If the country cannot be determined, GEO_UNKNOWN decides (on mainnet the default is to block real money).
+/* Compliance: responsible gambling (deposit limits, cool-off, self-exclusion) and AML review flags.
+ * Geo-blocking is handled outside this app.
  *
  * Responsible gambling (set by the player on the Responsible Gambling page)
  *   Deposit limits per 24 h / 7 days / 30 days. Lowering or adding a limit is immediate; raising or removing one
@@ -13,14 +8,14 @@
  *   Withdrawals always stay open, so players can take their money out.
  *
  * AML
- *   Large deposits, high 24 h deposit totals, deposits made while blocked or over a limit, and withdrawals with
+ *   Large deposits, high 24 h deposit totals, deposits made during a break or over a limit, and withdrawals with
  *   little wagering since the last deposit raise a flag for staff. Any withdrawal while a flag is open waits for review. */
 'use strict';
 const cfg = require('./config');
 const { q, tx } = require('./db');
 
 /* ---------- schema ---------- */
-for (const [c, def] of [['country', 'TEXT'], ['signup_country', 'TEXT'], ['age_confirmed', 'INTEGER NOT NULL DEFAULT 0']]) {
+for (const [c, def] of [['age_confirmed', 'INTEGER NOT NULL DEFAULT 0']]) {
   try { q(`ALTER TABLE users ADD COLUMN ${c} ${def}`).run(); } catch { /* exists */ }
 }
 q(`CREATE TABLE IF NOT EXISTS rg_limits (
@@ -38,30 +33,6 @@ const DAY = 86400000;
 const WINDOWS = { daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY };
 const COOLOFF_DAYS = [1, 7, 30, 42];
 const EXCLUSION_MONTHS = [6, 12, 60, 0]; // 0 = permanent
-
-/* ---------- geo ---------- */
-let geoip = null;
-try { geoip = require('geoip-country'); } catch { /* optional: header-only */ }
-const UNKNOWN = new Set(['', 'XX', 'T1', 'ZZ']); // Cloudflare: XX = unknown, T1 = Tor
-
-/** Two-letter country code for this request, or '' if unknown. */
-function countryOf(req, ip) {
-  if (cfg.GEO_HEADER) {
-    const v = String(req.headers[cfg.GEO_HEADER] || '').trim().toUpperCase();
-    return UNKNOWN.has(v) || !/^[A-Z]{2}$/.test(v) ? '' : v;
-  }
-  if (!geoip || !ip) return '';
-  const r = geoip.lookup(String(ip).replace(/^::ffff:/, ''));
-  return r && r.country ? r.country.toUpperCase() : '';
-}
-/** null if real money is allowed from here, otherwise the reason. */
-function geoBlock(country) {
-  if (!cfg.GEO_BLOCKING) return null;
-  if (!country) return cfg.GEO_UNKNOWN === 'block' ? 'We could not confirm your location, so real-money play is not available. Turn off any VPN or proxy and try again.' : null;
-  if (cfg.BLOCKED_COUNTRIES.includes(country)) return 'Real-money play is not available in your country.';
-  return null;
-}
-function rememberCountry(userId, country) { if (country) q('UPDATE users SET country = ? WHERE id = ? AND COALESCE(country, \'\') != ?').run(country, userId, country); }
 
 /* ---------- responsible gambling ---------- */
 function activeBlock(userId) {
@@ -139,16 +110,14 @@ const blockText = (b) => {
 
 /* ---------- checks used by the routes ---------- */
 /** Why this player may not bet in this mode right now, or null. */
-function playBlock(userId, mode, country) {
+function playBlock(userId, mode) {
   const b = activeBlock(userId);
   if (b && (b.kind === 'exclusion' || mode === 'real')) return blockText(b);
-  if (mode === 'real') { const g = geoBlock(country); if (g) return g; }
   return null;
 }
 /** Why this player cannot deposit now, or null. */
-function depositBlock(userId, country) {
+function depositBlock(userId) {
   const b = activeBlock(userId); if (b) return blockText(b);
-  const g = geoBlock(country); if (g) return g;
   const l = limits(userId);
   for (const [k, label] of [['daily', '24-hour'], ['weekly', '7-day'], ['monthly', '30-day']]) {
     if (l[k].limit != null && l[k].left <= 0) return `You have reached your ${label} deposit limit. Deposits open again as older deposits leave the window.`;
@@ -209,20 +178,19 @@ function reviewFlag(id, adminId, note) {
 }
 
 /** What the player sees about their own status. */
-function status(userId, country) {
+function status(userId) {
   const b = activeBlock(userId), l = limits(userId);
   const cents = (x) => (x == null ? null : x / 100);
   const lim = Object.fromEntries(Object.keys(WINDOWS).map((k) => [k, { limit: cents(l[k].limit), used: cents(l[k].used), left: cents(l[k].left) }]));
   return {
-    country: country || null, geoBlocked: geoBlock(country),
     block: b ? { ...b, text: blockText(b) } : null,
     limits: lim, pending: l.pending ? { daily: cents(l.pending.daily), weekly: cents(l.pending.weekly), monthly: cents(l.pending.monthly), at: l.pending.at } : null,
-    depositBlock: depositBlock(userId, country),
+    depositBlock: depositBlock(userId),
     cooloffDays: COOLOFF_DAYS, exclusionMonths: EXCLUSION_MONTHS, increaseDelayHours: cfg.RG_INCREASE_DELAY_HOURS,
   };
 }
 
 module.exports = {
-  countryOf, geoBlock, rememberCountry, activeBlock, limits, setLimits, coolOff, selfExclude, playBlock, depositBlock, depositRoom,
+  activeBlock, limits, setLimits, coolOff, selfExclude, playBlock, depositBlock, depositRoom,
   onDeposit, withdrawalReview, flag, openFlags, listFlags, reviewFlag, status, COOLOFF_DAYS, EXCLUSION_MONTHS,
 };

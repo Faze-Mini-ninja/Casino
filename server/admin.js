@@ -8,7 +8,6 @@ const stream = require('./stream');
 const { G } = require('./games');
 const { can, RANK } = require('./social');
 const rg = require('./compliance');
-const cfg = require('./config');
 
 const C2 = (u) => Math.round(u || 0) / 100;
 const usdOf = (units) => Math.round(units || 0) / 100; // ledger units are cents
@@ -46,8 +45,8 @@ module.exports = function adminRoutes({ need, audit }) {
       return {
         user: { id: t.id, username: t.username, role: t.role, created: t.created, disabled: !!t.disabled, mutedUntil: t.muted_until, demo: C2(t.demo_units), real: C2(t.real_units),
           referrer: t.referred_by ? (q('SELECT username FROM users WHERE id = ?').get(t.referred_by) || {}).username : null, refCode: t.ref_code,
-          country: t.country, signupCountry: t.signup_country, ageConfirmed: !!t.age_confirmed },
-        rg: (() => { const st = rg.status(t.id, t.country); return { block: st.block, limits: st.limits, pending: st.pending, geoBlocked: st.geoBlocked }; })(),
+          ageConfirmed: !!t.age_confirmed },
+        rg: (() => { const st = rg.status(t.id); return { block: st.block, limits: st.limits, pending: st.pending }; })(),
         flags: q('SELECT id, kind, detail, status, note, created, reviewed_at FROM aml_flags WHERE user_id = ? ORDER BY id DESC LIMIT 20').all(t.id),
         totals: {
           depositedUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM deposits WHERE user_id = ? AND kind = 'deposit'").get(t.id).s),
@@ -68,8 +67,7 @@ module.exports = function adminRoutes({ need, audit }) {
       const st = ['open', 'cleared', 'all'].includes(url.searchParams.get('status')) ? url.searchParams.get('status') : 'open';
       const blocks = q(`SELECT b.kind, b.until, b.created, u.id AS user_id, u.username FROM rg_blocks b JOIN users u ON u.id = b.user_id
         WHERE b.until IS NULL OR b.until > ? ORDER BY b.id DESC LIMIT 200`).all(Date.now());
-      return { flags: rg.listFlags(st).map((f) => ({ ...f, usd: f.units == null ? null : usdOf(f.units) })), blocks,
-        settings: { geoBlocking: cfg.GEO_BLOCKING, blockedCountries: cfg.BLOCKED_COUNTRIES, geoUnknown: cfg.GEO_UNKNOWN } };
+      return { flags: rg.listFlags(st).map((f) => ({ ...f, usd: f.units == null ? null : usdOf(f.units) })), blocks };
     },
     'POST /api/admin/compliance/clear': async (req, res, body, ip, u) => {
       staff(u, 'admin');

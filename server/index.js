@@ -62,9 +62,8 @@ function readJson(req) {
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const usdOf = (units) => Math.round(units || 0) / 100; // ledger units are cents
 const coinInfo = () => chains.enabled().map((a) => ({ id: a, name: chains.ASSETS[a].name, network: chains.ASSETS[a].network, confirm: chains.ASSETS[a].confirm, minDeposit: cfg.MIN_DEPOSIT[a], withdrawFee: cfg.WITHDRAW_FEE[a] }));
-const publicConfig = () => ({ licenseText: cfg.LICENSE_TEXT, geoBlocking: cfg.GEO_BLOCKING, blockedCountries: cfg.GEO_BLOCKING ? cfg.BLOCKED_COUNTRIES : [], cluster: cfg.cluster, testnet: cfg.TESTNET, coins: coinInfo(), minWithdrawUsd: cfg.MIN_WITHDRAW_USD, autoApproveUsd: cfg.AUTO_APPROVE_USD, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
-const me = (u, country) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), rg: rg.status(u.id, country), config: publicConfig() });
-const countryOf = (req, ip) => rg.countryOf(req, ip);
+const publicConfig = () => ({ licenseText: cfg.LICENSE_TEXT, cluster: cfg.cluster, testnet: cfg.TESTNET, coins: coinInfo(), minWithdrawUsd: cfg.MIN_WITHDRAW_USD, autoApproveUsd: cfg.AUTO_APPROVE_USD, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
+const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), rg: rg.status(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
 const routes = {
@@ -78,20 +77,18 @@ const routes = {
     const refCode = String(body.refCode || '').trim();
     need(!refCode || referrals.findByCode(refCode), 400, 'Referral code not found — check it or leave it empty');
     need(body.ageConfirm === true, 400, 'Please confirm you are 18 or older and accept the terms');
-    const country = countryOf(req, ip);
-    need(!cfg.GEO_BLOCKING || !country || !cfg.BLOCKED_COUNTRIES.includes(country), 403, 'Sorry, we cannot accept players from your country');
     const salt = crypto.randomBytes(16).toString('hex');
     const id = tx(() => {
       // Without ADMIN_USERNAME configured (local dev), the first account becomes admin.
       const first = !cfg.ADMIN_USERNAME && !q('SELECT 1 FROM users LIMIT 1').get();
       const uid = Number(q('INSERT INTO users (username, pass_hash, salt, role, created) VALUES (?,?,?,?,?)').run(username, hash(password, salt), salt, first ? 'admin' : 'player', Date.now()).lastInsertRowid);
       credit(uid, 'demo', Math.round(cfg.DEMO_START_CREDITS * 100), 'demo-signup');
-      q('UPDATE users SET ref_code = ?, signup_country = ?, country = ?, age_confirmed = 1 WHERE id = ?').run(referrals.newCode(), country || null, country || null, uid);
+      q('UPDATE users SET ref_code = ?, age_confirmed = 1 WHERE id = ?').run(referrals.newCode(), uid);
       if (refCode) referrals.attach(uid, refCode);
       return uid;
     });
     createSession(res, id);
-    return me(q('SELECT * FROM users WHERE id = ?').get(id), country);
+    return me(q('SELECT * FROM users WHERE id = ?').get(id));
   },
   'POST /api/login': async (req, res, body, ip) => {
     need(!limited('login:' + ip, 10, 600000), 429, 'Too many attempts, wait a few minutes');
@@ -100,8 +97,7 @@ const routes = {
     need(ok, 401, 'Wrong username or password');
     need(!u.disabled, 403, 'This account has been disabled');
     createSession(res, u.id);
-    const country = countryOf(req, ip); rg.rememberCountry(u.id, country);
-    return me(u, country);
+    return me(u);
   },
   'POST /api/password': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in'); need(!limited('pw:' + u.id, 5, 600000), 429, 'Too many attempts, wait a few minutes');
@@ -127,14 +123,10 @@ const routes = {
     const m = /(?:^|;\s*)sid=([0-9a-f]{64})/.exec(req.headers.cookie || ''); if (m) q('DELETE FROM sessions WHERE token = ?').run(m[1]);
     res.setHeader('Set-Cookie', 'sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'); return { ok: true };
   },
-  'GET /api/me': async (req, res, body, ip, u) => {
-    if (!u) return { user: null, config: publicConfig() };
-    const country = countryOf(req, ip); rg.rememberCountry(u.id, country);
-    return me(u, country);
-  },
+  'GET /api/me': async (req, res, body, ip, u) => (u ? me(u) : { user: null, config: publicConfig() }),
   'POST /api/play': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in'); need(!limited('play:' + u.id, cfg.PLAY_RATE_PER_5S, 5000), 429, 'Slow down');
-    const blocked = rg.playBlock(u.id, body && body.mode === 'real' ? 'real' : 'demo', countryOf(req, ip));
+    const blocked = rg.playBlock(u.id, body && body.mode === 'real' ? 'real' : 'demo');
     // a round already under way may still be finished (no new rounds, no new fish shots)
     const finishing = body && (body.game === 'fish' ? ['hit', 'expire'].includes(body.action) : !!body.action && body.action !== 'start');
     need(!blocked || finishing, 403, blocked);
@@ -166,7 +158,7 @@ const routes = {
   /* ----- wallet ----- */
   'GET /api/wallet': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in');
-    const depositBlock = rg.depositBlock(u.id, countryOf(req, ip)), room = rg.depositRoom(u.id);
+    const depositBlock = rg.depositBlock(u.id), room = rg.depositRoom(u.id);
     const addresses = cfg.CHAIN_ENABLED && !depositBlock ? pay.depositAddresses(u.id) : {};
     const deposits = q('SELECT d.txid, d.asset, d.base, d.units, d.price, d.kind, d.ts, a.address FROM deposits d JOIN addresses a ON a.id = d.address_id WHERE d.user_id = ? ORDER BY d.ts DESC LIMIT 50').all(u.id)
       .map((d) => ({ ...d, coin: chains.toCoin(d.asset, d.base), usd: usdOf(d.units), credits: usdOf(d.units), url: pay.explorer(d.asset, d.txid) }));
@@ -180,23 +172,23 @@ const routes = {
     catch (e) { if (e instanceof BalanceError) throw new HttpError(400, 'Insufficient real balance'); throw new HttpError(400, e.message); }
   },
   /* ----- responsible gambling ----- */
-  'GET /api/rg': async (req, res, body, ip, u) => { need(u, 401, 'Please log in'); return rg.status(u.id, countryOf(req, ip)); },
+  'GET /api/rg': async (req, res, body, ip, u) => { need(u, 401, 'Please log in'); return rg.status(u.id); },
   'POST /api/rg/limits': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in'); need(!limited('rg:' + u.id, 20, 60000), 429, 'Slow down');
     try { rg.setLimits(u.id, body || {}); } catch (e) { throw new HttpError(400, e.message); }
-    return rg.status(u.id, countryOf(req, ip));
+    return rg.status(u.id);
   },
   'POST /api/rg/cooloff': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in');
     try { rg.coolOff(u.id, body.days); } catch (e) { throw new HttpError(400, e.message); }
-    return rg.status(u.id, countryOf(req, ip));
+    return rg.status(u.id);
   },
   'POST /api/rg/exclude': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in'); need(!limited('pw:' + u.id, 5, 600000), 429, 'Too many attempts, wait a few minutes');
     const row = q('SELECT pass_hash, salt FROM users WHERE id = ?').get(u.id);
     need(crypto.timingSafeEqual(Buffer.from(hash(String(body.password || ''), row.salt), 'hex'), Buffer.from(row.pass_hash, 'hex')), 403, 'Wrong password');
     try { rg.selfExclude(u.id, body.months); } catch (e) { throw new HttpError(400, e.message); }
-    return rg.status(u.id, countryOf(req, ip));
+    return rg.status(u.id);
   },
   /* ----- admin ----- */
   'GET /api/admin/overview': async (req, res, body, ip, u) => {
@@ -216,11 +208,11 @@ const routes = {
   'GET /api/admin/users': async (req, res, body, ip, u, url) => {
     need(can(u, 'staff'), 403, 'Staff only');
     const term = '%' + String(url.searchParams.get('q') || '').trim() + '%';
-    const rows = q(`SELECT u.id, u.username, u.role, u.demo_units, u.real_units, u.created, u.disabled, u.muted_until, u.country, r.username AS referrer,
+    const rows = q(`SELECT u.id, u.username, u.role, u.demo_units, u.real_units, u.created, u.disabled, u.muted_until, r.username AS referrer,
       (SELECT COALESCE(SUM(d.units),0) FROM deposits d WHERE d.user_id = u.id AND d.kind = 'deposit') AS dep_units
       FROM users u LEFT JOIN users r ON r.id = u.referred_by WHERE u.username LIKE ? ORDER BY u.id DESC LIMIT 100`).all(term);
     const log = q('SELECT l.*, a.username AS admin, t.username AS target FROM admin_log l JOIN users a ON a.id = l.admin_id LEFT JOIN users t ON t.id = l.target_id ORDER BY l.id DESC LIMIT 30').all();
-    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), created: x.created, disabled: !!x.disabled, muted: x.muted_until > Date.now(), country: x.country, referrer: x.referrer, deposited: usdOf(x.dep_units) })), log };
+    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), created: x.created, disabled: !!x.disabled, muted: x.muted_until > Date.now(), referrer: x.referrer, deposited: usdOf(x.dep_units) })), log };
   },
   'POST /api/admin/users/create': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');
