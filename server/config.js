@@ -63,7 +63,7 @@ module.exports = {
   MIN_DEPOSIT: { SOL: num('MIN_DEPOSIT_SOL', 0.01), USDC: num('MIN_DEPOSIT_USDC', 1), ETH: num('MIN_DEPOSIT_ETH', 0.002), LTC: num('MIN_DEPOSIT_LTC', 0.01) },
   WITHDRAW_FEE: { SOL: num('WITHDRAW_FEE_SOL', 0.000005), USDC: num('WITHDRAW_FEE_USDC', 0.5), ETH: num('WITHDRAW_FEE_ETH', 0.0005), LTC: num('WITHDRAW_FEE_LTC', 0.0002) }, // charged in the coin
   MIN_WITHDRAW_USD: num('MIN_WITHDRAW_USD', 5),
-  DEPOSIT_FEE_PCT: num('DEPOSIT_FEE_PCT', 5), // % of each deposit's dollar value kept as a fee; the rest is credited
+  DEPOSIT_FEE_PCT: num('DEPOSIT_FEE_PCT', 1), // % of each deposit's dollar value kept as a fee; the rest is credited
   SWEEP_MIN_SOL: num('SWEEP_MIN_SOL', 0.002),
   ADDRESS_WATCH_DAYS: num('ADDRESS_WATCH_DAYS', 30), // keep crediting deposits to older daily addresses for this long
   AUTO_APPROVE_USD: num('AUTO_APPROVE_USD', 100), // withdrawals up to this are sent automatically…

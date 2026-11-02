@@ -108,7 +108,7 @@ player ──coin──▶ today's deposit address ──sweep──▶ that coi
 - **Sweeps** move deposits into the coin's hot wallet until it holds `HOT_FLOAT_USD` worth, and the rest to that
   coin's treasury (`TREASURY_ADDRESS` for SOL/USDC, `TREASURY_ETH`, `TREASURY_LTC`): cold wallets whose private keys
   never touch the server. USDC sweeps are paid for by the hot wallet, which also gets the token account's rent back.
-- **Deposit fee.** `DEPOSIT_FEE_PCT` (default 5%) of each deposit's dollar value is kept and the rest credited. The
+- **Deposit fee.** `DEPOSIT_FEE_PCT` (default 1%) of each deposit's dollar value is kept and the rest credited. The
   wallet shows it up front (with a calculator), and every deposit lists its value, fee and credited amount. The Staff
   Panel dashboard shows fees collected. Deposits below the minimum are not credited and pay no fee.
 - **Withdrawals** are debited in dollars when requested and paid in the chosen coin minus that coin's network fee
