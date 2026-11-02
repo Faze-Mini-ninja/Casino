@@ -21,7 +21,7 @@ const ROOT = path.join(__dirname, '..'), OUT = path.join(ROOT, 'img', 'slots'), 
     await page.addScriptTag({ path: path.join(ROOT, 'js', 'covers.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'js', 'slot-assets.js') });
     await page.evaluate(async () => {
-      const fams = ['Lilita One', 'Bungee', 'Luckiest Guy', 'Rye', 'Russo One', 'Monoton', 'Titan One'];
+      const fams = ['Lilita One', 'Bungee', 'Luckiest Guy', 'Rye', 'Russo One', 'Monoton', 'Titan One', 'Anton', 'Righteous'];
       await Promise.all([...fams.map((f) => document.fonts.load(`40px "${f}"`)), document.fonts.load('900 40px "Cinzel Decorative"')]);
       document.body.style.display = 'none'; document.documentElement.style.setProperty('background', 'transparent', 'important');
       const el = document.createElement('div'); el.id = 'art-stage';

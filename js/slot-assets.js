@@ -12,21 +12,81 @@
   const THEME_INK = { classic: '#2a0b00', fruits: '#3a1600', gems: '#1a0b33', sevens: '#2a0000', pharaoh: '#2a1500', ocean: '#021c33', goldrush: '#2a1205', dragon: '#2a0000', candy: '#4a0030', clover: '#0b2a0b', cosmic: '#0d0630' };
   const CLASSIC = ['cherry', 'lemon', 'orange', 'bell', 'star', 'seven'];
   const symbolsOf = (theme) => (theme === 'classic' ? CLASSIC : L.SLOT_THEMES[theme].symbols.map((x) => x[0]));
-  const rawSymbol = (theme, s) => (theme === 'classic' ? C.art(s) : C.slotSymArt(theme, s));
+  /* Vegas reel symbols for the classic machines: printed-strip style (flat colour, black keyline, one highlight). */
+  const VEGAS_THEMES = new Set(['classic', 'sevens', 'fruits']);
+  const KEY = '#1a0d06';
+  const vsvg = (inner) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${inner}</svg>`;
+  const rg2 = (gid, stops, cx = 0.35, cy = 0.32, r = 0.78) => `<radialGradient id="${gid}" cx="${cx}" cy="${cy}" r="${r}">${stops.map(([c, o]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</radialGradient>`;
+  const lg2 = (gid, stops, x2 = 0, y2 = 1) => `<linearGradient id="${gid}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([c, o]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
+  const leaf = (x, y, rot, sc = 1) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${sc})"><path d="M0 0 C8 -10 26 -10 34 0 C26 8 8 9 0 0Z" fill="#3f9b2e" stroke="${KEY}" stroke-width="2.4" stroke-linejoin="round"/><path d="M3 0 C12 -3 22 -3 31 0" stroke="#24701a" stroke-width="1.6" fill="none"/></g>`;
+  const shine = (x, y, rx, ry, rot = -30) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#fff" opacity=".7" transform="rotate(${rot} ${x} ${y})"/>`;
+  const barBlock = (y, hh, fs) => `<rect x="10" y="${y}" width="80" height="${hh}" rx="5" fill="#141414" stroke="${KEY}" stroke-width="2.5"/><rect x="13.5" y="${y + 3}" width="73" height="${hh - 6}" rx="3" fill="none" stroke="#f4f1ea" stroke-width="1.6"/>
+    <text x="50" y="${y + hh / 2 + fs * 0.36}" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="${fs}" fill="#f4f1ea" letter-spacing="3">BAR</text>`;
+  const VEGAS = {
+    cherry: () => { const a = id('vc'); return vsvg(`<defs>${rg2(a, [['#ff6b78', 0], ['#d9142b', 0.55], ['#7a0612', 1]])}</defs>
+      <path d="M52 16 C45 32 37 44 33 56" stroke="${KEY}" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M52 16 C57 33 63 44 67 52" stroke="${KEY}" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <path d="M52 16 C45 32 37 44 33 56" stroke="#4d8a1f" stroke-width="3.6" fill="none" stroke-linecap="round"/><path d="M52 16 C57 33 63 44 67 52" stroke="#4d8a1f" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+      ${leaf(52, 16, -18)}
+      <circle cx="32" cy="69" r="18" fill="url(#${a})" stroke="${KEY}" stroke-width="3"/><circle cx="67" cy="64" r="18" fill="url(#${a})" stroke="${KEY}" stroke-width="3"/>
+      ${shine(25, 62, 5.5, 3.6)}${shine(60, 57, 5.5, 3.6)}`); },
+    lemon: () => { const a = id('vl'); return vsvg(`<defs>${rg2(a, [['#fff7a8', 0], ['#f7d21b', 0.5], ['#c79600', 1]])}</defs>
+      <path d="M7 52 C15 46 18 29 50 25 C82 29 85 46 93 52 C85 58 82 75 50 79 C18 75 15 58 7 52Z" fill="url(#${a})" stroke="${KEY}" stroke-width="3" stroke-linejoin="round"/>
+      ${[[38, 44], [56, 40], [66, 56], [44, 62], [30, 55], [58, 66]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.3" fill="#b88a00" opacity=".55"/>`).join('')}${shine(36, 38, 12, 4.5, -12)}`); },
+    orange: () => { const a = id('vo'); return vsvg(`<defs>${rg2(a, [['#ffc77a', 0], ['#ff8c0f', 0.55], ['#b84d00', 1]])}</defs>
+      <circle cx="50" cy="56" r="33" fill="url(#${a})" stroke="${KEY}" stroke-width="3"/>
+      ${[[38, 48], [56, 44], [64, 60], [46, 66], [32, 60], [58, 72], [70, 48]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.3" fill="#a84800" opacity=".5"/>`).join('')}
+      <path d="M50 24 L50 16" stroke="${KEY}" stroke-width="4" stroke-linecap="round"/>${leaf(50, 20, -25, 0.8)}${shine(38, 42, 9, 5)}`); },
+    plum: () => { const a = id('vp'); return vsvg(`<defs>${rg2(a, [['#c98cf0', 0], ['#7d2fc0', 0.55], ['#3b0b66', 1]])}</defs>
+      <ellipse cx="50" cy="57" rx="29" ry="33" fill="url(#${a})" stroke="${KEY}" stroke-width="3"/><path d="M50 26 C44 44 44 70 50 88" stroke="#3b0b66" stroke-width="2" fill="none" opacity=".6"/>
+      <path d="M50 26 L52 14" stroke="${KEY}" stroke-width="4" stroke-linecap="round"/>${leaf(51, 18, -30, 0.75)}${shine(38, 42, 7, 4.5)}`); },
+    grape: () => { const a = id('vg'); const pts = [[34, 40], [50, 38], [66, 40], [42, 54], [58, 54], [50, 68], [36, 66], [64, 66], [50, 82]];
+      return vsvg(`<defs>${rg2(a, [['#c79bf2', 0], ['#7a33c2', 0.6], ['#3c0d6b', 1]])}</defs>${leaf(48, 22, -10, 0.9)}<path d="M50 30 L50 18" stroke="${KEY}" stroke-width="4" stroke-linecap="round"/>
+      ${pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="10.5" fill="url(#${a})" stroke="${KEY}" stroke-width="2.6"/><circle cx="${x - 3.5}" cy="${y - 3.5}" r="2.6" fill="#fff" opacity=".6"/>`).join('')}`); },
+    melon: () => vsvg(`<path d="M6 36 A44 44 0 0 0 94 36 Z" fill="#2f8f3a" stroke="${KEY}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M12 36 A38 38 0 0 0 88 36 Z" fill="#f4f1d6"/><path d="M16 36 A34 34 0 0 0 84 36 Z" fill="#ec3a4c"/>
+      <path d="M6 36 H94" stroke="${KEY}" stroke-width="3"/>${[[30, 44], [44, 52], [58, 52], [70, 44], [38, 62], [62, 62], [50, 64]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="2.2" ry="3.6" fill="#1b1b1b"/>`).join('')}
+      <path d="M20 40 Q50 48 80 40" stroke="#fff" stroke-width="2" opacity=".35" fill="none"/>`),
+    bell: () => { const a = id('vb'); return vsvg(`<defs>${lg2(a, [['#fff1a6', 0], ['#f5c83a', 0.35], ['#c98a10', 0.75], ['#8a5a05', 1]], 1, 0.4)}</defs>
+      <circle cx="50" cy="12" r="5.5" fill="url(#${a})" stroke="${KEY}" stroke-width="2.6"/>
+      <path d="M50 17 C35 17 29 29 29 43 C29 58 25 66 16 73 H84 C75 66 71 58 71 43 C71 29 65 17 50 17Z" fill="url(#${a})" stroke="${KEY}" stroke-width="3" stroke-linejoin="round"/>
+      <rect x="12" y="71" width="76" height="10" rx="5" fill="url(#${a})" stroke="${KEY}" stroke-width="3"/>
+      <circle cx="50" cy="88" r="7" fill="#c98a10" stroke="${KEY}" stroke-width="2.6"/><path d="M39 26 C35 34 35 48 33 60" stroke="#fff" stroke-width="4" opacity=".55" stroke-linecap="round" fill="none"/>`); },
+    star: () => { const a = id('vs'); const P = Array.from({ length: 10 }, (_, k) => { const r = k % 2 ? 19 : 44, t = -Math.PI / 2 + k * Math.PI / 5; return [50 + Math.cos(t) * r, 54 + Math.sin(t) * r]; });
+      return vsvg(`<defs>${lg2(a, [['#fff3a0', 0], ['#f9c41e', 0.5], ['#c78700', 1]], 0.6, 1)}</defs>
+      <path d="M${P.map((q) => q.map((v) => v.toFixed(1)).join(' ')).join(' L')}Z" fill="url(#${a})" stroke="${KEY}" stroke-width="3" stroke-linejoin="round"/>
+      ${P.filter((_, k) => k % 2 === 0).map(([x, y]) => `<path d="M50 54 L${x.toFixed(1)} ${y.toFixed(1)}" stroke="#fff" stroke-width="1.5" opacity=".45"/>`).join('')}`); },
+    seven: () => { const a = id('v7'), d = 'M17 14 H83 V30 C67 45 57 65 53 88 H31 C35 66 45 47 59 30 H17 Z';
+      return vsvg(`<defs>${lg2(a, [['#ff5a68', 0], ['#e0122a', 0.5], ['#9a0014', 1]])}</defs>
+      <path d="${d}" fill="none" stroke="${KEY}" stroke-width="15.5" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#1d3fbf" stroke-width="12" stroke-linejoin="round"/>
+      <path d="${d}" fill="none" stroke="#f6f3ec" stroke-width="6.5" stroke-linejoin="round"/><path d="${d}" fill="url(#${a})" stroke="${KEY}" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M22 18 H76" stroke="#fff" stroke-width="2.4" opacity=".5"/>`); },
+    bar: () => vsvg(barBlock(36, 28, 21)),
+    bar2: () => vsvg(barBlock(20, 26, 19) + barBlock(54, 26, 19)),
+    bar3: () => vsvg(barBlock(10, 23, 17) + barBlock(39, 23, 17) + barBlock(68, 23, 17)),
+    wild: () => { const a = id('vw'), b = id('vw2'); return vsvg(`<defs>${lg2(a, [['#ff4a5c', 0], ['#c4102a', 0.6], ['#7a0412', 1]])}${lg2(b, [['#fff2b0', 0], ['#e9b830', 0.5], ['#9c6a08', 1]])}</defs>
+      <rect x="6" y="24" width="88" height="52" rx="10" fill="url(#${b})" stroke="${KEY}" stroke-width="3"/><rect x="12" y="30" width="76" height="40" rx="6" fill="url(#${a})" stroke="${KEY}" stroke-width="1.6"/>
+      <text x="50" y="62" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="29" fill="url(#${b})" stroke="${KEY}" stroke-width="2.2" paint-order="stroke" letter-spacing="2">WILD</text>`); },
+    scatter: () => { const a = id('vx'), b = id('vx2'); const P = Array.from({ length: 10 }, (_, k) => { const r = k % 2 ? 13 : 28, t = -Math.PI / 2 + k * Math.PI / 5; return [50 + Math.cos(t) * r, 44 + Math.sin(t) * r]; });
+      return vsvg(`<defs>${rg2(b, [['#fff2b0', 0], ['#e9b830', 0.6], ['#9c6a08', 1]])}${lg2(a, [['#ff4a5c', 0], ['#c4102a', 1]])}</defs>
+      <circle cx="50" cy="44" r="36" fill="url(#${b})" stroke="${KEY}" stroke-width="3"/><path d="M${P.map((q) => q.map((v) => v.toFixed(1)).join(' ')).join(' L')}Z" fill="url(#${a})" stroke="${KEY}" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="10" y="70" width="80" height="22" rx="6" fill="#141414" stroke="${KEY}" stroke-width="2.5"/><text x="50" y="87" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="17" fill="#ffd34d" letter-spacing="3">BONUS</text>`); },
+  };
+  const rawSymbol = (theme, s) => (VEGAS_THEMES.has(theme) && VEGAS[s] ? VEGAS[s]() : theme === 'classic' ? C.art(s) : C.slotSymArt(theme, s));
   function symbolSvg(theme, s) {
     let inner = rawSymbol(theme, s);
     if (theme === 'neon') return inner.replace('<svg ', '<svg width="240" height="240" ');
+    if (VEGAS_THEMES.has(theme) && VEGAS[s]) { const sh = id('vsh'); return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -6 112 112" width="240" height="240"><defs><filter id="${sh}" x="-10%" y="-10%" width="120%" height="125%"><feDropShadow dx="0" dy="2.2" stdDeviation="1.6" flood-color="#000" flood-opacity=".35"/></filter></defs><g filter="url(#${sh})">${inner.replace('<svg ', '<svg x="0" y="0" width="100" height="100" ')}</g></svg>`; }
     inner = inner.replace(/ filter="url\(#[^)]+\)"/g, ''); // the polish adds its own shadow
     const f = id('pol'), ink = THEME_INK[theme] || '#1b0f05', big = s === 'wild' || s === 'scatter', royal = s.length === 1 && 'TJQKA'.includes(s);
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 124 124" width="240" height="240"><defs>
       <filter id="${f}" x="-15%" y="-15%" width="130%" height="135%" color-interpolation-filters="sRGB">
         <feComponentTransfer in="SourceAlpha" result="a"><feFuncA type="discrete" tableValues="0 0 1 1"/></feComponentTransfer>
-        <feMorphology in="a" operator="dilate" radius="${big ? 2 : 2.6}" result="dil"/>
+        <feMorphology in="a" operator="dilate" radius="${royal ? 1.1 : big ? 2 : 2.6}" result="dil"/>
         <feFlood flood-color="${ink}" result="ink"/><feComposite in="ink" in2="dil" operator="in" result="outline"/>
         <feGaussianBlur in="a" stdDeviation="2.4" result="bump"/>
         <feSpecularLighting in="bump" surfaceScale="4.5" specularConstant=".95" specularExponent="20" lighting-color="#ffffff" result="spec"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting>
         <feComposite in="spec" in2="a" operator="in" result="specIn"/>
-        <feComposite in="SourceGraphic" in2="specIn" operator="arithmetic" k1="0" k2="1" k3=".6" k4="0" result="lit"/>
+        <feComposite in="SourceGraphic" in2="specIn" operator="arithmetic" k1="0" k2="1" k3="${royal ? 0.18 : 0.6}" k4="0" result="lit"/>
         <feOffset in="a" dx="-2.2" dy="-3.2" result="off"/><feGaussianBlur in="off" stdDeviation="2.6" result="offb"/>
         <feComposite in="a" in2="offb" operator="out" result="rim"/><feFlood flood-color="#000" flood-opacity=".38"/><feComposite in2="rim" operator="in" result="shade"/>
         <feComposite in="shade" in2="SourceGraphic" operator="in" result="shadeIn"/>
@@ -57,13 +117,15 @@
   const neonShape = (d, col, x, y, sc = 1, rot = 0) => { const f = id('nn'); return `<defs>${blurF(f, 6)}</defs><g transform="translate(${x} ${y}) rotate(${rot}) scale(${sc})" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="${col}" stroke-width="14" filter="url(#${f})" opacity=".85">${d}</g><g stroke="${col}" stroke-width="6">${d}</g><g stroke="#fff" stroke-width="2" opacity=".85">${d}</g></g>`; };
   const crystal = (x, y, s, c1, c2, rot = 0) => { const g = id('cy'); return `<defs>${lin(g, [c1, c2], 0, 0, 1, 1)}</defs><g transform="translate(${x} ${y}) rotate(${rot}) scale(${s})"><path d="M0 0 L-18 -60 L0 -110 L18 -60z" fill="url(#${g})"/><path d="M0 0 L0 -110 L18 -60z" fill="#fff" opacity=".18"/><path d="M0 0 L-18 -60 L0 -110z" fill="#000" opacity=".12"/></g>`; };
 
+  /** Out-of-focus casino lights: discs with a brighter rim, blurred. */
+  const bokeh = (n, seed, cols, area, r0, r1, sd) => { const r = rng(seed); return blur(Array.from({ length: n }, () => {
+    const x = area[0] + r() * (area[2] - area[0]), y = area[1] + r() * (area[3] - area[1]), rr = r0 + r() * (r1 - r0), c = cols[(r() * cols.length) | 0], o = 0.16 + r() * 0.38;
+    return `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${rr.toFixed(0)}" fill="${c}" fill-opacity="${o.toFixed(2)}" stroke="${c}" stroke-opacity="${Math.min(1, o + 0.3).toFixed(2)}" stroke-width="3"/>`; }).join(''), sd); };
+  const floor = (col) => { const g = id('fl'); return `<defs>${lin(g, [[col, 0], ['#000', 1]].map(([c]) => c), 0, 0, 0, 1)}</defs><rect y="760" width="${W}" height="240" fill="url(#${g})" opacity=".75"/>`; };
   const SCENES = {
-    classic: () => [fill(['#3a0008', '#1a0004', '#050000']), glow(800, 520, 700, '#ff3d00', 0.35), rays(800, 520, '#ffd54f', 0.06, 28, 1400),
-      curtain(0, 300, false), `<g transform="translate(${W} 0) scale(-1 1)">${curtain(0, 300, false)}</g>`,
-      `<rect x="0" y="0" width="${W}" height="70" fill="#5a0010"/><rect x="0" y="62" width="${W}" height="10" fill="#c99a06"/>`,
-      Array.from({ length: 32 }, (_, i) => glow(25 + i * 50, 32, 26, '#ffeb3b', 0.6) + `<circle cx="${25 + i * 50}" cy="32" r="9" fill="#fffde7"/>`).join(''),
-      `<rect y="900" width="${W}" height="100" fill="#120002"/>`, spark(40, 3, '#ffe082', [300, 100, 1300, 900], 20)],
-    fruits: () => [fill(['#ffe259', '#ffa751', '#f2701d']), rays(800, 380, '#fff', 0.13, 26, 1400), glow(800, 380, 520, '#fff8d0', 0.6),
+    classic: () => [fill(['#1c0408', '#0e0204', '#050102']), glow(800, 430, 900, '#7a0d16', 0.55),
+      bokeh(26, 22, ['#ffd98a', '#fff1cf', '#ff9b52'], [0, 0, W, 760], 50, 130, 28), bokeh(70, 21, ['#ffcf6b', '#ff8a3d', '#ffe7b0', '#e8384f'], [0, 0, W, 700], 14, 60, 8), floor('#2a070c')],
+    fruits: () => [fill(['#ffe9a0', '#ffc46b', '#f58a3a']), glow(800, 380, 620, '#fff8d0', 0.55),
       hills(['#7cb342', '#558b2f', '#33691e'], 760, 90, 4),
       symAt('fruits', 'cherry', 150, 260, 220, -14, 2), symAt('fruits', 'melon', 1440, 300, 240, 12, 2), symAt('fruits', 'lemon', 230, 780, 200, 20, 5), symAt('fruits', 'grape', 1380, 760, 230, -10, 5), symAt('fruits', 'orange', 1500, 90, 140, 0, 7), symAt('fruits', 'plum', 90, 80, 120, 0, 7)],
     gems: () => [fill(['#2a0f5c', '#140733', '#05020f']), glow(800, 460, 650, '#7c4dff', 0.35), starsW(120, 6, H, '#d1c4e9'),
@@ -71,10 +133,8 @@
       Array.from({ length: 14 }, (_, i) => crystal(1290 + i * 22, 1000, 1.4 + ((i + 1) % 3) * 0.5, '#80d8ff', '#01579b', -20 + i * 3)).join(''),
       Array.from({ length: 18 }, (_, i) => `<g transform="translate(${i * 95 + 20} 0) scale(1 -1)">${crystal(0, 0, 0.6 + (i % 4) * 0.25, '#7e57c2', '#311b92', (i % 5) * 4 - 8)}</g>`).join(''),
       symAt('gems', 'diamond', 160, 520, 180, -12, 3), symAt('gems', 'g-red', 1450, 480, 170, 10, 3), spark(30, 8, '#fff', [100, 100, 1500, 900], 22)],
-    sevens: () => [fill(['#000', '#2a0000', '#5a0000']), rays(800, 1000, '#ff6d00', 0.12, 24, 1400),
-      blur(Array.from({ length: 12 }, (_, i) => { const x = i * 145 + 30, hh = 260 + (i % 3) * 120; return `<path d="M${x - 110} 1000 C${x - 120} ${1000 - hh * 0.6} ${x - 20} ${1000 - hh * 0.8} ${x} ${1000 - hh} C${x + 20} ${1000 - hh * 0.8} ${x + 120} ${1000 - hh * 0.6} ${x + 110} 1000z" fill="${['#ff6d00', '#ffab00', '#d50000'][i % 3]}" opacity=".8"/>`; }).join(''), 14),
-      (() => { const r = rng(9); return Array.from({ length: 90 }, () => `<circle cx="${(r() * W).toFixed(0)}" cy="${(r() * H).toFixed(0)}" r="${(r() * 3 + 1).toFixed(1)}" fill="${r() > 0.5 ? '#ffd54f' : '#ff6d00'}" opacity="${(r() * 0.8 + 0.2).toFixed(2)}"/>`).join(''); })(),
-      symAt('sevens', 'seven', 170, 360, 260, -16, 2), symAt('sevens', 'seven', 1430, 360, 260, 16, 2)],
+    sevens: () => [fill(['#030716', '#071331', '#0a1a3f']), glow(800, 430, 900, '#1d3fbf', 0.4),
+      bokeh(24, 32, ['#ffffff', '#ff6b78', '#9fb4ff'], [0, 0, W, 760], 50, 130, 28), bokeh(72, 31, ['#6f8cff', '#ff4a5c', '#f4f1ea', '#9fb4ff'], [0, 0, W, 700], 14, 60, 8), floor('#0b1840')],
     pharaoh: () => [fill(['#140f3c', '#5b2a6e', '#e26d3d', '#ffc56b'], 0, 0.78), starsW(90, 11, 420), glow(800, 640, 420, '#fff3c4', 0.85), `<circle cx="800" cy="640" r="150" fill="#fff6d8"/>`,
       `<path d="M120 760 L420 430 L720 760z" fill="#a8641e"/><path d="M420 430 L720 760 L560 760z" fill="#7a4512"/><path d="M880 760 L1180 400 L1480 760z" fill="#b8722a"/><path d="M1180 400 L1480 760 L1320 760z" fill="#83501a"/>`,
       hills(['#d79a45', '#c4832f', '#a96a1f'], 760, 50, 2), pillar(0, 150, '#e8b86a', '#8a5a1c'), pillar(1450, 150, '#e8b86a', '#8a5a1c'), torch(200, 560), torch(1400, 560)],
@@ -121,10 +181,10 @@
 
   /* ---------------- logos ---------------- */
   const LOGO = {
-    classic: { text: 'CLASSIC SLOTS', font: 'Bungee', cols: ['#ffffff', '#ffe082', '#ff6d00'], ink: '#2a0000', ex: '#7f0000', glow: '#ff3d00' },
+    classic: { text: 'CLASSIC SLOTS', font: 'Anton', cols: ['#ffffff', '#e6ebf0', '#9aa6b2'], ink: '#1a0d06', ex: '#8f0613', glow: '#ff3d4f' },
     fruits: { text: 'Fruit Frenzy', font: 'Lilita One', cols: ['#fffde7', '#ffeb3b', '#ff6d00'], ink: '#3a1600', ex: '#b23c00', glow: '#ffe082' },
     gems: { text: 'GEM RUSH', font: 'Titan One', cols: ['#ffffff', '#e1bee7', '#8e24aa'], ink: '#1a0b33', ex: '#4a148c', glow: '#ea80fc' },
-    sevens: { text: 'LUCKY 7s', font: 'Bungee', cols: ['#fffde7', '#ffd54f', '#ff3d00'], ink: '#2a0000', ex: '#8e0000', glow: '#ff6d00' },
+    sevens: { text: 'LUCKY 7s', font: 'Anton', cols: ['#ffffff', '#ffd9dd', '#e0122a'], ink: '#0b1240', ex: '#1d3fbf', glow: '#6f8cff' },
     pharaoh: { text: "PHARAOH'S FORTUNE", font: 'Cinzel Decorative', cols: ['#fff8e1', '#ffd54f', '#a37400'], ink: '#2a1500', ex: '#6d4400', glow: '#ffe082' },
     ocean: { text: 'Deep Sea Treasure', font: 'Lilita One', cols: ['#ffffff', '#80deea', '#00838f'], ink: '#021c33', ex: '#004d60', glow: '#4dd0e1' },
     goldrush: { text: 'Gold Rush', font: 'Rye', cols: ['#fffde7', '#ffca28', '#8d5b00'], ink: '#2a1205', ex: '#5d3415', glow: '#ffb300' },

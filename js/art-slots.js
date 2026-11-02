@@ -13,22 +13,36 @@
   const sym = (inner, defs = '') => { const f = id(); return svg(`<defs>${drop(f)}${defs}</defs><g filter="url(#${f})">${inner}</g>`); };
 
   /* ---------- card royals ---------- */
-  const ROYAL_COL = { T: ['#bbdefb', '#1e88e5', '#0d47a1'], J: ['#c8e6c9', '#43a047', '#1b5e20'], Q: ['#e1bee7', '#8e24aa', '#4a148c'], K: ['#ffcdd2', '#e53935', '#8e0000'], A: ['#ffe0b2', '#fb8c00', '#bf360c'] };
-  const ROYAL_STYLE = {
-    pharaoh: { font: 'Cinzel Decorative', size: 58, stroke: '#2b1a00', gold: true },
-    ocean: { font: 'Lilita One', size: 66, stroke: '#04263a' },
-    goldrush: { font: 'Rye', size: 56, stroke: '#2a1505' },
-    dragon: { font: 'Cinzel Decorative', size: 58, stroke: '#3b0000' },
-    clover: { font: 'Lilita One', size: 66, stroke: '#0b2a0b' },
-    cosmic: { font: 'Russo One', size: 60, stroke: '#0a0630' },
+  // Royals are drawn like inlaid jewellery: a metal rim (gold, bronze, chrome or iron) around an enamel-coloured
+  // inlay, with a soft shine. Each theme has its own metal and a palette that belongs to its world.
+  const METAL = {
+    gold: ['#fff2c2', '#e8bd52', '#a8761c', '#f6d77c', '#6e4a0e'], bronze: ['#f3d9b0', '#c08a4e', '#7a4e22', '#e2b57e', '#4a2c10'],
+    chrome: ['#ffffff', '#c9d3de', '#6f7d8c', '#e8eef4', '#33404d'], iron: ['#e6e0d6', '#a59a8a', '#5c5246', '#cfc5b6', '#2e2720'],
   };
+  const ROYAL_STYLE = {
+    pharaoh: { font: 'Cinzel Decorative', size: 58, metal: 'gold', ink: { A: '#2c56a8', K: '#b8352a', Q: '#169c8d', J: '#2f7d4a', T: '#2e2c3a' } },
+    ocean: { font: 'Righteous', size: 64, metal: 'bronze', ink: { A: '#e0634c', K: '#1d5aa6', Q: '#2fa898', J: '#c9a24e', T: '#3c7d46' } },
+    goldrush: { font: 'Rye', size: 56, metal: 'iron', ink: { A: '#d9a52b', K: '#9c4326', Q: '#4d7186', J: '#5f7f34', T: '#7b5a3c' } },
+    dragon: { font: 'Cinzel Decorative', size: 58, metal: 'gold', ink: { A: '#21905f', K: '#b11d2c', Q: '#d9a520', J: '#26262a', T: '#d8ccb0' } },
+    clover: { font: 'Righteous', size: 64, metal: 'gold', ink: { A: '#178a49', K: '#d4702a', Q: '#e9efe7', J: '#118a80', T: '#d8a51e' } },
+    cosmic: { font: 'Russo One', size: 60, metal: 'chrome', ink: { A: '#6f49e8', K: '#e8456f', Q: '#1fb6cc', J: '#5fbf45', T: '#e99a2c' } },
+  };
+  const tint = (hex, k) => { const n = parseInt(hex.slice(1), 16), f = (c) => Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k))); return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(f).map((v) => v.toString(16).padStart(2, '0')).join(''); };
   function royal(theme, L) {
-    const st = ROYAL_STYLE[theme] || ROYAL_STYLE.ocean, g = id(), f = id(), c = ROYAL_COL[L];
-    const txt = L === 'T' ? '10' : L, size = L === 'T' ? st.size * 0.82 : st.size;
-    const fill = st.gold ? stops(g, [c[0], c[1], c[2]]) : stops(g, [c[0], c[1], c[2]]);
-    const rim = st.gold ? `<text x="50" y="${50 + size * 0.36}" text-anchor="middle" font-family="${st.font}, Georgia, serif" font-size="${size}" font-weight="900" fill="none" stroke="#ffd54f" stroke-width="2" letter-spacing="${L === 'T' ? -3 : 0}">${txt}</text>` : '';
-    return svg(`<defs>${fill}${drop(f)}</defs><g filter="url(#${f})">
-      <text x="50" y="${50 + size * 0.36}" text-anchor="middle" font-family="${st.font}, Georgia, serif" font-size="${size}" font-weight="900" fill="url(#${g})" stroke="${st.stroke}" stroke-width="7" paint-order="stroke" stroke-linejoin="round" letter-spacing="${L === 'T' ? -3 : 0}">${txt}</text>${rim}</g>`);
+    const st = ROYAL_STYLE[theme] || ROYAL_STYLE.ocean, m = METAL[st.metal], col = st.ink[L];
+    const rim = id(), enamel = id(), shine = id(), clip = id();
+    const txt = L === 'T' ? '10' : L, size = L === 'T' ? st.size * 0.82 : L === 'Q' ? st.size * 0.86 : st.size, y = 50 + size * 0.36, ls = L === 'T' ? -3 : 0, x = L === 'Q' ? 46 : 50; // Q's tail runs long
+    const T = (attrs) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="${st.font}, Georgia, serif" font-size="${size}" font-weight="900" letter-spacing="${ls}" ${attrs}>${txt}</text>`;
+    return svg(`<defs>
+      <linearGradient id="${rim}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m[0]}"/><stop offset=".35" stop-color="${m[1]}"/><stop offset=".55" stop-color="${m[3]}"/><stop offset=".8" stop-color="${m[2]}"/><stop offset="1" stop-color="${m[1]}"/></linearGradient>
+      <linearGradient id="${enamel}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tint(col, 0.28)}"/><stop offset=".5" stop-color="${col}"/><stop offset="1" stop-color="${tint(col, -0.38)}"/></linearGradient>
+      <linearGradient id="${shine}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity=".08"/><stop offset=".52" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <clipPath id="${clip}">${T('')}</clipPath></defs>
+      ${T(`fill="none" stroke="${m[4]}" stroke-width="11" stroke-linejoin="round"`)}
+      ${T(`fill="none" stroke="url(#${rim})" stroke-width="8" stroke-linejoin="round"`)}
+      ${T(`fill="url(#${enamel})"`)}
+      <g clip-path="url(#${clip})"><rect x="0" y="${y - size * 0.8}" width="100" height="${size * 0.5}" fill="url(#${shine})"/></g>
+      ${T(`fill="none" stroke="${tint(col, -0.55)}" stroke-width="1" stroke-opacity=".7"`)}`);
   }
 
   /* ---------- shared shapes ---------- */
