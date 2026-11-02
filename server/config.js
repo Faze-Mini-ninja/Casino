@@ -57,7 +57,7 @@ module.exports = {
   AUTO_APPROVE_SOL: num('AUTO_APPROVE_SOL', 0.5), // withdrawals up to this are sent automatically…
   AUTO_APPROVE_DAILY_SOL: num('AUTO_APPROVE_DAILY_SOL', 2), // …until a player's 24h total passes this; larger needs admin approval
   MAX_BET_CREDITS: num('MAX_BET_CREDITS', 10000),
-  DEMO_START_CREDITS: num('DEMO_START_CREDITS', 10000),
+  DEMO_START_CREDITS: num('DEMO_START_CREDITS', 1000),
   WATCH_INTERVAL_MS: num('WATCH_INTERVAL_MS', 15000),
   CHAIN_ENABLED: env('CHAIN_ENABLED', 'true') === 'true',
   PLAY_RATE_PER_5S: num('PLAY_RATE_PER_5S', 40), // max game actions per player per 5 seconds

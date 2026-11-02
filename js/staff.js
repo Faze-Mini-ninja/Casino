@@ -79,7 +79,7 @@
   }
   function createPanel(onDone) {
     const nu = h('input', { placeholder: 'Username' }), np = h('input', { placeholder: 'Password (8+)', autocomplete: 'off' });
-    const nd = h('input', { type: 'number', min: '0', step: '0.01', value: '10000' }), nr = h('input', { type: 'number', min: '0', step: '0.01', value: '0' });
+    const nd = h('input', { type: 'number', min: '0', step: '0.01', value: '1000' }), nr = h('input', { type: 'number', min: '0', step: '0.01', value: '0' });
     const btn = h('button', { class: 'btn', onclick: async () => {
       btn.disabled = true;
       const r = await C.try(() => C.api('POST', '/api/admin/users/create', { username: nu.value.trim(), password: np.value, demo: +nd.value, real: +nr.value }));

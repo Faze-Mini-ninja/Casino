@@ -22,6 +22,7 @@
   const setUnits = (b) => { if (b) { S.units = { demo: b.demo, real: b.real }; emit(); } };
   C.odds = () => !!S.config.showOdds;
   C.config = () => S.config;
+  const demoStart = () => Number((S.config && S.config.demoStart) || 1000).toLocaleString('en-US');
   C.solOf = (credits) => credits / (S.config.creditsPerSol || 1000);
 
   /* ---------------- API ---------------- */
@@ -320,7 +321,7 @@
     const pct = Math.round((S.config.referralShare || 0) * 100);
     const promos = cat ? null : h('div', { class: 'promos' },
       S.user ? promo('Deposit', 'Top up with SOL', 'Send SOL to your personal address. It hits your balance as soon as the network confirms it.', 'Deposit', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
-        : promo('New here', '10,000 free credits to start', 'Play every game without depositing. Switch to SOL whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
+        : promo('New here', `${demoStart()} free credits to start`, 'Play every game without depositing. Switch to SOL whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
       promo('Affiliates', 'Bring friends, get paid', `You earn ${pct}% commission on every real bet your friends place. Withdraw it whenever you like.`, 'Get my link', S.user ? '#referrals' : '#login', '#f97316', '#db2777', 'users'),
       promo('New slots', '8 new video slots', 'Free spins, 243 and 1024 ways, and a cabinet for every theme.', 'Play now', '#cat-slots', '#1d4ed8', '#7c3aed', 'slot', ['candy', 'pharaoh', 'dragon']));
     const feed = h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon('activity'), 'Latest bets')));
@@ -380,7 +381,7 @@
       e.preventDefault(); btn.disabled = true;
       const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim(), inviteCode: mode === 'login' ? undefined : invite.value.trim() }));
       btn.disabled = false;
-      if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : 'Account created — 10,000 demo credits added', 'win'); location.hash = '#lobby'; }
+      if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : `Account created — ${demoStart()} demo credits added`, 'win'); location.hash = '#lobby'; }
     } }, title, user, pass, invite, ref, btn, sw,
     h('p', { class: 'muted small' }, 'You must be 18+ and allowed to gamble where you live. Gambling can be addictive — set limits and never deposit more than you can afford to lose.'));
     return h('div', { class: 'auth-wrap' }, form);
@@ -640,7 +641,7 @@
       const onGame = C.games.some((g) => '#' + g.id === location.hash);
       if (onGame || ['', '#', '#lobby', '#history', '#stats', '#wallet'].includes(location.hash)) route();
     }));
-    document.getElementById('refill').onclick = async () => { menu.classList.remove('open'); const r = await C.try(() => C.api('POST', '/api/demo/refill')); if (r) { setUnits(r.balances); C.toast('+10,000 demo credits', 'win'); } };
+    document.getElementById('refill').onclick = async () => { menu.classList.remove('open'); const r = await C.try(() => C.api('POST', '/api/demo/refill')); if (r) { setUnits(r.balances); C.toast(`Demo balance topped up to ${demoStart()}`, 'win'); } };
     window.addEventListener('hashchange', route);
     const r = await C.try(() => C.api('GET', '/api/me'));
     if (r) applyMe(r); else paint();

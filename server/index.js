@@ -59,7 +59,7 @@ function readJson(req) {
 }
 const C2 = (u) => Math.round(u) / 100; // units -> credits
 const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
-const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
+const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
@@ -132,8 +132,10 @@ const routes = {
   'POST /api/abandon': async (req, res, body, ip, u) => { need(u, 401, 'Please log in'); return abandon(u.id, String(body.game || '')) || { ok: true }; },
   'POST /api/demo/refill': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in');
-    const b = balances(u.id); need(b.demo < 100000, 400, 'Demo top-ups are available below 1,000 credits');
-    credit(u.id, 'demo', Math.round(cfg.DEMO_START_CREDITS * 100), 'demo-refill'); return { balances: balances(u.id) };
+    // top the demo balance back up to the starting amount once it drops below 10% of it
+    const start = Math.round(cfg.DEMO_START_CREDITS * 100), b = balances(u.id);
+    need(b.demo < start / 10, 400, `Demo top-ups are available below ${(cfg.DEMO_START_CREDITS / 10).toLocaleString('en-US')} credits`);
+    credit(u.id, 'demo', start - b.demo, 'demo-refill'); return { balances: balances(u.id) };
   },
   'GET /api/history': async (req, res, body, ip, u, url) => {
     need(u, 401, 'Please log in');
