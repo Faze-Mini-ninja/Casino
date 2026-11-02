@@ -27,7 +27,12 @@ if (!seedHex) {
   if (!fs.existsSync(f)) { fs.writeFileSync(f, crypto.randomBytes(64).toString('hex'), { mode: 0o600 }); console.warn(`[config] Generated a devnet master seed at ${f}`); }
   seedHex = fs.readFileSync(f, 'utf8').trim();
 }
-if (!/^[0-9a-f]{64,128}$/i.test(seedHex)) throw new Error('MASTER_SEED must be 32–64 bytes of hex');
+// Accept either hex (npm run gen-seed) or any long random string, e.g. Render's "Generate" value; the latter is
+// stretched to 64 bytes with SHA-512 so the same value always gives the same wallets.
+if (!/^[0-9a-f]{64,128}$/i.test(seedHex)) {
+  if (seedHex.length < 32) throw new Error('MASTER_SEED must be 64–128 hex characters, or a random string of at least 32 characters');
+  seedHex = crypto.createHash('sha512').update('krush-master-seed:' + seedHex).digest('hex');
+}
 
 if (cluster === 'mainnet-beta' && env('REAL_MONEY_ACKNOWLEDGED', '') !== 'yes') {
   throw new Error('Refusing to start on mainnet: set REAL_MONEY_ACKNOWLEDGED=yes only once you hold a gambling licence (or legal sign-off) for every jurisdiction you accept players from, with KYC/AML and geo-blocking in place.');

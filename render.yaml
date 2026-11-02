@@ -20,6 +20,10 @@ services:
         sync: false          # you type it in when creating the Blueprint
       - key: SEED_USERS
         sync: false
+      # Master key for every deposit wallet and the hot wallet. Generated once by Render and kept; never change it
+      # after real deposits, or older deposit addresses can no longer be swept.
+      - key: MASTER_SEED
+        generateValue: true
       - key: COOKIE_SECURE
         value: "true"
       - key: TRUST_PROXY
