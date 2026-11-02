@@ -56,65 +56,6 @@
   .lstep{font-size:12px;font-weight:700;padding:5px 9px;border-radius:6px;background:var(--panel3);color:var(--muted)}
   .lstep.done{background:rgba(34,229,139,.18);color:var(--green)}.lstep.next{box-shadow:0 0 0 2px var(--brand);color:var(--text)}.lstep.bust{background:rgba(255,77,99,.25);color:var(--red)}`);
 
-  /* ---------------- Penalty ---------------- */
-  C.register({
-    n: 35, id: 'penalty', name: 'Penalty Shootout', icon: '⚽', cat: 'originals', edge: 'set by admin', round: 'penalty',
-    blurb: 'Pick a corner, beat the keeper, five kicks to glory.',
-    rules: '<p>Choose where to shoot. The keeper covers one of three zones (two of five on Hard). Every goal raises your multiplier; a save loses the bet. Cash out between kicks, or score all five.</p>',
-    edges: [['Normal', 'keeper covers 1 of 3', ''], ['Hard', 'keeper covers 2 of 5', '']],
-    mount(root) {
-      const bet = C.betInput({ value: 10 });
-      let diff = 'normal', st = null, busy = false;
-      const dSel = C.select('Difficulty', [['normal', 'Normal (3 zones)'], ['hard', 'Hard (5 zones)']], diff, (v) => { diff = v; build(); });
-      const msg = C.msg(), ladder = h('div');
-      const goal = h('div', { class: 'goal' }), keeper = h('div', { class: 'keeper' }), ball = C.artEl('ball', 'pball');
-      const pitch = h('div', { class: 'pitch' }, goal, ball);
-      const betBtn = h('button', { class: 'btn big', onclick: () => (st ? cash() : start()) }, 'BET');
-      root.appendChild(h('div', { class: 'layout' }, h('div', { class: 'side' }, bet.el, dSel.el, betBtn, h('p', { class: 'muted small' }, 'Tap a zone in the goal to shoot.')),
-        h('div', { class: 'stage' }, pitch, ladder, msg.el)));
-      function build() {
-        const z = L.PENALTY[diff].zones;
-        goal.innerHTML = ''; goal.style.gridTemplateColumns = `repeat(${z},1fr)`;
-        for (let i = 0; i < z; i++) goal.append(h('button', { class: 'zone', onclick: () => kick(i) }));
-        goal.append(keeper); keeper.style.width = `${100 / z}%`; keeper.style.left = `${(100 / z) * Math.floor(z / 2)}%`;
-        ladder.innerHTML = ''; ladder.append(ladderRow(L.PENALTY_MAX, (k) => L.penaltyMult(diff, k))); markLadder(ladder, st ? st.k : 0, false);
-        ball.style.cssText = '';
-      }
-      build();
-      async function start() {
-        if (busy) return; busy = true;
-        const r = await C.try(() => C.play('penalty', 'start', { bet: bet.value, diff }));
-        busy = false; if (!r) return;
-        st = { k: 0 }; build(); goal.classList.add('live'); msg.set('Pick your corner');
-        bet.disable(true); dSel.sel.disabled = true; betBtn.textContent = 'CASH OUT'; betBtn.disabled = true;
-      }
-      async function kick(zone) {
-        if (!st || busy) return; busy = true;
-        const r = await C.try(() => C.play('penalty', 'kick', { zone }));
-        if (!r) { busy = false; return; }
-        const z = L.PENALTY[diff].zones, zw = 100 / z;
-        const kz = r.view.keeper; keeper.style.width = `${zw * (kz.length === 2 && Math.abs(kz[0] - kz[1]) === 1 ? 2 : 1)}%`; keeper.style.left = `${zw * Math.min(...kz)}%`;
-        if (kz.length === 2 && Math.abs(kz[0] - kz[1]) !== 1) { keeper.style.width = `${zw}%`; keeper.style.left = `${zw * kz[0]}%`; keeper.dataset.second = kz[1]; }
-        ball.style.left = `calc(${zw * zone + zw / 2}% - 22px)`; ball.style.bottom = '62%'; ball.style.transform = 'scale(.55) rotate(540deg)';
-        goal.querySelectorAll('.zone').forEach((b, i) => b.classList.toggle('kz', kz.includes(i)));
-        await C.sleep(650); busy = false;
-        if (r.view.saved) { C.settle(r); markLadder(ladder, st.k, true); msg.set('Saved! The keeper got there.', 'lose'); return end(); }
-        st.k = r.view.k; markLadder(ladder, st.k, false); C.sfx && C.sfx('cash');
-        if (r.done) { C.settle(r); msg.set(`Perfect five! ${r.view.mult.toFixed(2)}× · ${C.fmt(r.payout)}`, 'win'); return end(); }
-        msg.set(`GOAL! ${r.view.mult.toFixed(2)}× · next ${r.view.next.toFixed(2)}×`, 'win'); betBtn.disabled = false;
-        setTimeout(() => { if (st) { ball.style.cssText = ''; goal.querySelectorAll('.zone').forEach((b) => b.classList.remove('kz')); } }, 900);
-      }
-      async function cash() { if (!st || busy || !st.k) return; busy = true; const r = await C.try(() => C.play('penalty', 'cashout', {})); busy = false; if (r) { C.settle(r); msg.set(`Cashed out ${r.view.mult.toFixed(2)}× · ${C.fmt(r.payout)}`, 'win'); end(); } }
-      function end() { st = null; goal.classList.remove('live'); bet.disable(false); dSel.sel.disabled = false; betBtn.textContent = 'BET'; betBtn.disabled = false; }
-    },
-  });
-  css(`.pitch{position:relative;width:min(560px,100%);height:330px;border-radius:14px;overflow:hidden;background:repeating-linear-gradient(90deg,#1f7a3d 0 40px,#1b6e37 40px 80px)}
-  .goal{position:absolute;left:8%;right:8%;top:22px;height:58%;display:grid;border:6px solid #f5f7fa;border-bottom:0;border-radius:6px 6px 0 0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.14) 0 2px,transparent 2px 14px),repeating-linear-gradient(-45deg,rgba(255,255,255,.14) 0 2px,transparent 2px 14px)}
-  .zone{appearance:none;border:0;border-right:1px dashed rgba(255,255,255,.25);background:transparent;cursor:pointer}.zone:last-of-type{border-right:0}
-  .goal.live .zone:hover{background:rgba(255,255,255,.12)}.zone.kz{background:rgba(255,77,99,.25)}
-  .keeper{position:absolute;bottom:0;height:70%;transition:left .35s ease,width .35s ease;background:linear-gradient(180deg,#ffb300 0 30%,#263238 30%);border-radius:40% 40% 8px 8px;opacity:.9;pointer-events:none}
-  .pball{position:absolute;width:44px;height:44px;left:calc(50% - 22px);bottom:14px;transition:all .55s cubic-bezier(.2,.7,.3,1)}`);
-
   /* ---------------- Darts ---------------- */
   const RING_COL = { miss: '#2b3f55', single: '#3d8bff', treble: '#22c55e', double: '#eab308', 'outer bull': '#f97316', bullseye: '#e11d48' };
   C.register({

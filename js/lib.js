@@ -533,13 +533,13 @@
 
   /* ---- 28. Fish table ---- */
   L.FISH = [
-    { name: 'Minnow', m: 2, size: 18, speed: 70, color: '#ffd166', w: 30 },
-    { name: 'Clownfish', m: 3, size: 22, speed: 60, color: '#f78c6b', w: 22 },
-    { name: 'Angelfish', m: 5, size: 26, speed: 55, color: '#83d483', w: 16 },
-    { name: 'Puffer', m: 8, size: 30, speed: 45, color: '#e9c46a', w: 10 },
-    { name: 'Turtle', m: 15, size: 36, speed: 35, color: '#2a9d8f', w: 7 },
-    { name: 'Shark', m: 30, size: 52, speed: 50, color: '#8d99ae', w: 4 },
-    { name: 'Golden Dragon', m: 100, size: 64, speed: 40, color: '#ffb703', w: 1 },
+    { name: 'Pink Wrasse', m: 2, size: 18, speed: 70, color: '#e48ee8', w: 30 },
+    { name: 'Goldfish', m: 3, size: 22, speed: 62, color: '#f79a2a', w: 22 },
+    { name: 'Blue Tang', m: 5, size: 26, speed: 56, color: '#3aa0e8', w: 16 },
+    { name: 'Parrotfish', m: 8, size: 30, speed: 50, color: '#2ec46b', w: 10 },
+    { name: 'Red Snapper', m: 15, size: 36, speed: 44, color: '#e8433f', w: 7 },
+    { name: 'Pufferfish', m: 30, size: 52, speed: 34, color: '#c98a52', w: 4 },
+    { name: 'Golden Eel', m: 100, size: 64, speed: 48, color: '#f2c14e', w: 1 },
   ];
   L.fishCatch = (m) => L.random() < (1 - L.EDGE.fish) / m;
 

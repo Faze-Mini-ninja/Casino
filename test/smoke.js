@@ -63,7 +63,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       if (id === 'cases') { await clickText('OPEN CASE'); await wait(4700); continue; }
       if (id === 'reddog') { await clickText('DEAL'); await wait(700); await clickText('CALL'); await wait(600); continue; }
       if (id === 'pump') { await clickText('BET'); await wait(300); await clickText('PUMP'); await wait(500); await clickText('CASH OUT'); await wait(300); continue; }
-      if (id === 'penalty') { await clickText('BET'); await wait(300); await click('.zone', 0); await wait(1100); await clickText('CASH OUT'); await wait(300); continue; }
+      if (id === 'penalty') { await clickText('BET'); await wait(300); await click('.pk-zone', 0); await wait(1100); await clickText('CASH OUT'); await wait(300); continue; }
       if (id === 'redblack') { await clickText('BET'); await wait(300); await clickText('RED'); await wait(900); await clickText('CASH OUT'); await wait(300); continue; }
       if (id === 'cups') { await clickText('SHUFFLE'); await wait(2200); await click('.cupb', 0); await wait(1000); continue; }
       if (id === 'rps') { await click('.rps-btn', round % 3); await wait(1400); continue; }
