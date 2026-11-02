@@ -163,6 +163,13 @@ player ──coin──▶ today's deposit address ──sweep──▶ that coi
 KYC (ID and proof-of-address checks; planned), regulator-approved RTPs if your licence needs them, an audit of the
 payments code, and monitoring/alerting for the hot wallet and the watcher.
 
+## Art credits
+- Playing cards: SVG-cards by David Bellot (LGPL-2.1), see `img/cards/README.md`.
+- Fish Table: Fish Pack by Kenney (CC0, public domain), see `img/fish/README.md`.
+- Fonts: SIL Open Font License / Apache 2.0, see `fonts/LICENSES.md`.
+- Everything else (wheels, stadium, slot symbols, cabinets, covers) is drawn in code: `js/games/*`, `js/art*.js`,
+  `js/slot-assets.js`, `js/covers.js`, rendered to images with `npm run slot-art` and `npm run covers`.
+
 ## Tests
 
 ```bash
@@ -258,6 +265,7 @@ js/cards.js         playing cards for every card game (classic deck art in img/c
 js/multi.js         PvP Arena, Blackjack Duel and Live Blackjack pages
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
+js/games/penalty.js Penalty Shootout (stadium, animated keeper)
 js/games/*.js       one UI file per game (more-*.js hold games 34–53, video-slots.js all video slots)
 js/games/slot-client.js  the slot game screen every slot runs on: scene, logo, reel cabinet, slot HUD,
                     quick stop, anticipation, free spins, big-win celebration, in-game paytable

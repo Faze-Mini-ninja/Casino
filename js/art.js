@@ -88,8 +88,16 @@
       <path d="M50 22 L56 40 L74 34 L64 50 L80 58 L60 60 L66 78 L50 66 L38 80 L38 62 L20 62 L34 50 L24 34 L42 40z" fill="#ffee58"/>`); },
     balloon(color = '#e53935') { const a = id(); return svg(`<defs>${rg(a, '#fff', color)}</defs><path d="M50 6 C74 6 88 26 88 46 C88 68 66 84 50 86 C34 84 12 68 12 46 C12 26 26 6 50 6z" fill="url(#${a})"/>
       <path d="M45 86 L55 86 L52 92 L48 92z" fill="${color}"/><ellipse cx="34" cy="30" rx="8" ry="13" fill="#fff" opacity=".45" transform="rotate(25 34 30)"/>`, '0 0 100 100'); },
-    cup() { const a = id(); return svg(`<defs>${lg(a, '#ef5350', '#7f0000', 1, 0)}</defs><path d="M26 10 H74 L86 86 H14z" fill="url(#${a})" stroke="#4a0000" stroke-width="3" stroke-linejoin="round"/>
-      <rect x="10" y="82" width="80" height="10" rx="4" fill="#b71c1c" stroke="#4a0000" stroke-width="3"/><path d="M34 18 L28 76" stroke="#fff" stroke-width="5" opacity=".3" stroke-linecap="round"/>`); },
+    cup() { const a = id(), b = id(), c = id(); return svg(`<defs><linearGradient id="${a}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a2f0c"/><stop offset=".2" stop-color="#b56a26"/><stop offset=".42" stop-color="#f7cf98"/><stop offset=".55" stop-color="#e8a35a"/><stop offset=".85" stop-color="#8a4a17"/><stop offset="1" stop-color="#4a2508"/></linearGradient>
+      <linearGradient id="${b}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a4416"/><stop offset=".45" stop-color="#ffe2b8"/><stop offset="1" stop-color="#7a4416"/></linearGradient>
+      <radialGradient id="${c}" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#2a1404"/><stop offset="1" stop-color="#5a2f0c"/></radialGradient></defs>
+      <ellipse cx="50" cy="90" rx="40" ry="6" fill="rgba(0,0,0,.35)"/>
+      <path d="M28 14 C28 10 72 10 72 14 L86 82 C86 90 14 90 14 82 Z" fill="url(#${a})"/>
+      <ellipse cx="50" cy="14" rx="22" ry="5" fill="url(#${b})" stroke="#4a2508" stroke-width="1.2"/>
+      <path d="M24.5 32 C34 36 66 36 75.5 32" stroke="#4a2508" stroke-width="2.2" fill="none" opacity=".55"/><path d="M24.5 32 C34 36 66 36 75.5 32" stroke="#ffe2b8" stroke-width="1" fill="none" opacity=".5" transform="translate(0 1.6)"/>
+      <path d="M17.5 70 C30 76 70 76 82.5 70" stroke="#4a2508" stroke-width="2.4" fill="none" opacity=".55"/>
+      <path d="M14 82 C14 90 86 90 86 82" stroke="url(#${b})" stroke-width="4" fill="none"/>
+      <path d="M38 18 L33 80" stroke="#fff" stroke-width="3" opacity=".35" stroke-linecap="round"/>`); },
     ball() { return svg(`<circle cx="50" cy="50" r="44" fill="#fafafa" stroke="#263238" stroke-width="3"/>
       <polygon points="50,30 66,42 60,62 40,62 34,42" fill="#263238"/>
       <path d="M50 30 V8 M66 42 L88 36 M60 62 L72 82 M40 62 L28 82 M34 42 L12 36" stroke="#263238" stroke-width="3"/>`); },
