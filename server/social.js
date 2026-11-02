@@ -1,7 +1,7 @@
 /* Chat, moderation, player-to-player tips and support tickets. */
 'use strict';
 const cfg = require('./config');
-const { db, q, tx, debit, credit, balances, BalanceError, LAMPORTS_PER_UNIT } = require('./db');
+const { db, q, tx, debit, credit, balances, BalanceError } = require('./db');
 const settings = require('./settings');
 const bus = require('./bus');
 
@@ -19,7 +19,6 @@ const rank = (u) => (u ? RANK[u.role] || 0 : -1);
 const can = (u, role) => rank(u) >= RANK[role];
 const clean = (t, max) => String(t || '').replace(/[\u0000-\u001f\u007f​-‏‪-‮]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 const C2 = (u) => Math.round(u) / 100;
-const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
 
 function chatView(m) {
   return { id: m.id, kind: m.kind, text: m.text, ts: m.ts, user: m.username || null, role: m.role || null, uid: m.user_id || null };
@@ -94,7 +93,7 @@ module.exports = function socialRoutes({ need, HttpError, limited, audit }) {
           credit(to.id, mode, units, 'tip-in', 'tip:' + tipId);
         });
       } catch (e) { if (e instanceof BalanceError) throw new HttpError(400, 'Not enough balance for that tip'); throw e; }
-      const amount = mode === 'real' ? `${+solOf(units).toFixed(6)} SOL` : `${C2(units).toLocaleString()} demo credits`;
+      const amount = mode === 'real' ? `$${C2(units).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : `${C2(units).toLocaleString()} demo credits`;
       if (body.public !== false) bus.emit('chat', postSystem('tip', `${u.username} tipped ${to.username} ${amount}`, u.id));
       bus.emit('tip', { to: to.id, from: u.username, amount, mode });
       return { ok: true, balances: balances(u.id) };

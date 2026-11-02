@@ -55,6 +55,7 @@ svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
 .bal-btn .chev { color: var(--muted); }
 .cur { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 9px; font-weight: 900; flex: none; }
 .cur.sol { background: linear-gradient(135deg, #9945ff, #14f195); color: #fff; }
+.cur.usd { background: linear-gradient(135deg, #16a34a, #22e58b); color: #03140b; font-weight: 900; }
 .cur.demo { background: var(--panel3); color: var(--muted); }
 .balance.up { animation: flashUp .8s; } .balance.down { animation: flashDown .5s; }
 @keyframes flashUp { 0% { color: var(--green); } 100% { color: var(--text); } }

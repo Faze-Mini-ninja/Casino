@@ -52,7 +52,7 @@ bus.on('announce', (a) => broadcast('announce', a));
 bus.on('odds', (o) => broadcast('odds', o));
 bus.on('ticket', (t) => broadcast('ticket', { id: t.id, status: t.status }, (c) => isStaff(c) || (c.user && c.user.id === t.userId)));
 bus.on('tip', (t) => broadcast('tipped', { from: t.from, amount: t.amount, mode: t.mode }, (c) => c.user && c.user.id === t.to));
-bus.on('deposit', (d) => broadcast('deposit', { sol: d.sol, credits: d.credits, belowMinimum: !!d.belowMinimum, signature: d.signature }, (c) => c.user && c.user.id === d.to));
+bus.on('deposit', (d) => broadcast('deposit', { asset: d.asset || 'SOL', coin: d.coin ?? d.sol, usd: d.usd ?? d.credits, credits: d.credits, belowMinimum: !!d.belowMinimum, signature: d.signature }, (c) => c.user && c.user.id === d.to));
 
 setInterval(() => { for (const c of clients) { try { c.res.write(': ping\n\n'); } catch { /* closed */ } } broadcast('online', online()); }, 20000).unref();
 

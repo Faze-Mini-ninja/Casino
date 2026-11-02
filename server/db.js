@@ -1,5 +1,5 @@
 /* SQLite (built into Node 22) — accounts, ledger, rounds, deposit addresses, deposits, sweeps, withdrawals.
- * Balances are integer "units": 1 unit = 0.01 credit. Every balance change goes through credit()/debit()
+ * Balances are integer "units": 1 unit = 0.01 credit, and 1 credit = $1 for real balances. Every balance change goes through credit()/debit()
  * inside a transaction and writes a ledger row, so the books always reconcile. */
 'use strict';
 const { DatabaseSync } = require('node:sqlite');
@@ -42,9 +42,6 @@ CREATE TABLE IF NOT EXISTS fish_shots (
   id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, mode TEXT NOT NULL, units INTEGER NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
 `);
 
-const UNITS_PER_SOL = cfg.CREDITS_PER_SOL * 100;
-const LAMPORTS_PER_UNIT = 1e9 / UNITS_PER_SOL;
-if (!Number.isInteger(LAMPORTS_PER_UNIT)) throw new Error('CREDITS_PER_SOL must divide 10,000,000 evenly');
 
 let depth = 0;
 /** Run fn inside a transaction (nested calls join the outer one). */
@@ -76,4 +73,4 @@ const debit = (u, m, units, reason, ref) => (units > 0 ? adjust(u, m, -units, re
 const credit = (u, m, units, reason, ref) => (units > 0 ? adjust(u, m, units, reason, ref) : balance(u, m));
 const balances = (userId) => { const u = getUser.get(userId); return { demo: u.demo_units, real: u.real_units }; };
 
-module.exports = { db, q, tx, debit, credit, balance, balances, getUser, BalanceError, UNITS_PER_SOL, LAMPORTS_PER_UNIT };
+module.exports = { db, q, tx, debit, credit, balance, balances, getUser, BalanceError };

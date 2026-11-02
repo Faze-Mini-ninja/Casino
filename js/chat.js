@@ -19,10 +19,10 @@
     if (!S.user) { location.hash = '#login'; return; }
     const toIn = h('input', { value: to, placeholder: 'Username', autocapitalize: 'off' });
     const amt = h('input', { type: 'number', min: '1', step: '0.01', value: amount, placeholder: 'Amount in credits', inputmode: 'decimal' });
-    const mode = h('select', null, h('option', { value: 'real', selected: S.mode === 'real' ? true : null }, 'SOL balance'), h('option', { value: 'demo', selected: S.mode === 'demo' ? true : null }, 'Demo credits'));
+    const mode = h('select', null, h('option', { value: 'real', selected: S.mode === 'real' ? true : null }, 'Real balance ($)'), h('option', { value: 'demo', selected: S.mode === 'demo' ? true : null }, 'Demo credits'));
     const pub = h('input', { type: 'checkbox', checked: true });
     const hint = h('div', { class: 'sol-hint' });
-    const upd = () => { hint.textContent = mode.value === 'real' && +amt.value ? `≈ ${C.fmtSol(C.solOf(+amt.value))} SOL` : ''; };
+    const upd = () => { hint.textContent = mode.value === 'real' && +amt.value ? `= ${C.money(+amt.value)}` : ''; };
     amt.oninput = upd; mode.onchange = upd;
     const btn = h('button', { class: 'btn', onclick: async () => {
       btn.disabled = true;

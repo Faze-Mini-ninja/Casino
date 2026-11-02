@@ -44,9 +44,9 @@
       wrap.innerHTML = '';
       wrap.append(
         h('div', { class: 'kpis' },
-          C.kpi('Online now', `${d.online.total}`, 'accent'), C.kpi('Signed-in players online', d.online.users), C.kpi('Real GGR (24h)', C.fmtSol(d.real.ggrSol) + ' SOL', d.real.ggrSol >= 0 ? 'good' : 'bad'),
-          C.kpi('Real wagered (24h)', C.fmtSol(d.real.wageredSol) + ' SOL'), C.kpi('Real bets (24h)', d.real.bets.toLocaleString()), C.kpi('Demo bets (24h)', d.demo.bets.toLocaleString()),
-          C.kpi('Deposits (24h)', C.fmtSol(d.depositsSol) + ' SOL'), C.kpi('Games in progress', d.activeRounds), C.kpi('New players (24h)', d.newUsers), C.kpi('Players total', d.users),
+          C.kpi('Online now', `${d.online.total}`, 'accent'), C.kpi('Signed-in players online', d.online.users), C.kpi('Real GGR (24h)', C.money(d.real.ggrUsd), d.real.ggrUsd >= 0 ? 'good' : 'bad'),
+          C.kpi('Real wagered (24h)', C.money(d.real.wageredUsd)), C.kpi('Real bets (24h)', d.real.bets.toLocaleString()), C.kpi('Demo bets (24h)', d.demo.bets.toLocaleString()),
+          C.kpi('Deposits (24h)', C.money(d.depositsUsd)), C.kpi('Games in progress', d.activeRounds), C.kpi('New players (24h)', d.newUsers), C.kpi('Players total', d.users),
           C.kpi('Open tickets', d.openTickets, d.openTickets ? 'warn' : ''), C.kpi('Withdrawals to review', d.pendingWithdrawals, d.pendingWithdrawals ? 'warn' : '')),
         h('div', { class: 'panel' }, h('h3', null, 'Most played (24h)'), tbl(['Game', 'Bets', 'Wagered (credits)'], d.topGames.map((g) => h('tr', null, h('td', null, gname(g.game)), h('td', null, g.bets), h('td', null, C.fmt(g.wagered)))), 'No bets in the last 24 hours.')));
     };
@@ -67,7 +67,7 @@
       const users = r.users.filter((u) => !role.value || u.role === role.value);
       list.innerHTML = '';
       list.append(tbl(['Player', 'Real balance', 'Demo', 'Deposited', 'Status', 'Joined', ''], users.map((u) => h('tr', { class: 'click' + (u.disabled ? ' off' : ''), onclick: () => { location.hash = '#admin-player-' + u.id; } },
-        h('td', null, h('b', null, u.username), ' ', roleBadge(u.role)), h('td', null, C.fmtSol(u.realSol) + ' SOL'), h('td', null, C.fmt(u.demo)), h('td', null, u.depositedSol ? C.fmtSol(u.depositedSol) + ' SOL' : '—'),
+        h('td', null, h('b', null, u.username), ' ', roleBadge(u.role)), h('td', null, C.money(u.real)), h('td', null, C.fmt(u.demo)), h('td', null, u.deposited ? C.money(u.deposited) : '—'),
         h('td', null, u.disabled ? h('span', { class: 'tag-s failed' }, 'Disabled') : u.muted ? h('span', { class: 'tag-s pending' }, 'Muted') : h('span', { class: 'muted' }, 'Active')),
         h('td', { class: 'muted' }, new Date(u.created).toLocaleDateString()), h('td', null, h('span', { class: 'btn small ghost' }, 'View')))), 'No players match.'));
     };
@@ -97,11 +97,11 @@
     const reload = () => C.route();
     const actions = h('div', { class: 'panel pactions' });
     if (C.can('admin')) {
-      const mode = h('select', null, h('option', { value: 'real' }, 'Real (SOL) balance'), h('option', { value: 'demo' }, 'Demo balance'));
+      const mode = h('select', null, h('option', { value: 'real' }, 'Real balance ($)'), h('option', { value: 'demo' }, 'Demo balance'));
       const amt = h('input', { type: 'number', step: '0.01', placeholder: 'Amount in credits' });
       const note = h('input', { placeholder: 'Reason (saved in the log)' });
       const hint = h('div', { class: 'sol-hint' });
-      const upd = () => { hint.textContent = mode.value === 'real' && +amt.value ? `≈ ${C.fmtSol(C.solOf(Math.abs(+amt.value)))} SOL` : ''; }; amt.oninput = upd; mode.onchange = upd;
+      const upd = () => { hint.textContent = mode.value === 'real' && +amt.value ? `= ${C.money(Math.abs(+amt.value))}` : ''; }; amt.oninput = upd; mode.onchange = upd;
       const adjust = async (sign) => {
         const a = Math.abs(+amt.value); if (!a) return C.toast('Enter an amount', 'err');
         const res = await C.try(() => C.api('POST', '/api/admin/users/adjust', { id: u.id, mode: mode.value, amount: sign * a, note: note.value }));
@@ -140,7 +140,7 @@
       h('div', { class: 'phead' }, h('div', { class: 'pavatar' }, u.username[0].toUpperCase()),
         h('div', null, h('h2', null, u.username, ' ', roleBadge(u.role), u.disabled ? h('span', { class: 'tag-s failed' }, 'Disabled') : null),
           h('div', { class: 'muted small' }, `Player #${u.id} · joined ${new Date(u.created).toLocaleDateString()}`, u.referrer ? ` · referred by ${u.referrer}` : '', ` · referral code ${u.refCode || '—'}`))),
-      h('div', { class: 'kpis' }, C.kpi('Real balance', C.fmtSol(u.realSol) + ' SOL'), C.kpi('Demo balance', C.fmt(u.demo)), C.kpi('Deposited', C.fmtSol(t.depositedSol) + ' SOL'), C.kpi('Withdrawn', C.fmtSol(t.withdrawnSol) + ' SOL'),
+      h('div', { class: 'kpis' }, C.kpi('Real balance', C.money(u.real)), C.kpi('Demo balance', C.fmt(u.demo)), C.kpi('Deposited', C.money(t.depositedUsd)), C.kpi('Withdrawn', C.money(t.withdrawnUsd)),
         C.kpi('Real tips sent / received', `${C.fmt(t.tipsSent)} / ${C.fmt(t.tipsReceived)}`), C.kpi('Players referred', t.referrals)),
       actions.children.length ? actions : null,
       h('div', { class: 'panel' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' }, h('h3', { style: 'margin:0' }, 'Results by game'), statTabs), statsBox),
@@ -273,20 +273,25 @@
   async function withdrawals() {
     const ws = await C.try(() => C.api('GET', '/api/admin/withdrawals')); if (!ws) return h('div');
     const act = async (id, action) => { if (await C.try(() => C.api('POST', '/api/admin/withdrawal', { id, action }))) { C.toast(action === 'approve' ? 'Approved, sending now' : 'Rejected and refunded', 'win'); C.route(); } };
-    return h('div', { class: 'panel' }, tbl(['#', 'Player', 'SOL', 'To', 'Requested', 'Status', ''], ws.withdrawals.map((x) => h('tr', null, h('td', null, x.id), h('td', null, h('a', { href: '#admin-player-' + x.user_id }, x.username)), h('td', null, C.fmtSol(x.sol)), h('td', { class: 'mono' }, short(x.dest)), h('td', { class: 'muted' }, ago(x.created)),
+    return h('div', { class: 'panel' }, tbl(['#', 'Player', 'Amount', 'Coin', 'To', 'Requested', 'Status', ''], ws.withdrawals.map((x) => h('tr', null, h('td', null, x.id), h('td', null, h('a', { href: '#admin-player-' + x.user_id }, x.username)), h('td', null, C.money(x.usd)), h('td', null, `${(+x.coin).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${x.asset}`, x.url ? [' ', h('a', { href: x.url, target: '_blank', rel: 'noopener' }, '↗')] : null), h('td', { class: 'mono' }, short(x.dest)), h('td', { class: 'muted' }, ago(x.created)),
       h('td', null, h('span', { class: 'tag-s ' + x.status }, x.status), x.note ? h('div', { class: 'muted small' }, x.note) : null),
       h('td', { class: 'nowrap' }, x.status === 'pending' ? h('button', { class: 'btn small', onclick: () => act(x.id, 'approve') }, 'Approve') : null, ' ', ['pending', 'approved'].includes(x.status) ? h('button', { class: 'btn small red', onclick: () => act(x.id, 'reject') }, 'Reject') : null))), 'No withdrawals yet.'));
   }
   async function treasury() {
     const o = await C.try(() => C.api('GET', '/api/admin/overview')); if (!o) return h('div');
+    const coin = (x, a) => (x == null ? 'unavailable' : `${(+x).toLocaleString(undefined, { maximumFractionDigits: a === 'USDC' ? 2 : 6 })} ${a}`);
+    const errs = Object.entries(o.watcher.errors || {}).filter(([, e]) => e);
     return h('div', { class: 'wallet-page' },
-      h('div', { class: 'kpis' }, C.kpi('Network', o.cluster), C.kpi('Hot wallet', typeof o.hotSol === 'number' ? C.fmtSol(o.hotSol) + ' SOL' : 'unavailable'), C.kpi('Owed to players', C.fmtSol(o.playerBalancesSol) + ' SOL'),
-        C.kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.fmtSol(o.referrals.pendingSol)} owed`), C.kpi('Deposit watcher', o.watcher.lastError ? 'error' : o.watcher.lastRun ? 'ok' : 'starting', o.watcher.lastError ? 'bad' : 'good')),
-      o.watcher.lastError ? h('div', { class: 'notice err' }, 'Cannot reach Solana: ' + o.watcher.lastError) : null,
-      h('div', { class: 'panel' }, h('p', { class: 'muted small', style: 'margin-top:0' }, 'Hot wallet ', h('span', { class: 'mono' }, o.hotWallet), h('br'), 'Treasury ', h('span', { class: 'mono' }, o.treasury), h('br'), `Sweeps top the hot wallet up to ${o.hotFloatSol} SOL and send the rest to treasury.`),
-        h('h3', null, 'Daily deposit wallets'), tbl(['Day (UTC)', 'Addresses', 'Deposits', 'SOL in'], o.days.map((d) => h('tr', null, h('td', null, d.day), h('td', null, d.addresses), h('td', null, d.deposits), h('td', null, C.fmtSol(d.sol))))),
-        h('h3', null, 'Recent sweeps'), tbl(['Time', 'From', 'SOL', 'To', 'Status'], o.sweeps.map((s) => h('tr', null, h('td', null, ago(s.ts)), h('td', { class: 'mono' }, short(s.address)), h('td', null, C.fmtSol(s.sol)), h('td', { class: 'mono' }, short(s.dest)), h('td', null, s.status))), 'No sweeps yet.'),
-        h('h3', null, 'House results (real money)'), tbl(['Game', 'Bets', 'Wagered SOL', 'Paid SOL', 'House SOL'], o.house.map((x) => h('tr', null, h('td', null, gname(x.game)), h('td', null, x.rounds), h('td', null, C.fmtSol(x.wageredSol)), h('td', null, C.fmtSol(x.paidSol)), h('td', { class: x.houseSol >= 0 ? 'pos' : 'neg' }, C.fmtSol(x.houseSol)))))));
+      h('div', { class: 'kpis' }, C.kpi('Networks', o.testnet ? 'Test networks' : 'Mainnet'), C.kpi('Hot wallets', C.money(o.wallets.reduce((s, w) => s + (w.usd || 0), 0))), C.kpi('Owed to players', C.money(o.playerBalancesUsd)),
+        C.kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.money(o.referrals.pendingUsd)} owed`), C.kpi('Deposit watcher', errs.length ? 'error' : o.watcher.lastRun ? 'ok' : 'starting', errs.length ? 'bad' : 'good')),
+      errs.map(([chain, e]) => h('div', { class: 'notice err' }, `Cannot reach ${chain}: ${e}`)),
+      h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Hot wallets'),
+        tbl(['Coin', 'Balance', 'Value', 'Hot wallet address', 'Treasury'], o.wallets.map((w) => h('tr', null, h('td', null, h('b', null, w.asset), h('div', { class: 'muted small' }, w.network)), h('td', null, coin(w.balance, w.asset)), h('td', null, w.usd == null ? '—' : C.money(w.usd)),
+          h('td', { class: 'mono small' }, w.hot, ' ', h('button', { class: 'btn small ghost', onclick: () => C.copy(w.hot) }, 'Copy')), h('td', { class: 'mono small' }, w.treasury || h('span', { class: 'muted' }, 'not set')))), 'Deposits are switched off (CHAIN_ENABLED=false).'),
+        h('p', { class: 'muted small' }, `Deposits are swept into each coin's hot wallet; once a hot wallet holds ${C.money(o.hotFloatUsd)}, further sweeps go to that coin's treasury. Fund a hot wallet by sending to its address above.`),
+        h('h3', null, 'Daily deposit wallets'), tbl(['Day (UTC)', 'Addresses', 'Deposits', 'Credited'], o.days.map((d) => h('tr', null, h('td', null, d.day), h('td', null, d.addresses), h('td', null, d.deposits), h('td', null, C.money(d.usd))))),
+        h('h3', null, 'Recent sweeps'), tbl(['Time', 'Coin', 'From', 'Amount', 'To', 'Status'], o.sweeps.map((s) => h('tr', null, h('td', null, ago(s.ts)), h('td', null, s.asset), h('td', { class: 'mono' }, short(s.address)), h('td', null, coin(s.coin, s.asset), s.url ? [' ', h('a', { href: s.url, target: '_blank', rel: 'noopener' }, '↗')] : null), h('td', { class: 'mono' }, short(s.dest)), h('td', null, s.status, s.note ? h('div', { class: 'muted small' }, s.note) : null))), 'No sweeps yet.'),
+        h('h3', null, 'House results (real money)'), tbl(['Game', 'Bets', 'Wagered', 'Paid', 'House'], o.house.map((x) => h('tr', null, h('td', null, gname(x.game)), h('td', null, x.rounds), h('td', null, C.money(x.wageredUsd)), h('td', null, C.money(x.paidUsd)), h('td', { class: x.houseUsd >= 0 ? 'pos' : 'neg' }, C.money(x.houseUsd)))))))
   }
   async function log() {
     const r = await C.try(() => C.api('GET', '/api/admin/users')); if (!r) return h('div');

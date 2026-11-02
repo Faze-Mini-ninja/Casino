@@ -46,16 +46,27 @@ module.exports = {
   cluster,
   RPC_URL: env('RPC_URL', cluster === 'mainnet-beta' ? 'https://api.mainnet-beta.solana.com' : `https://api.${cluster}.solana.com`),
   MASTER_SEED: Buffer.from(seedHex, 'hex'),
-  TREASURY_ADDRESS: env('TREASURY_ADDRESS', ''), // cold wallet (public key only). Empty = keep everything in the hot wallet.
-  CREDITS_PER_SOL: num('CREDITS_PER_SOL', 1000), // 1 credit = 0.001 SOL by default
-  HOT_FLOAT_SOL: num('HOT_FLOAT_SOL', 5), // keep this much in the hot wallet for withdrawals, sweep the rest to treasury
-  MIN_DEPOSIT_SOL: num('MIN_DEPOSIT_SOL', 0.01),
+  TESTNET: cluster !== 'mainnet-beta', // every coin uses its test network unless Solana is on mainnet
+  // Balances are in dollars: 1 credit = $1. Deposits and withdrawals convert at the market price (server/prices.js).
+  COINS: env('COINS', 'SOL,USDC,ETH,LTC').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
+  PRICE_OVERRIDE: env('PRICE_OVERRIDE', ''), // e.g. SOL:150,ETH:3000,LTC:80 — tests/offline only
+  USDC_MINT: env('USDC_MINT', cluster === 'mainnet-beta' ? 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' : '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
+  ETH_RPC_URL: env('ETH_RPC_URL', cluster === 'mainnet-beta' ? 'https://ethereum-rpc.publicnode.com' : 'https://ethereum-sepolia-rpc.publicnode.com'),
+  ETH_CONFIRMATIONS: num('ETH_CONFIRMATIONS', 12),
+  LTC_API_URL: env('LTC_API_URL', cluster === 'mainnet-beta' ? 'https://litecoinspace.org/api' : 'https://litecoinspace.org/testnet/api'),
+  LTC_CONFIRMATIONS: num('LTC_CONFIRMATIONS', 3),
+  // cold wallets (public addresses only). Empty = keep everything in that coin's hot wallet.
+  TREASURY_ADDRESS: env('TREASURY_ADDRESS', ''), // Solana wallet: receives SOL and USDC
+  TREASURY_ETH: env('TREASURY_ETH', ''),
+  TREASURY_LTC: env('TREASURY_LTC', ''),
+  HOT_FLOAT_USD: num('HOT_FLOAT_USD', 1000), // per coin: keep about this much in the hot wallet for withdrawals, sweep the rest to treasury
+  MIN_DEPOSIT: { SOL: num('MIN_DEPOSIT_SOL', 0.01), USDC: num('MIN_DEPOSIT_USDC', 1), ETH: num('MIN_DEPOSIT_ETH', 0.002), LTC: num('MIN_DEPOSIT_LTC', 0.01) },
+  WITHDRAW_FEE: { SOL: num('WITHDRAW_FEE_SOL', 0.000005), USDC: num('WITHDRAW_FEE_USDC', 0.5), ETH: num('WITHDRAW_FEE_ETH', 0.0005), LTC: num('WITHDRAW_FEE_LTC', 0.0002) }, // charged in the coin
+  MIN_WITHDRAW_USD: num('MIN_WITHDRAW_USD', 5),
   SWEEP_MIN_SOL: num('SWEEP_MIN_SOL', 0.002),
   ADDRESS_WATCH_DAYS: num('ADDRESS_WATCH_DAYS', 30), // keep crediting deposits to older daily addresses for this long
-  MIN_WITHDRAW_SOL: num('MIN_WITHDRAW_SOL', 0.01),
-  WITHDRAW_FEE_SOL: num('WITHDRAW_FEE_SOL', 0.000005),
-  AUTO_APPROVE_SOL: num('AUTO_APPROVE_SOL', 0.5), // withdrawals up to this are sent automatically…
-  AUTO_APPROVE_DAILY_SOL: num('AUTO_APPROVE_DAILY_SOL', 2), // …until a player's 24h total passes this; larger needs admin approval
+  AUTO_APPROVE_USD: num('AUTO_APPROVE_USD', 100), // withdrawals up to this are sent automatically…
+  AUTO_APPROVE_DAILY_USD: num('AUTO_APPROVE_DAILY_USD', 500), // …until a player's 24h total passes this; larger needs admin approval
   MAX_BET_CREDITS: num('MAX_BET_CREDITS', 10000),
   DEMO_START_CREDITS: num('DEMO_START_CREDITS', 1000),
   WATCH_INTERVAL_MS: num('WATCH_INTERVAL_MS', 15000),

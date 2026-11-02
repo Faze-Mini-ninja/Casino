@@ -2,14 +2,14 @@
  * Roles: mod < staff < admin. Money actions (balances, odds, withdrawals, roles) are admin-only. */
 'use strict';
 const L = require('../js/lib.js');
-const { q, LAMPORTS_PER_UNIT } = require('./db');
+const { q } = require('./db');
 const settings = require('./settings');
 const stream = require('./stream');
 const { G } = require('./games');
 const { can, RANK } = require('./social');
 
 const C2 = (u) => Math.round(u || 0) / 100;
-const solOf = (units) => ((units || 0) * LAMPORTS_PER_UNIT) / 1e9;
+const usdOf = (units) => Math.round(units || 0) / 100; // ledger units are cents
 const GAME_IDS = [...Object.keys(G), 'fish'];
 
 module.exports = function adminRoutes({ need, audit }) {
@@ -23,14 +23,14 @@ module.exports = function adminRoutes({ need, audit }) {
       const real = agg('real'), demo = agg('demo');
       return {
         online: stream.online(),
-        real: { bets: real.n, wageredSol: solOf(real.w), paidSol: solOf(real.p), ggrSol: solOf(real.w - real.p) },
+        real: { bets: real.n, wageredUsd: usdOf(real.w), paidUsd: usdOf(real.p), ggrUsd: usdOf(real.w - real.p) },
         demo: { bets: demo.n, wagered: C2(demo.w), paid: C2(demo.p) },
         activeRounds: q("SELECT COUNT(*) n FROM rounds WHERE status = 'active'").get().n,
         newUsers: q('SELECT COUNT(*) n FROM users WHERE created > ?').get(day).n,
         users: q('SELECT COUNT(*) n FROM users').get().n,
         openTickets: q("SELECT COUNT(*) n FROM tickets WHERE status = 'open'").get().n,
         pendingWithdrawals: q("SELECT COUNT(*) n FROM withdrawals WHERE status = 'pending'").get().n,
-        depositsSol: q("SELECT COALESCE(SUM(lamports),0) s FROM chain_txs WHERE kind = 'deposit' AND ts > ?").get(day).s / 1e9,
+        depositsUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM deposits WHERE kind = 'deposit' AND ts > ?").get(day).s),
         topGames: q("SELECT game, COUNT(*) n, SUM(wager) w FROM rounds WHERE status = 'done' AND updated > ? GROUP BY game ORDER BY n DESC LIMIT 6").all(day).map((g) => ({ game: g.game, bets: g.n, wagered: C2(g.w) })),
       };
     },
@@ -41,11 +41,11 @@ module.exports = function adminRoutes({ need, audit }) {
       const stats = (mode) => q("SELECT game, COUNT(*) n, SUM(wager) w, SUM(payout) p FROM rounds WHERE user_id = ? AND mode = ? AND status = 'done' GROUP BY game ORDER BY n DESC").all(t.id, mode)
         .map((r) => ({ game: r.game, rounds: r.n, wagered: C2(r.w), won: C2(r.p) }));
       return {
-        user: { id: t.id, username: t.username, role: t.role, created: t.created, disabled: !!t.disabled, mutedUntil: t.muted_until, demo: C2(t.demo_units), real: C2(t.real_units), realSol: solOf(t.real_units),
+        user: { id: t.id, username: t.username, role: t.role, created: t.created, disabled: !!t.disabled, mutedUntil: t.muted_until, demo: C2(t.demo_units), real: C2(t.real_units),
           referrer: t.referred_by ? (q('SELECT username FROM users WHERE id = ?').get(t.referred_by) || {}).username : null, refCode: t.ref_code },
         totals: {
-          depositedSol: q("SELECT COALESCE(SUM(lamports),0) s FROM chain_txs WHERE user_id = ? AND kind = 'deposit'").get(t.id).s / 1e9,
-          withdrawnSol: q("SELECT COALESCE(SUM(lamports),0) s FROM withdrawals WHERE user_id = ? AND status = 'sent'").get(t.id).s / 1e9,
+          depositedUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM deposits WHERE user_id = ? AND kind = 'deposit'").get(t.id).s),
+          withdrawnUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM withdrawals WHERE user_id = ? AND status = 'sent'").get(t.id).s),
           tipsSent: C2(q("SELECT COALESCE(SUM(units),0) s FROM tips WHERE from_id = ? AND mode = 'real'").get(t.id).s),
           tipsReceived: C2(q("SELECT COALESCE(SUM(units),0) s FROM tips WHERE to_id = ? AND mode = 'real'").get(t.id).s),
           referrals: q('SELECT COUNT(*) n FROM users WHERE referred_by = ?').get(t.id).n,
@@ -88,7 +88,7 @@ module.exports = function adminRoutes({ need, audit }) {
         games: GAME_IDS.map((id) => {
           const d = st(id, day), a = st(id, 0);
           return { id, edgeKey: id in L.DEFAULT_EDGE ? id : null, disabled: o.disabled.includes(id),
-            day: { rounds: d.n, wageredSol: solOf(d.w), rtp: d.w ? d.p / d.w : null }, all: { rounds: a.n, wageredSol: solOf(a.w), rtp: a.w ? a.p / a.w : null } };
+            day: { rounds: d.n, wageredUsd: usdOf(d.w), rtp: d.w ? d.p / d.w : null }, all: { rounds: a.n, wageredUsd: usdOf(a.w), rtp: a.w ? a.p / a.w : null } };
         }),
       };
     },

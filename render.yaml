@@ -24,6 +24,8 @@ services:
       # after real deposits, or older deposit addresses can no longer be swept.
       - key: MASTER_SEED
         generateValue: true
+      # Deposits run on free test networks (SOL, USDC, ETH, LTC) by default. SOLANA_CLUSTER is deliberately not set
+      # here: set it in the Render dashboard (mainnet-beta for real money) so a Blueprint sync never switches it back.
       - key: COOKIE_SECURE
         value: "true"
       - key: TRUST_PROXY

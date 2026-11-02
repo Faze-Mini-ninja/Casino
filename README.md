@@ -1,6 +1,6 @@
 # krush.casino
 
-A web casino with 61 games, free **demo credits**, and **real SOL** deposits and withdrawals on Solana.
+A web casino with 61 games, free **demo credits**, and real-money deposits and withdrawals in **SOL, USDC, ETH and LTC** (balances in dollars).
 Every bet, card and spin is decided on the server; the browser only animates the results.
 
 > **Devnet by default.** Out of the box it runs on Solana devnet, where coins have no value. The server
@@ -75,32 +75,46 @@ share of the rake the player contributed to. Commission builds up and is claimed
 Every edge used is exact or slightly under, so referring your own second account only earns back part of the
 house edge and never turns a profit.
 
-### Try a devnet deposit
-1. Register, open **Wallet**, copy today's deposit address.
-2. Get free devnet SOL from https://faucet.solana.com, or in Phantom turn on *Settings → Developer Settings → Testnet Mode*, pick Devnet and airdrop.
-3. Send ≥ 0.01 SOL to the address. Once the transaction is finalized (~15–40 s) it's credited and appears in **Wallet**.
-4. Switch the header toggle to **Real SOL** and play. Withdraw from **Wallet** to any address.
+### Try a test-network deposit
+By default every coin uses its test network (Solana devnet, Ethereum Sepolia, Litecoin testnet); test coins are free.
+1. Register, switch the header balance to **USD (real money)**, tap **Wallet** and pick a coin. Copy today's address
+   or scan the QR code.
+2. Get free test coins: SOL at https://faucet.solana.com, USDC (Solana devnet) at https://faucet.circle.com,
+   Sepolia ETH from any Sepolia faucet, LTC from any Litecoin testnet faucet.
+3. Send at least the minimum (0.01 SOL, 1 USDC, 0.002 ETH, 0.01 LTC). It is credited in dollars at the market price once
+   confirmed: about 30 s for SOL/USDC, 12 blocks (~3 min) for ETH, 3 blocks (~8 min) for LTC. The wallet pop-up
+   and a toast tell the player the moment it lands.
+4. Play, then withdraw from **Wallet** in any of the four coins.
 
 ## How the money flows
 
 ```
-player ──SOL──▶ today's deposit address ──sweep──▶ hot wallet ──(above HOT_FLOAT_SOL)──▶ treasury (cold)
-                (new one per player per UTC day)          │
-                                                           └──▶ withdrawals to players
+player ──coin──▶ today's deposit address ──sweep──▶ that coin's hot wallet ──(above HOT_FLOAT_USD)──▶ treasury (cold)
+                 (new one per player, per chain, per UTC day)      │
+                                                                    └──▶ withdrawals to players
 ```
 
-- **A fresh deposit wallet every day.** Each player gets a new address each UTC day, derived from one master seed
-  (`m/44'/501'/i'/0'`, the same scheme Phantom uses, so any wallet can be recovered from the seed).
-  Deposits to a player's older addresses are still credited for `ADDRESS_WATCH_DAYS` (30 by default).
-- **Crediting** uses only *finalized* transactions. It's idempotent: each signature is credited once,
-  even across restarts.
-- **Sweeps** move each credited deposit into the hot wallet until it holds `HOT_FLOAT_SOL`, and the rest to
-  `TREASURY_ADDRESS`, a cold wallet whose private key never touches the server. Sweeps only run after every
-  finalized deposit to that address has been credited.
-- **Withdrawals** are debited when requested. Small ones (`AUTO_APPROVE_SOL`, `AUTO_APPROVE_DAILY_SOL`) send
-  automatically; larger ones wait in **Admin** for approval. The transaction signature is stored *before* broadcasting.
-  A withdrawal is refunded only if its transaction provably never landed (blockhash expired with no status), so a
-  network timeout can't pay a player twice.
+- **Balances are dollars** (1 credit = $1). Each deposit is converted at the market price when it is credited, and
+  each withdrawal at the price when it is requested. The price is the median of CoinGecko, Coinbase and Kraken;
+  if none answers, deposits simply wait for the next pass and withdrawals are refused for a moment. USDC counts as $1.
+  Note the house holds the coins, so their price moves are the operator's, not the players'.
+- **Coins and keys.** One master seed derives everything (index 0 = hot wallet, index n = deposit-address row n):
+  SOL and USDC share a Solana address (`m/44'/501'/n'/0'`, Phantom's scheme; USDC lands in its token account),
+  ETH uses `m/44'/60'/0'/0/n` (MetaMask's scheme), LTC uses native SegWit `m/84'/2'/0'/0/n` (`ltc1…`).
+  Any of these wallets can be recovered from the seed with standard wallet software.
+- **Crediting** only counts confirmed funds: finalized Solana transactions, ETH balances read 12 blocks behind
+  the chain head, LTC payments with 3 confirmations. Each deposit is credited once, even across restarts
+  (`deposits` primary key = transaction + address + coin). Deposits under the minimum are recorded but not credited.
+- **Sweeps** move deposits into the coin's hot wallet until it holds `HOT_FLOAT_USD` worth, and the rest to that
+  coin's treasury (`TREASURY_ADDRESS` for SOL/USDC, `TREASURY_ETH`, `TREASURY_LTC`): cold wallets whose private keys
+  never touch the server. USDC sweeps are paid for by the hot wallet, which also gets the token account's rent back.
+- **Withdrawals** are debited in dollars when requested and paid in the chosen coin minus that coin's network fee
+  (`WITHDRAW_FEE_*`). Up to `AUTO_APPROVE_USD` per withdrawal and `AUTO_APPROVE_DAILY_USD` per day go out
+  automatically; larger ones wait for approval in the Staff Panel. The signed transaction is stored *before*
+  broadcasting, and a withdrawal is refunded only if it provably never landed (expired Solana blockhash, Ethereum
+  nonce used by another transaction, Litecoin inputs spent elsewhere), so a timeout can't pay a player twice.
+- **Fund the hot wallets** (Staff Panel → Treasury shows each address and balance) so withdrawals can be paid:
+  ETH and LTC need a little extra for network fees, and USDC payouts need some SOL in the Solana hot wallet for fees.
 - **Ledger.** Every balance change writes a ledger row (`data/casino.db`), so balances can always be reconciled.
 
 ## Security notes
@@ -109,7 +123,7 @@ player ──SOL──▶ today's deposit address ──sweep──▶ hot walle
   withdrawals are rate-limited. Responses carry a strict CSP.
 - **Protect `MASTER_SEED`.** It controls every deposit wallet and the hot wallet. Keep an offline backup, keep the
   hot float small, and put the treasury on a hardware or multisig wallet.
-- Use a paid RPC provider in production; the public endpoints are rate-limited.
+- Use paid RPC/API providers in production (`RPC_URL`, `ETH_RPC_URL`, `LTC_API_URL`); the public endpoints are rate-limited.
 
 ## Before mainnet (not built yet)
 This code handles the money mechanics. Running it for real money also needs:

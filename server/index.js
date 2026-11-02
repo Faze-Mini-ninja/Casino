@@ -6,10 +6,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const cfg = require('./config');
-const { q, tx, credit, balances, BalanceError, LAMPORTS_PER_UNIT } = require('./db');
+const { q, tx, credit, balances, BalanceError } = require('./db');
+const chains = require('./chains');
+const prices = require('./prices');
 const { play, abandon, refundStaleShots, GameError } = require('./play');
 const pay = require('./payments');
-const { hotWallet } = require('./wallet');
 const referrals = require('./referrals');
 const settings = require('./settings');
 const socialRoutes = require('./social');
@@ -58,8 +59,9 @@ function readJson(req) {
   });
 }
 const C2 = (u) => Math.round(u) / 100; // units -> credits
-const solOf = (units) => (units * LAMPORTS_PER_UNIT) / 1e9;
-const publicConfig = () => ({ cluster: cfg.cluster, creditsPerSol: cfg.CREDITS_PER_SOL, minDepositSol: cfg.MIN_DEPOSIT_SOL, minWithdrawSol: cfg.MIN_WITHDRAW_SOL, withdrawFeeSol: cfg.WITHDRAW_FEE_SOL, autoApproveSol: cfg.AUTO_APPROVE_SOL, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
+const usdOf = (units) => Math.round(units || 0) / 100; // ledger units are cents
+const coinInfo = () => chains.enabled().map((a) => ({ id: a, name: chains.ASSETS[a].name, network: chains.ASSETS[a].network, confirm: chains.ASSETS[a].confirm, minDeposit: cfg.MIN_DEPOSIT[a], withdrawFee: cfg.WITHDRAW_FEE[a] }));
+const publicConfig = () => ({ cluster: cfg.cluster, testnet: cfg.TESTNET, coins: coinInfo(), minWithdrawUsd: cfg.MIN_WITHDRAW_USD, autoApproveUsd: cfg.AUTO_APPROVE_USD, watchDays: cfg.ADDRESS_WATCH_DAYS, chainEnabled: cfg.CHAIN_ENABLED, maxBet: cfg.MAX_BET_CREDITS, demoStart: cfg.DEMO_START_CREDITS, showOdds: cfg.SHOW_ODDS, inviteOnly: !!cfg.REGISTRATION_CODE, referralShare: referrals.SHARE, odds: settings.odds(), announcement: settings.announcement(), tipping: { enabled: settings.tipping().enabled } });
 const me = (u) => ({ user: { id: u.id, username: u.username, role: u.role }, balances: balances(u.id), config: publicConfig() });
 
 /* ---------- routes ---------- */
@@ -150,40 +152,41 @@ const routes = {
   /* ----- wallet ----- */
   'GET /api/wallet': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in');
-    const addr = cfg.CHAIN_ENABLED ? pay.depositAddress(u.id) : null;
-    const deposits = q("SELECT c.signature, c.lamports, c.units, c.kind, c.ts, a.address, a.day FROM chain_txs c JOIN deposit_addresses a ON a.id = c.address_id WHERE c.user_id = ? AND c.lamports > 0 ORDER BY c.ts DESC LIMIT 50").all(u.id)
-      .map((d) => ({ ...d, sol: d.lamports / 1e9, credits: C2(d.units) }));
-    const withdrawals = q('SELECT id, dest, units, lamports, status, signature, note, created FROM withdrawals WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(u.id).map((w) => ({ ...w, sol: w.lamports / 1e9, credits: C2(w.units) }));
-    return { address: addr && addr.address, day: addr && addr.day, deposits, withdrawals, balances: balances(u.id), config: publicConfig() };
+    const addresses = cfg.CHAIN_ENABLED ? pay.depositAddresses(u.id) : {};
+    const deposits = q('SELECT d.txid, d.asset, d.base, d.units, d.price, d.kind, d.ts, a.address FROM deposits d JOIN addresses a ON a.id = d.address_id WHERE d.user_id = ? ORDER BY d.ts DESC LIMIT 50').all(u.id)
+      .map((d) => ({ ...d, coin: chains.toCoin(d.asset, d.base), usd: usdOf(d.units), credits: usdOf(d.units), url: pay.explorer(d.asset, d.txid) }));
+    const withdrawals = q('SELECT id, dest, units, asset, base, price, status, signature, note, created FROM withdrawals WHERE user_id = ? ORDER BY id DESC LIMIT 50').all(u.id)
+      .map((w) => ({ ...w, coin: chains.toCoin(w.asset, w.base), usd: usdOf(w.units), credits: usdOf(w.units), url: w.signature ? pay.explorer(w.asset, w.signature) : null }));
+    return { addresses, deposits, withdrawals, prices: cfg.CHAIN_ENABLED ? await prices.all() : {}, balances: balances(u.id), config: publicConfig() };
   },
   'POST /api/withdraw': async (req, res, body, ip, u) => {
     need(u, 401, 'Please log in'); need(!limited('wd:' + u.id, 5, 60000), 429, 'Too many withdrawal requests');
-    try { return pay.requestWithdrawal(u.id, body.address, body.amount); }
+    try { return await pay.requestWithdrawal(u.id, body.asset || 'SOL', body.address, body.amount); }
     catch (e) { if (e instanceof BalanceError) throw new HttpError(400, 'Insufficient real balance'); throw new HttpError(400, e.message); }
   },
   /* ----- admin ----- */
   'GET /api/admin/overview': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');
-    const hot = hotWallet().publicKey.toBase58();
-    let hotSol = null; try { if (cfg.CHAIN_ENABLED) hotSol = (await require('./chain').getBalance(hot)) / 1e9; } catch (e) { hotSol = 'RPC error: ' + e.message; }
-    const days = q("SELECT a.day, COUNT(DISTINCT a.id) addresses, COALESCE(SUM(CASE WHEN c.kind = 'deposit' THEN c.lamports END),0) lamports, COUNT(CASE WHEN c.kind='deposit' THEN 1 END) deposits FROM deposit_addresses a LEFT JOIN chain_txs c ON c.address_id = a.id GROUP BY a.day ORDER BY a.day DESC LIMIT 14").all()
-      .map((d) => ({ ...d, sol: d.lamports / 1e9 }));
-    const house = q("SELECT game, SUM(wager) w, SUM(payout) p, COUNT(*) n FROM rounds WHERE mode = 'real' AND status = 'done' GROUP BY game").all().map((r) => ({ game: r.game, rounds: r.n, wageredSol: solOf(r.w), paidSol: solOf(r.p), houseSol: solOf(r.w - r.p) }));
+    let wallets = []; try { if (cfg.CHAIN_ENABLED) wallets = await pay.treasury(); } catch (e) { wallets = []; }
+    const days = q("SELECT a.day, COUNT(DISTINCT a.id) addresses, COALESCE(SUM(CASE WHEN d.kind = 'deposit' THEN d.units END),0) units, COUNT(CASE WHEN d.kind='deposit' THEN 1 END) deposits FROM addresses a LEFT JOIN deposits d ON d.address_id = a.id GROUP BY a.day ORDER BY a.day DESC LIMIT 14").all()
+      .map((d) => ({ ...d, usd: usdOf(d.units) }));
+    const house = q("SELECT game, SUM(wager) w, SUM(payout) p, COUNT(*) n FROM rounds WHERE mode = 'real' AND status = 'done' GROUP BY game").all().map((r) => ({ game: r.game, rounds: r.n, wageredUsd: usdOf(r.w), paidUsd: usdOf(r.p), houseUsd: usdOf(r.w - r.p) }));
     const liab = q('SELECT COALESCE(SUM(real_units),0) s FROM users').get().s;
-    return { cluster: cfg.cluster, hotWallet: hot, hotSol, treasury: cfg.TREASURY_ADDRESS || '(not set — sweeps stay in hot wallet)', hotFloatSol: cfg.HOT_FLOAT_SOL,
-      playerBalancesSol: solOf(liab), days, house, sweeps: q('SELECT s.*, a.address FROM sweeps s JOIN deposit_addresses a ON a.id = s.address_id ORDER BY s.id DESC LIMIT 20').all().map((s) => ({ ...s, sol: s.lamports / 1e9 })),
+    const sweeps = q('SELECT s.*, a.address FROM chain_sweeps s JOIN addresses a ON a.id = s.address_id ORDER BY s.id DESC LIMIT 20').all()
+      .map((s) => ({ id: s.id, ts: s.ts, asset: s.asset, address: s.address, dest: s.dest, coin: chains.toCoin(s.asset, s.base), status: s.status, note: s.note, url: s.txid ? pay.explorer(s.asset, s.txid) : null }));
+    return { cluster: cfg.cluster, testnet: cfg.TESTNET, wallets, hotFloatUsd: cfg.HOT_FLOAT_USD, playerBalancesUsd: usdOf(liab), days, house, sweeps,
       watcher: pay.watcherStatus(), users: q('SELECT COUNT(*) n FROM users').get().n,
-      referrals: (() => { const t = referrals.totals(); return { share: referrals.SHARE, referredPlayers: t.referred, pendingSol: solOf(t.pending / 1000), paidSol: solOf(t.paid / 1000) }; })() };
+      referrals: (() => { const t = referrals.totals(); return { share: referrals.SHARE, referredPlayers: t.referred, pendingUsd: usdOf(t.pending / 1000), paidUsd: usdOf(t.paid / 1000) }; })() };
   },
   /* ----- admin: user management ----- */
   'GET /api/admin/users': async (req, res, body, ip, u, url) => {
     need(can(u, 'staff'), 403, 'Staff only');
     const term = '%' + String(url.searchParams.get('q') || '').trim() + '%';
     const rows = q(`SELECT u.id, u.username, u.role, u.demo_units, u.real_units, u.created, u.disabled, u.muted_until, r.username AS referrer,
-      (SELECT COALESCE(SUM(c.lamports),0) FROM chain_txs c WHERE c.user_id = u.id AND c.kind = 'deposit') AS dep_lamports
+      (SELECT COALESCE(SUM(d.units),0) FROM deposits d WHERE d.user_id = u.id AND d.kind = 'deposit') AS dep_units
       FROM users u LEFT JOIN users r ON r.id = u.referred_by WHERE u.username LIKE ? ORDER BY u.id DESC LIMIT 100`).all(term);
     const log = q('SELECT l.*, a.username AS admin, t.username AS target FROM admin_log l JOIN users a ON a.id = l.admin_id LEFT JOIN users t ON t.id = l.target_id ORDER BY l.id DESC LIMIT 30').all();
-    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), realSol: solOf(x.real_units), created: x.created, disabled: !!x.disabled, muted: x.muted_until > Date.now(), referrer: x.referrer, depositedSol: x.dep_lamports / 1e9 })), log };
+    return { users: rows.map((x) => ({ id: x.id, username: x.username, role: x.role, demo: C2(x.demo_units), real: C2(x.real_units), created: x.created, disabled: !!x.disabled, muted: x.muted_until > Date.now(), referrer: x.referrer, deposited: usdOf(x.dep_units) })), log };
   },
   'POST /api/admin/users/create': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');
@@ -233,7 +236,7 @@ const routes = {
   },
   'GET /api/admin/withdrawals': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');
-    return { withdrawals: q('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id = w.user_id ORDER BY w.id DESC LIMIT 100').all().map((w) => ({ ...w, sol: w.lamports / 1e9 })) };
+    return { withdrawals: q('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id = w.user_id ORDER BY w.id DESC LIMIT 100').all().map((w) => ({ ...w, meta: undefined, coin: chains.toCoin(w.asset, w.base), usd: usdOf(w.units), url: w.signature ? pay.explorer(w.asset, w.signature) : null })) };
   },
   'POST /api/admin/withdrawal': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');

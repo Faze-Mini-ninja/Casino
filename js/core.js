@@ -25,7 +25,8 @@
   C.loggedIn = () => !!S.user;
   C.balanceOf = (m) => S.units[m] / 100;
   const demoStart = () => Number((S.config && S.config.demoStart) || 1000).toLocaleString('en-US');
-  C.solOf = (credits) => credits / (S.config.creditsPerSol || 1000);
+  /** Real-money amounts are dollars (1 credit = $1). */
+  C.money = (v) => '$' + C.fmt(v);
 
   /* ---------------- API ---------------- */
   C.api = async (method, path, body) => {
@@ -109,7 +110,7 @@
     const set = (v) => { input.value = r2(Math.max(0, v)); input.dispatchEvent(new Event('input')); };
     const btn = (label, f) => h('button', { class: 'btn small ghost', type: 'button', onclick: () => { if (!input.disabled) f(); } }, label);
     const solHint = h('div', { class: 'sol-hint' });
-    const hint = () => { solHint.textContent = S.mode === 'real' && +input.value > 0 ? `≈ ${C.fmtSol(C.solOf(+input.value))} SOL` : ''; };
+    const hint = () => { solHint.textContent = ''; };
     input.addEventListener('input', hint); C.onPage(hint); hint();
     const el = h('div', { class: 'bet-input' },
       h('label', null, opts.label || 'Bet'),
@@ -154,7 +155,7 @@
       h('div', { class: 'hint' }, 'Click a spot to place the selected chip. Right-click (or long-press) to remove.'));
     const paint = (id) => { const sp = T.spots[id]; if (!sp) return; const v = T.bets[id] || 0; sp.stack.textContent = v ? (v >= 1000 ? r2(v / 1000) + 'K' : r2(v)) : ''; sp.stack.style.display = v ? '' : 'none'; };
     T.total = () => r2(Object.values(T.bets).reduce((a, b) => a + b, 0));
-    const upd = () => { totalEl.textContent = C.fmt(T.total()) + (S.mode === 'real' && T.total() ? ` (≈${C.fmtSol(C.solOf(T.total()))} SOL)` : ''); Object.keys(T.spots).forEach(paint); };
+    const upd = () => { totalEl.textContent = S.mode === 'real' ? C.money(T.total()) : C.fmt(T.total()); Object.keys(T.spots).forEach(paint); };
     T.add = (id, v) => { if (T.locked) return; if (T.total() + v > C.balance() + 1e-9) { C.toast('Not enough balance for that chip', 'err'); return; } T.bets[id] = r2((T.bets[id] || 0) + v); upd(); };
     T.remove = (id) => { if (T.locked || !T.bets[id]) return; T.bets[id] = r2(T.bets[id] - Math.min(T.bets[id], T.chip)); if (!T.bets[id]) delete T.bets[id]; upd(); };
     T.clear = () => { if (T.locked) return; T.bets = {}; upd(); T.mark([]); };
@@ -322,8 +323,8 @@
     render();
     const pct = Math.round((S.config.referralShare || 0) * 100);
     const promos = cat ? null : h('div', { class: 'promos' },
-      S.user ? promo('Deposit', 'Top up with SOL', 'Send SOL to your personal address. It hits your balance as soon as the network confirms it.', 'Deposit', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
-        : promo('New here', `${demoStart()} free credits to start`, 'Play every game without depositing. Switch to SOL whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
+      S.user ? promo('Deposit', 'Deposit SOL, USDC, ETH or LTC', 'Send crypto to your personal address. It is credited in dollars as soon as the network confirms it.', 'Deposit', '#wallet', '#7c3aed', '#0ea5a4', 'wallet')
+        : promo('New here', `${demoStart()} free credits to start`, 'Play every game without depositing. Switch to real money whenever you want.', 'Create account', '#login', '#7c3aed', '#0ea5a4', 'star'),
       promo('Affiliates', 'Bring friends, get paid', `You earn ${pct}% commission on every real bet your friends place. Withdraw it whenever you like.`, 'Get my link', S.user ? '#referrals' : '#login', '#f97316', '#db2777', 'users'),
       promo('New slots', '8 new video slots', 'Free spins, 243 and 1024 ways, and a cabinet for every theme.', 'Play now', '#cat-slots', '#1d4ed8', '#7c3aed', 'slot', ['candy', 'pharaoh', 'dragon']));
     const feed = h('div', { class: 'section' }, h('div', { class: 'section-head' }, h('h2', null, C.icon('activity'), 'Latest bets')));
@@ -345,7 +346,7 @@
           payRows.map(([b, p]) => h('tr', null, h('td', null, b), h('td', null, p)))) : null));
     const page = h('div', { class: 'game-page' },
       h('div', { class: 'crumbs' }, h('a', { href: '#lobby' }, 'Casino'), '/', h('a', { href: '#cat-' + g.cat }, CAT_LABEL[g.cat]), '/', h('span', { class: 'cur-title' }, g.name),
-        h('span', { class: 'spacer' }), h('span', { class: 'mode-pill ' + S.mode }, S.mode === 'real' ? 'REAL SOL' : 'DEMO'), odds ? h('span', { class: 'edge-pill' }, 'House edge ' + g.edge) : null),
+        h('span', { class: 'spacer' }), h('span', { class: 'mode-pill ' + S.mode }, S.mode === 'real' ? 'REAL $' : 'DEMO'), odds ? h('span', { class: 'edge-pill' }, 'House edge ' + g.edge) : null),
       root, info);
     if (C.closed(g)) {
       root.append(h('div', { class: 'closed-note' }, h('h3', null, `${g.short || g.name} is closed for maintenance`), h('p', { class: 'muted' }, 'We\'ll have it back shortly. Try another game in the meantime.'), h('a', { class: 'btn', href: '#lobby' }, 'Back to lobby')));
@@ -395,44 +396,24 @@
     wrap.innerHTML = '';
     if (!w) return wrap;
     setUnits(w.balances);
-    const cfg = w.config, real = w.balances.real / 100;
-    const net = cfg.cluster === 'mainnet-beta' ? null : cfg.cluster;
-    const amount = h('input', { type: 'number', min: '0', step: '0.01', placeholder: 'Credits', inputmode: 'decimal' });
-    const solOut = h('span', { class: 'muted' });
-    amount.addEventListener('input', () => { solOut.textContent = +amount.value > 0 ? `≈ ${C.fmtSol(C.solOf(+amount.value) - cfg.withdrawFeeSol)} SOL after network fee` : ''; });
-    const dest = h('input', { placeholder: 'Your Solana wallet address', autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' });
-    const wBtn = h('button', { class: 'btn', onclick: async () => {
-      wBtn.disabled = true;
-      const r = await C.try(() => C.api('POST', '/api/withdraw', { address: dest.value.trim(), amount: +amount.value }));
-      wBtn.disabled = false;
-      if (r) { setUnits(r.balances); C.toast(r.status === 'approved' ? `Withdrawal of ${C.fmtSol(r.sol)} SOL is being sent` : 'Withdrawal requested — awaiting approval', 'win'); route(); }
-    } }, 'Withdraw');
-    const statusTag = (s) => h('span', { class: 'tag-s ' + s }, s);
-    const explorer = (sig) => `https://explorer.solana.com/tx/${sig}${net ? '?cluster=' + net : ''}`;
+    const real = w.balances.real / 100, cfg = w.config;
+    const statusTag = (s) => h('span', { class: 'tag-s ' + s }, s.replace('-', ' '));
+    const coinAmt = (asset, x) => `${(+x).toLocaleString(undefined, { maximumFractionDigits: asset === 'USDC' ? 2 : 6 })} ${asset}`;
+    const txLink = (url) => (url ? h('a', { href: url, target: '_blank', rel: 'noopener' }, 'view') : '—');
+    const open = (tab) => () => C.openWallet && C.openWallet(tab);
     wrap.append(
-      net ? h('div', { class: 'notice' }, `Test network: ${net}. Coins here have no value. Get free ${net} SOL from `, h('a', { href: 'https://faucet.solana.com', target: '_blank', rel: 'noopener' }, 'faucet.solana.com'), ', or switch Phantom to Devnet (Settings → Developer Settings → Testnet Mode).') : null,
-      h('div', { class: 'kpis' },
-        kpi('Real balance', `${C.fmt(real)} cr`), kpi('In SOL', C.fmtSol(C.solOf(real)) + ' SOL'), kpi('Credits per SOL', cfg.creditsPerSol.toLocaleString())),
-      h('div', { class: 'wallet-grid' },
-        h('div', { class: 'panel' }, h('h3', null, 'Deposit SOL'),
-          w.address ? [
-            h('p', { class: 'muted' }, `Your deposit address for today (${w.day} UTC). A fresh address is issued every day; deposits to your older addresses are still credited for ${cfg.watchDays} days.`),
-            h('div', { class: 'addr' }, w.address),
-            h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => C.copy(w.address) }, 'Copy address'),
-              h('a', { class: 'btn small ghost', href: `solana:${w.address}?label=krush.casino` }, 'Open in wallet app')),
-            h('p', { class: 'muted small' }, `Send SOL only (not tokens). Minimum ${cfg.minDepositSol} SOL. Deposits are credited after the transaction is finalized on-chain (usually under a minute).`),
-          ] : h('p', { class: 'muted' }, 'Deposits are not enabled on this server.')),
-        h('div', { class: 'panel' }, h('h3', null, 'Withdraw SOL'),
-          h('div', { class: 'field' }, h('label', null, 'Amount (credits)'), h('div', { class: 'row' }, amount, h('button', { class: 'btn small ghost', onclick: () => { amount.value = real; amount.dispatchEvent(new Event('input')); } }, 'Max')), solOut),
-          h('div', { class: 'field' }, h('label', null, 'Destination address'), dest), wBtn,
-          h('p', { class: 'muted small' }, `Minimum ${cfg.minWithdrawSol} SOL. Up to ${cfg.autoApproveSol} SOL is sent automatically; larger withdrawals are reviewed first.`))),
+      cfg.testnet && cfg.chainEnabled ? h('div', { class: 'notice' }, 'Test networks are on (Solana devnet, Ethereum Sepolia, Litecoin testnet). Coins here have no value.') : null,
+      h('div', { class: 'kpis' }, kpi('Real balance', C.money(real)), ...cfg.coins.filter((c) => w.prices[c.id]).map((c) => kpi(`1 ${c.id}`, C.money(w.prices[c.id])))),
+      h('div', { class: 'row', style: 'gap:10px;margin-bottom:16px' }, h('button', { class: 'btn', onclick: open('deposit') }, 'Deposit'), h('button', { class: 'btn ghost', onclick: open('withdraw') }, 'Withdraw')),
       h('div', { class: 'panel' }, h('h3', null, 'Deposits'),
-        w.deposits.length ? h('table', { class: 'data' }, h('tr', null, ['Time', 'SOL', 'Credited', 'Status', 'Tx'].map((x) => h('th', null, x))),
-          w.deposits.map((d) => h('tr', null, h('td', null, new Date(d.ts).toLocaleString()), h('td', null, C.fmtSol(d.sol)), h('td', null, C.fmt(d.credits)), h('td', null, statusTag(d.kind === 'deposit' ? 'credited' : 'below minimum')), h('td', null, h('a', { href: explorer(d.signature), target: '_blank', rel: 'noopener' }, d.signature.slice(0, 8) + '…')))))
+        w.deposits.length ? h('table', { class: 'data' }, h('tr', null, ['Time', 'Coin', 'Amount', 'Credited', 'Status', 'Tx'].map((x) => h('th', null, x))),
+          w.deposits.map((d) => h('tr', null, h('td', null, new Date(d.ts).toLocaleString()), h('td', null, h('b', null, d.asset)), h('td', null, coinAmt(d.asset, d.coin)), h('td', null, d.usd ? C.money(d.usd) : '—'),
+            h('td', null, statusTag(d.kind === 'deposit' ? 'credited' : 'below-minimum')), h('td', null, txLink(d.url)))))
           : h('p', { class: 'muted' }, 'No deposits yet.'),
         h('h3', null, 'Withdrawals'),
-        w.withdrawals.length ? h('table', { class: 'data' }, h('tr', null, ['Time', 'SOL', 'To', 'Status', 'Tx'].map((x) => h('th', null, x))),
-          w.withdrawals.map((x) => h('tr', null, h('td', null, new Date(x.created).toLocaleString()), h('td', null, C.fmtSol(x.sol)), h('td', { class: 'mono' }, x.dest.slice(0, 6) + '…' + x.dest.slice(-4)), h('td', null, statusTag(x.status), x.note ? h('div', { class: 'muted small' }, x.note) : null), h('td', null, x.signature ? h('a', { href: explorer(x.signature), target: '_blank', rel: 'noopener' }, x.signature.slice(0, 8) + '…') : '—'))))
+        w.withdrawals.length ? h('table', { class: 'data' }, h('tr', null, ['Time', 'Coin', 'Amount', 'Debited', 'To', 'Status', 'Tx'].map((x) => h('th', null, x))),
+          w.withdrawals.map((x) => h('tr', null, h('td', null, new Date(x.created).toLocaleString()), h('td', null, h('b', null, x.asset)), h('td', null, coinAmt(x.asset, x.coin)), h('td', null, C.money(x.usd)),
+            h('td', { class: 'mono' }, x.dest.slice(0, 6) + '…' + x.dest.slice(-4)), h('td', null, statusTag(x.status), x.note ? h('div', { class: 'muted small' }, x.note) : null), h('td', null, txLink(x.url)))))
           : h('p', { class: 'muted' }, 'No withdrawals yet.')));
     return wrap;
   }
@@ -446,7 +427,7 @@
     const claimBtn = h('button', { class: 'btn green', disabled: r.pending < 0.01 ? true : null, onclick: async () => {
       claimBtn.disabled = true;
       const c = await C.try(() => C.api('POST', '/api/referrals/claim'));
-      if (c) { setUnits(c.balances); C.toast(`Claimed ${C.fmt(c.claimed)} credits (≈${C.fmtSol(C.solOf(c.claimed))} SOL) to your real balance`, 'win'); route(); } else claimBtn.disabled = false;
+      if (c) { setUnits(c.balances); C.toast(`Claimed ${C.money(c.claimed)} to your real balance`, 'win'); route(); } else claimBtn.disabled = false;
     } }, 'Claim to real balance');
     const codeIn = h('input', { placeholder: 'Enter a referral code', autocapitalize: 'characters' });
     return h('div', { class: 'wallet-page' },
@@ -454,8 +435,8 @@
         h('p', null, `Share your link. You earn `, h('b', null, `${pct}% of the casino's profit margin`), ` on every real-money bet your referred players make, win or lose, for as long as they play. Commission builds up below; claim it into your real balance any time.`),
         h('div', { class: 'addr' }, link),
         h('div', { class: 'row' }, h('button', { class: 'btn small', onclick: () => C.copy(link) }, 'Copy link'), h('button', { class: 'btn small ghost', onclick: () => C.copy(r.code) }, 'Copy code ' + r.code))),
-      h('div', { class: 'kpis' }, kpi('Ready to claim', C.fmt(r.pending) + ' cr'), kpi('≈ SOL', C.fmtSol(C.solOf(r.pending))), kpi('Claimed so far', C.fmt(r.paid) + ' cr'), kpi('Players referred', r.referrals.length), kpi('Their real wagers', C.fmt(total.w) + ' cr')),
-      h('div', { class: 'row' }, claimBtn, h('span', { class: 'muted small' }, 'Commission is earned on real-money (SOL) play only, not demo credits.')),
+      h('div', { class: 'kpis' }, kpi('Ready to claim', C.money(r.pending)), kpi('Claimed so far', C.money(r.paid)), kpi('Players referred', r.referrals.length), kpi('Their real wagers', C.fmt(total.w) + ' cr')),
+      h('div', { class: 'row' }, claimBtn, h('span', { class: 'muted small' }, 'Commission is earned on real-money play only, not demo credits.')),
       h('div', { class: 'panel' }, h('h3', null, 'Your referrals'),
         r.referrals.length ? h('table', { class: 'data' }, h('tr', null, ['Player', 'Joined', 'Rounds', 'Wagered', 'Your commission'].map((x) => h('th', null, x))),
           r.referrals.map((x) => h('tr', null, h('td', null, x.name), h('td', null, new Date(x.joined).toLocaleDateString()), h('td', null, x.rounds), h('td', null, C.fmt(x.wagered)), h('td', { class: 'pos' }, C.fmt(x.commission)))))
@@ -485,7 +466,7 @@
   async function historyPage() {
     const r = await C.try(() => C.api('GET', '/api/history?mode=' + S.mode));
     const n = names();
-    return h('div', { class: 'panel' }, h('h2', null, `Recent rounds (${S.mode === 'real' ? 'real SOL' : 'demo'})`),
+    return h('div', { class: 'panel' }, h('h2', null, `Recent rounds (${S.mode === 'real' ? 'real money' : 'demo'})`),
       r && r.rounds.length ? h('table', { class: 'data' },
         h('tr', null, ['Time', 'Game', 'Wager', 'Payout', 'Net', 'Details'].map((x) => h('th', null, x))),
         r.rounds.map((x) => h('tr', null, h('td', null, new Date(x.t).toLocaleTimeString()), h('td', null, n[x.game] || x.game), h('td', null, C.fmt(x.wager)), h('td', null, C.fmt(x.payout)),
@@ -498,7 +479,7 @@
     const n = names(), edges = Object.fromEntries(C.games.filter((g) => !g.statId).map((g) => [g.id, g.edge]));
     const rows = r ? r.games : [];
     const tot = rows.reduce((a, x) => ({ w: a.w + x.wagered, p: a.p + x.won, n: a.n + x.rounds }), { w: 0, p: 0, n: 0 });
-    return h('div', { class: 'panel' }, h('h2', null, `Your statistics (${S.mode === 'real' ? 'real SOL' : 'demo'})`),
+    return h('div', { class: 'panel' }, h('h2', null, `Your statistics (${S.mode === 'real' ? 'real money' : 'demo'})`),
       h('div', { class: 'kpis' }, kpi('Balance', C.fmt(C.balance())), kpi('Rounds', tot.n), kpi('Total wagered', C.fmt(tot.w)), kpi('Total returned', C.fmt(tot.p)), kpi('Net result', C.fmt(tot.p - tot.w)), kpi('Your RTP', tot.w ? ((tot.p / tot.w) * 100).toFixed(2) + '%' : '—')),
       rows.length ? h('table', { class: 'data' }, h('tr', null, ['Game', 'Rounds', 'Wagered', 'Returned', 'Net', 'Your RTP', C.odds() ? 'House edge' : null].filter(Boolean).map((x) => h('th', null, x))),
         rows.map((x) => h('tr', null, h('td', null, n[x.game] || x.game), h('td', null, x.rounds), h('td', null, C.fmt(x.wagered)), h('td', null, C.fmt(x.won)), h('td', { class: x.won - x.wagered >= 0 ? 'pos' : 'neg' }, C.fmt(x.won - x.wagered)), h('td', null, x.wagered ? ((x.won / x.wagered) * 100).toFixed(2) + '%' : '—'), C.odds() ? h('td', null, edges[x.game] || '') : null)))
@@ -618,9 +599,9 @@
     let shown = null;
     const paint = () => {
       const v = C.balance(), real = S.mode === 'real';
-      balEl.textContent = real ? C.fmtSol(C.solOf(v)) : C.fmt(v);
-      ico.className = 'cur ' + (real ? 'sol' : 'demo'); ico.textContent = real ? '◎' : 'D';
-      document.getElementById('amt-real').textContent = C.fmtSol(C.solOf(S.units.real / 100));
+      balEl.textContent = C.fmt(v);
+      ico.className = 'cur ' + (real ? 'usd' : 'demo'); ico.textContent = real ? '$' : 'D';
+      document.getElementById('amt-real').textContent = C.money(S.units.real / 100);
       document.getElementById('amt-demo').textContent = C.fmt(S.units.demo / 100);
       balEl.classList.remove('up', 'down'); void balEl.offsetWidth;
       if (shown != null && shown.mode === S.mode) { if (v > shown.v) balEl.classList.add('up'); else if (v < shown.v) balEl.classList.add('down'); }
@@ -639,7 +620,7 @@
       menu.classList.remove('open');
       if (b.dataset.mode === S.mode) return;
       C.setMode(b.dataset.mode);
-      C.toast(S.mode === 'real' ? 'Now playing with SOL' : 'Now playing with demo credits', S.mode === 'real' ? 'win' : '');
+      C.toast(S.mode === 'real' ? 'Now playing with real money ($)' : 'Now playing with demo credits', S.mode === 'real' ? 'win' : '');
       const onGame = C.games.some((g) => '#' + g.id === location.hash);
       if (onGame || ['', '#', '#lobby', '#history', '#stats', '#wallet'].includes(location.hash)) route();
     }));

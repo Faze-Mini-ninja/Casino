@@ -3,7 +3,7 @@
 'use strict';
 const os = require('os'), path = require('path'), fs = require('fs');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'casino-test-'));
-Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PORT: '0', PLAY_RATE_PER_5S: '100000', ADMIN_USERNAME: 'owner', ADMIN_PASSWORD: 'owner-password-1', SOLANA_CLUSTER: 'devnet' });
+Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'false', PORT: '0', PLAY_RATE_PER_5S: '100000', ADMIN_USERNAME: 'owner', ADMIN_PASSWORD: 'owner-password-1', SOLANA_CLUSTER: 'devnet', DEMO_START_CREDITS: '100000' });
 const { server } = require('../server/index.js');
 let cookie = '', base = '', fails = 0;
 const api = async (method, p, body) => {
@@ -16,9 +16,9 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
 (async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
   let r = await api('POST', '/api/register', { username: 'tester', password: 'password123' });
-  ok(r.user && r.user.role === 'player' && r.balances.demo === 100000, 'register gives 1,000 demo credits; first user is NOT admin when ADMIN_USERNAME is set');
+  ok(r.user && r.user.role === 'player' && r.balances.demo === 10000000, 'register gives DEMO_START_CREDITS demo credits; first user is NOT admin when ADMIN_USERNAME is set');
   ok((await api('GET', '/api/me')).config.showOdds === false, 'odds hidden by default');
-  ok((await api('POST', '/api/demo/refill'))._status === 400, 'no demo top-up while above 100 credits');
+  ok((await api('POST', '/api/demo/refill'))._status === 400, 'no demo top-up while above 10% of the starting amount');
   const bal = async () => (await api('GET', '/api/me')).balances.demo;
   // security checks
   ok((await play('slots', null, { bet: -5 }))._status === 400, 'negative bet rejected');
@@ -96,7 +96,7 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
   console.log('ok fish');
   // stats & wallet endpoint
   ok((await api('GET', '/api/stats?mode=demo')).games.length >= 25, 'stats aggregate');
-  ok((await api('GET', '/api/wallet')).address === null, 'wallet works with chain disabled');
+  ok(Object.keys((await api('GET', '/api/wallet')).addresses).length === 0, 'wallet works with chain disabled');
   // ledger reconciles with balance
   const { q } = require('../server/db');
   const led = q("SELECT SUM(delta) s FROM ledger WHERE user_id = (SELECT id FROM users WHERE username = 'tester') AND mode = 'demo'").get().s;
@@ -115,7 +115,7 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
   // admin user management
   ok((await api('POST', '/api/admin/users/create', { username: 'Brandon', password: 'brandon123', demo: 10000, real: 10000 })).ok, 'admin creates Brandon with 10,000 real credits');
   const bl = (await api('GET', '/api/admin/users?q=Brandon')).users[0];
-  ok(bl && bl.real === 10000 && bl.demo === 10000 && bl.realSol === 10, 'Brandon has 10,000 real (10 SOL) + 10,000 demo');
+  ok(bl && bl.real === 10000 && bl.demo === 10000, 'Brandon has $10,000 real + 10,000 demo');
   ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'real', amount: 250, note: 'test top-up' })).balances.real === 1025000, 'admin adds 250 real credits');
   ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'real', amount: -999999 }))._status === 400, 'cannot remove more than the balance');
   ok((await api('POST', '/api/admin/users/adjust', { id: bl.id, mode: 'demo', amount: -500 })).balances.demo === 950000, 'admin removes 500 demo credits');
