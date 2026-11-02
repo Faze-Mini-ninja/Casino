@@ -125,11 +125,28 @@ player ──coin──▶ today's deposit address ──sweep──▶ that coi
   hot float small, and put the treasury on a hardware or multisig wallet.
 - Use paid RPC/API providers in production (`RPC_URL`, `ETH_RPC_URL`, `LTC_API_URL`); the public endpoints are rate-limited.
 
-## Before mainnet (not built yet)
-This code handles the money mechanics. Running it for real money also needs:
-KYC/age verification, AML monitoring, geo-blocking, responsible-gambling tools (deposit limits, self-exclusion),
-regulator-approved RTPs (several games here have 20–40% edges, above what many regulators accept),
-an audit of the payments code, and monitoring/alerting for the hot wallet and the watcher.
+## Compliance (`server/compliance.js`)
+- **Geo-blocking.** Players in `BLOCKED_COUNTRIES` can't sign up, deposit, bet or tip real money; they can still log in,
+  play demo games and withdraw. The country comes from the bundled GeoIP database (`geoip-country`, refreshed by
+  `npm update geoip-country`) or, if every request goes through Cloudflare, from its header (`GEO_HEADER=cf-ipcountry`).
+  Unknown locations and Tor are blocked on mainnet (`GEO_UNKNOWN`). The default list is a typical Anjouan
+  restricted list plus FATF high-risk countries: **check it against your licence**. VPNs are not detected.
+- **Behind a proxy** set `TRUST_PROXY=true` and `PROXY_HOPS` to the number of proxies (Railway alone = 1; Cloudflare
+  in front of Railway = 2, or use `GEO_HEADER`), otherwise a player could fake their IP and country.
+- **Age.** Sign-up requires confirming 18+ and not being in a restricted country. (Real ID checks: add KYC.)
+- **Responsible gambling** (player page `#rg`): deposit limits per 24 h / 7 / 30 days (tighter is immediate, looser
+  waits `RG_INCREASE_DELAY_HOURS`), cool-off 24 h–6 weeks (no real money), self-exclusion 6 months–permanent (no
+  play at all). Neither can be lifted early, by anyone. Admins can also exclude a player. Crypto can't be refused, so
+  a deposit sent anyway is credited and flagged for staff.
+- **AML flags** (Staff Panel → Compliance): large single deposits (`AML_DEPOSIT_FLAG_USD`), high 24 h deposits
+  (`AML_DAILY_FLAG_USD`), deposits over a limit or during a break, and withdrawals before wagering
+  `AML_MIN_TURNOVER` × recent deposits. While a flag is open every withdrawal waits for manual approval; clearing a
+  flag needs a note and is written to the audit log.
+- **Licence details** for the footer: `LICENSE_TEXT`.
+
+## Before mainnet (still to do)
+KYC (ID and proof-of-address checks; planned), regulator-approved RTPs if your licence needs them, an audit of the
+payments code, and monitoring/alerting for the hot wallet and the watcher.
 
 ## Tests
 
@@ -205,6 +222,7 @@ server/index.js     HTTP server, auth, API routes, admin
 server/games.js     all games' server-side logic
 server/play.js      round engine (debit → play → settle → record, one DB transaction)
 server/payments.js  daily deposit wallets, crediting, sweeps, withdrawals, watcher loop
+server/compliance.js geo-blocking, deposit limits, cool-off, self-exclusion, AML flags
 server/wallet.js    HD key derivation (SLIP-0010, Phantom-compatible)
 server/chain.js     Solana RPC wrapper
 server/db.js        SQLite schema, balances, ledger
@@ -217,6 +235,7 @@ server/stream.js    live updates to browsers (Server-Sent Events)
 js/staff.js         Staff Panel UI
 js/chat.js          chat panel and tip dialog
 js/support.js       player support page
+js/rg.js            responsible-gambling page and the break/blocked notice
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby
 js/games/*.js       one UI file per game (more-*.js hold games 34–53, video-slots.js all video slots)

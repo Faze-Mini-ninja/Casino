@@ -66,8 +66,10 @@
     const paintDeposit = () => {
       depBox.innerHTML = '';
       const c = info[cur], a = w.addresses[cur];
+      if (w.depositBlock) { depBox.append(h('div', { class: 'notice warn' }, w.depositBlock, ' ', h('a', { href: '#rg', onclick: () => close() }, 'Responsible gambling'))); return; }
       if (!a) { depBox.append(h('div', { class: 'notice' }, 'Deposits are not switched on yet on this site.')); return; }
       depBox.append(
+        w.depositRoom != null ? h('p', { class: 'wl-room muted' }, `Your deposit limit lets you deposit ${C.money(w.depositRoom)} more right now. Anything above that is still credited but goes against your limit.`) : null,
         h('div', { class: 'wl-net' }, h('span', { class: 'muted' }, 'Network'), h('b', null, c.network), px[cur] ? h('span', { class: 'wl-px' }, `1 ${cur} ≈ ${C.money(px[cur])}`) : null),
         h('div', { class: 'wl-dep' },
           h('div', { class: 'wl-qr', html: qrSvg(a.address) }),

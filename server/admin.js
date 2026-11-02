@@ -7,6 +7,8 @@ const settings = require('./settings');
 const stream = require('./stream');
 const { G } = require('./games');
 const { can, RANK } = require('./social');
+const rg = require('./compliance');
+const cfg = require('./config');
 
 const C2 = (u) => Math.round(u || 0) / 100;
 const usdOf = (units) => Math.round(units || 0) / 100; // ledger units are cents
@@ -30,6 +32,7 @@ module.exports = function adminRoutes({ need, audit }) {
         users: q('SELECT COUNT(*) n FROM users').get().n,
         openTickets: q("SELECT COUNT(*) n FROM tickets WHERE status = 'open'").get().n,
         pendingWithdrawals: q("SELECT COUNT(*) n FROM withdrawals WHERE status = 'pending'").get().n,
+        openFlags: q("SELECT COUNT(*) n FROM aml_flags WHERE status = 'open'").get().n,
         depositsUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM deposits WHERE kind = 'deposit' AND ts > ?").get(day).s),
         topGames: q("SELECT game, COUNT(*) n, SUM(wager) w FROM rounds WHERE status = 'done' AND updated > ? GROUP BY game ORDER BY n DESC LIMIT 6").all(day).map((g) => ({ game: g.game, bets: g.n, wagered: C2(g.w) })),
       };
@@ -42,7 +45,10 @@ module.exports = function adminRoutes({ need, audit }) {
         .map((r) => ({ game: r.game, rounds: r.n, wagered: C2(r.w), won: C2(r.p) }));
       return {
         user: { id: t.id, username: t.username, role: t.role, created: t.created, disabled: !!t.disabled, mutedUntil: t.muted_until, demo: C2(t.demo_units), real: C2(t.real_units),
-          referrer: t.referred_by ? (q('SELECT username FROM users WHERE id = ?').get(t.referred_by) || {}).username : null, refCode: t.ref_code },
+          referrer: t.referred_by ? (q('SELECT username FROM users WHERE id = ?').get(t.referred_by) || {}).username : null, refCode: t.ref_code,
+          country: t.country, signupCountry: t.signup_country, ageConfirmed: !!t.age_confirmed },
+        rg: (() => { const st = rg.status(t.id, t.country); return { block: st.block, limits: st.limits, pending: st.pending, geoBlocked: st.geoBlocked }; })(),
+        flags: q('SELECT id, kind, detail, status, note, created, reviewed_at FROM aml_flags WHERE user_id = ? ORDER BY id DESC LIMIT 20').all(t.id),
         totals: {
           depositedUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM deposits WHERE user_id = ? AND kind = 'deposit'").get(t.id).s),
           withdrawnUsd: usdOf(q("SELECT COALESCE(SUM(units),0) s FROM withdrawals WHERE user_id = ? AND status = 'sent'").get(t.id).s),
@@ -54,6 +60,32 @@ module.exports = function adminRoutes({ need, audit }) {
         rounds: q("SELECT id, game, mode, wager, payout, detail, updated FROM rounds WHERE user_id = ? AND status = 'done' ORDER BY id DESC LIMIT 25").all(t.id).map((r) => ({ ...r, wager: C2(r.wager), payout: C2(r.payout) })),
         ledger: can(u, 'admin') ? q('SELECT mode, delta, reason, ref, balance_after, ts FROM ledger WHERE user_id = ? ORDER BY id DESC LIMIT 30').all(t.id).map((l) => ({ ...l, delta: C2(l.delta), balance_after: C2(l.balance_after) })) : [],
       };
+    },
+
+    /* ----- compliance ----- */
+    'GET /api/admin/compliance': async (req, res, body, ip, u, url) => {
+      staff(u, 'admin');
+      const st = ['open', 'cleared', 'all'].includes(url.searchParams.get('status')) ? url.searchParams.get('status') : 'open';
+      const blocks = q(`SELECT b.kind, b.until, b.created, u.id AS user_id, u.username FROM rg_blocks b JOIN users u ON u.id = b.user_id
+        WHERE b.until IS NULL OR b.until > ? ORDER BY b.id DESC LIMIT 200`).all(Date.now());
+      return { flags: rg.listFlags(st).map((f) => ({ ...f, usd: f.units == null ? null : usdOf(f.units) })), blocks,
+        settings: { geoBlocking: cfg.GEO_BLOCKING, blockedCountries: cfg.BLOCKED_COUNTRIES, geoUnknown: cfg.GEO_UNKNOWN } };
+    },
+    'POST /api/admin/compliance/clear': async (req, res, body, ip, u) => {
+      staff(u, 'admin');
+      need(String(body.note || '').trim().length >= 3, 400, 'Write a short note on what you checked');
+      const f = q('SELECT * FROM aml_flags WHERE id = ?').get(Number(body.id)); need(f, 404, 'Flag not found');
+      try { rg.reviewFlag(f.id, u.id, body.note); } catch (e) { need(false, 400, e.message); }
+      audit(u, 'clear-flag', f.user_id, `${f.kind}: ${String(body.note).slice(0, 200)}`);
+      return { ok: true };
+    },
+    'POST /api/admin/rg/exclude': async (req, res, body, ip, u) => {
+      staff(u, 'admin');
+      const t = q('SELECT * FROM users WHERE id = ?').get(Number(body.id)); need(t, 404, 'Player not found');
+      need(t.id !== u.id, 400, 'You cannot exclude your own account');
+      try { rg.selfExclude(t.id, body.months, u.id); } catch (e) { need(false, 400, e.message); }
+      audit(u, 'exclude', t.id, Number(body.months) ? `${body.months} months` : 'permanent');
+      return { ok: true };
     },
 
     'POST /api/admin/users/role': async (req, res, body, ip, u) => {

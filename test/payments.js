@@ -4,7 +4,7 @@
 'use strict';
 const os = require('os'), path = require('path'), fs = require('fs');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'casino-pay-'));
-Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'true', SOLANA_CLUSTER: 'devnet', PRICE_OVERRIDE: 'SOL:150,ETH:3000,LTC:80', ADMIN_USERNAME: '', ADMIN_PASSWORD: '' });
+Object.assign(process.env, { DB_FILE: path.join(dir, 't.db'), DATA_DIR: dir, CHAIN_ENABLED: 'true', SOLANA_CLUSTER: 'devnet', PRICE_OVERRIDE: 'SOL:150,ETH:3000,LTC:80', AML_MIN_TURNOVER: '0', AML_DEPOSIT_FLAG_USD: '0', AML_DAILY_FLAG_USD: '0', ADMIN_USERNAME: '', ADMIN_PASSWORD: '' });
 let fails = 0;
 const ok = (c, m) => { if (!c) { fails++; console.log('  FAIL:', m); } else console.log('  ok', m); };
 const near = (a, b) => Math.abs(a - b) < 1e-9;

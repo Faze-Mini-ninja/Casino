@@ -5,7 +5,7 @@
   const TABS = [
     ['dash', 'Dashboard', 'chart', 'mod'], ['players', 'Players', 'users', 'staff'], ['live', 'Live', 'live', 'mod'],
     ['games', 'Games & odds', 'sliders', 'admin'], ['support', 'Support', 'ticket2', 'mod'], ['chat', 'Chat', 'chat', 'mod'],
-    ['announce', 'Announcement', 'mega', 'staff'], ['withdrawals', 'Withdrawals', 'wallet', 'admin'], ['treasury', 'Treasury', 'shield', 'admin'], ['log', 'Log', 'clock', 'admin'],
+    ['announce', 'Announcement', 'mega', 'staff'], ['withdrawals', 'Withdrawals', 'wallet', 'admin'], ['compliance', 'Compliance', 'shield', 'admin'], ['treasury', 'Treasury', 'shield', 'admin'], ['log', 'Log', 'clock', 'admin'],
   ];
   const ROLE_LABEL = { player: 'Player', mod: 'Mod', staff: 'Staff', admin: 'Admin' };
   const gname = (id) => { const g = C.games.find((x) => x.id === id) || C.games.find((x) => (x.statId || x.round) === id); return g ? (g.short || g.name) : id; };
@@ -24,7 +24,7 @@
     const nav = h('div', { class: 'staff-tabs' }, tabs.map(([k, label, icon]) => h('a', { class: 'stab' + (k === cur ? ' sel' : ''), href: '#admin-' + k }, C.icon(icon), label, h('span', { class: 'sbadge', 'data-badge': k }))));
     const page = h('div', { class: 'staff' },
       h('div', { class: 'staff-head' }, h('div', null, h('h2', null, 'Staff Panel'), h('div', { class: 'muted small' }, 'Signed in as ', h('b', null, S.user.username), ' ', roleBadge(S.user.role))), nav), body);
-    const views = { dash, players, live, games, support, chat, announce, withdrawals, treasury, log };
+    const views = { dash, players, live, games, support, chat, announce, withdrawals, compliance, treasury, log };
     body.append(await views[cur](arg));
     badges(nav);
     return page;
@@ -33,7 +33,7 @@
   async function badges(nav) {
     const d = await C.try(() => C.api('GET', '/api/admin/dash')); if (!d) return;
     const set = (k, n) => { const b = nav.querySelector(`[data-badge="${k}"]`); if (b) { b.textContent = n || ''; b.style.display = n ? '' : 'none'; } };
-    set('support', d.openTickets); set('withdrawals', d.pendingWithdrawals);
+    set('support', d.openTickets); set('withdrawals', d.pendingWithdrawals); set('compliance', d.openFlags);
   }
 
   /* ---------------- Dashboard ---------------- */
@@ -47,7 +47,7 @@
           C.kpi('Online now', `${d.online.total}`, 'accent'), C.kpi('Signed-in players online', d.online.users), C.kpi('Real GGR (24h)', C.money(d.real.ggrUsd), d.real.ggrUsd >= 0 ? 'good' : 'bad'),
           C.kpi('Real wagered (24h)', C.money(d.real.wageredUsd)), C.kpi('Real bets (24h)', d.real.bets.toLocaleString()), C.kpi('Demo bets (24h)', d.demo.bets.toLocaleString()),
           C.kpi('Deposits (24h)', C.money(d.depositsUsd)), C.kpi('Games in progress', d.activeRounds), C.kpi('New players (24h)', d.newUsers), C.kpi('Players total', d.users),
-          C.kpi('Open tickets', d.openTickets, d.openTickets ? 'warn' : ''), C.kpi('Withdrawals to review', d.pendingWithdrawals, d.pendingWithdrawals ? 'warn' : '')),
+          C.kpi('Open tickets', d.openTickets, d.openTickets ? 'warn' : ''), C.kpi('Withdrawals to review', d.pendingWithdrawals, d.pendingWithdrawals ? 'warn' : ''), C.kpi('Compliance flags', d.openFlags, d.openFlags ? 'warn' : '')),
         h('div', { class: 'panel' }, h('h3', null, 'Most played (24h)'), tbl(['Game', 'Bets', 'Wagered (credits)'], d.topGames.map((g) => h('tr', null, h('td', null, gname(g.game)), h('td', null, g.bets), h('td', null, C.fmt(g.wagered)))), 'No bets in the last 24 hours.')));
     };
     await paint();
@@ -139,13 +139,67 @@
       h('a', { class: 'back-link', href: '#admin-players' }, '← All players'),
       h('div', { class: 'phead' }, h('div', { class: 'pavatar' }, u.username[0].toUpperCase()),
         h('div', null, h('h2', null, u.username, ' ', roleBadge(u.role), u.disabled ? h('span', { class: 'tag-s failed' }, 'Disabled') : null),
-          h('div', { class: 'muted small' }, `Player #${u.id} · joined ${new Date(u.created).toLocaleDateString()}`, u.referrer ? ` · referred by ${u.referrer}` : '', ` · referral code ${u.refCode || '—'}`))),
+          h('div', { class: 'muted small' }, `Player #${u.id} · joined ${new Date(u.created).toLocaleDateString()}`, u.referrer ? ` · referred by ${u.referrer}` : '', ` · referral code ${u.refCode || '—'}`,
+            ` · country ${u.country || '?'}${u.signupCountry && u.signupCountry !== u.country ? ` (signed up from ${u.signupCountry})` : ''}`))),
       h('div', { class: 'kpis' }, C.kpi('Real balance', C.money(u.real)), C.kpi('Demo balance', C.fmt(u.demo)), C.kpi('Deposited', C.money(t.depositedUsd)), C.kpi('Withdrawn', C.money(t.withdrawnUsd)),
         C.kpi('Real tips sent / received', `${C.fmt(t.tipsSent)} / ${C.fmt(t.tipsReceived)}`), C.kpi('Players referred', t.referrals)),
       actions.children.length ? actions : null,
+      rgPanel(u, r),
       h('div', { class: 'panel' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' }, h('h3', { style: 'margin:0' }, 'Results by game'), statTabs), statsBox),
       h('div', { class: 'panel' }, h('h3', null, 'Recent bets'), tbl(['Time', 'Game', 'Mode', 'Bet', 'Paid', 'Details'], r.rounds.map((x) => h('tr', null, h('td', { class: 'muted' }, ago(x.updated)), h('td', null, gname(x.game)), h('td', null, x.mode === 'real' ? 'SOL' : 'Demo'), h('td', null, C.fmt(x.wager)), h('td', { class: x.payout > x.wager ? 'pos' : '' }, C.fmt(x.payout)), h('td', { class: 'muted' }, x.detail))))),
       r.ledger.length ? h('div', { class: 'panel' }, h('h3', null, 'Balance history'), tbl(['Time', 'Wallet', 'Change', 'Balance after', 'Reason', 'Ref'], r.ledger.map((l) => h('tr', null, h('td', { class: 'muted' }, ago(l.ts)), h('td', null, l.mode), h('td', { class: l.delta >= 0 ? 'pos' : 'neg' }, (l.delta >= 0 ? '+' : '') + C.fmt(l.delta)), h('td', null, C.fmt(l.balance_after)), h('td', null, l.reason), h('td', { class: 'muted mono' }, l.ref || ''))))) : null);
+  }
+
+  /* ---------------- Responsible gambling & AML (profile panel and Compliance tab) ---------------- */
+  const untilText = (t) => (t == null ? 'permanently' : 'until ' + new Date(t).toLocaleString());
+  const FLAG = { 'large-deposit': 'Large deposit', 'daily-deposits': 'High 24 h deposits', 'low-turnover': 'Withdrawal with little play', 'over-deposit-limit': 'Over deposit limit',
+    'deposit-while-cooloff': 'Deposit during cool-off', 'deposit-while-exclusion': 'Deposit during self-exclusion' };
+  function rgPanel(u, r) {
+    if (!r.rg) return null;
+    const lim = (k) => (r.rg.limits[k].limit == null ? 'none' : `${C.money(r.rg.limits[k].used)} / ${C.money(r.rg.limits[k].limit)}`);
+    const months = h('select', null, h('option', { value: '6' }, '6 months'), h('option', { value: '12' }, '1 year'), h('option', { value: '60' }, '5 years'), h('option', { value: '0' }, 'Permanently'));
+    return h('div', { class: 'panel' }, h('h3', null, 'Responsible gambling & AML'),
+      h('p', null, r.rg.block ? h('span', { class: 'tag-s failed' }, `${r.rg.block.kind === 'exclusion' ? 'Self-excluded' : 'Cool-off'} ${untilText(r.rg.block.until)}`) : h('span', { class: 'muted' }, 'No break or self-exclusion.'),
+        r.rg.geoBlocked ? h('span', { class: 'tag-s pending', style: 'margin-left:8px' }, `Last seen in a blocked country (${u.country || 'unknown'})`) : null),
+      h('p', { class: 'muted small' }, `Deposit limits — 24 h: ${lim('daily')} · 7 days: ${lim('weekly')} · 30 days: ${lim('monthly')}`),
+      C.can('admin') && u.role !== 'admin' ? h('div', { class: 'row' }, months, h('button', { class: 'btn small red', onclick: async () => {
+        if (!confirm(`Exclude ${u.username}? It cannot be lifted early.`)) return;
+        if (await C.try(() => C.api('POST', '/api/admin/rg/exclude', { id: u.id, months: +months.value }))) { C.toast(`${u.username} is excluded`, 'win'); C.route(); }
+      } }, 'Exclude player')) : null,
+      h('h3', null, 'Flags'),
+      tbl(['Time', 'Flag', 'Detail', 'Status'], r.flags.map((f) => h('tr', null, h('td', { class: 'muted' }, ago(f.created)), h('td', null, FLAG[f.kind] || f.kind), h('td', { class: 'muted' }, f.detail),
+        h('td', null, f.status === 'open' ? h('a', { class: 'tag-s pending', href: '#admin-compliance' }, 'open') : h('span', { class: 'tag-s sent', title: f.note || '' }, 'cleared')))), 'No flags.'));
+  }
+
+  async function compliance() {
+    const wrap = h('div', { class: 'wallet-page' });
+    let status = 'open';
+    const paint = async () => {
+      const r = await C.try(() => C.api('GET', '/api/admin/compliance?status=' + status)); if (!r) return;
+      wrap.innerHTML = '';
+      const seg = h('div', { class: 'seg' }, [['open', 'Open'], ['cleared', 'Cleared'], ['all', 'All']].map(([k, v]) => h('button', { class: 'segb' + (k === status ? ' sel' : ''), onclick: () => { status = k; paint(); } }, v)));
+      const rows = r.flags.map((f) => {
+        const note = h('input', { placeholder: 'What you checked (required)' });
+        return h('tr', null, h('td', { class: 'muted' }, ago(f.created)), h('td', null, h('a', { href: '#admin-player-' + f.user_id }, f.username)), h('td', null, FLAG[f.kind] || f.kind),
+          h('td', null, f.usd == null ? '—' : C.money(f.usd)), h('td', { class: 'muted' }, f.detail),
+          h('td', null, f.status === 'open' ? h('div', { class: 'row' }, note, h('button', { class: 'btn small', onclick: async () => {
+            if (await C.try(() => C.api('POST', '/api/admin/compliance/clear', { id: f.id, note: note.value }))) { C.toast('Flag cleared', 'win'); paint(); }
+          } }, 'Clear')) : h('span', { class: 'muted small' }, `Cleared by ${f.reviewer || '?'}: ${f.note || ''}`)));
+      });
+      wrap.append(
+        h('div', { class: 'panel' }, h('div', { class: 'row', style: 'justify-content:space-between;margin-bottom:8px' }, h('h3', { style: 'margin:0' }, 'AML flags'), seg),
+          h('p', { class: 'muted small' }, 'While a player has an open flag, every withdrawal they request waits in Withdrawals for approval. Clear a flag once you have checked the player (source of funds, play pattern, linked accounts).'),
+          tbl(['Time', 'Player', 'Flag', 'Amount', 'Detail', status === 'open' ? 'Review' : 'Outcome'], rows, status === 'open' ? 'No open flags.' : 'Nothing here.')),
+        h('div', { class: 'panel' }, h('h3', null, 'Active breaks and self-exclusions'),
+          tbl(['Player', 'Type', 'Until', 'Since'], r.blocks.map((b) => h('tr', null, h('td', null, h('a', { href: '#admin-player-' + b.user_id }, b.username)), h('td', null, b.kind === 'exclusion' ? 'Self-exclusion' : 'Cool-off'),
+            h('td', null, b.until == null ? 'Permanent' : new Date(b.until).toLocaleString()), h('td', { class: 'muted' }, new Date(b.created).toLocaleDateString()))), 'None.')),
+        h('div', { class: 'panel' }, h('h3', null, 'Geo-blocking'),
+          r.settings.geoBlocking ? h('p', null, 'Real money is blocked in: ', h('b', null, r.settings.blockedCountries.join(', ')), `. Unknown location: ${r.settings.geoUnknown}.`)
+            : h('p', { class: 'neg' }, 'Geo-blocking is OFF (GEO_BLOCKING=false).'),
+          h('p', { class: 'muted small' }, 'Change the list with BLOCKED_COUNTRIES in the server settings.')));
+    };
+    await paint();
+    return wrap;
   }
 
   /* ---------------- Live ---------------- */

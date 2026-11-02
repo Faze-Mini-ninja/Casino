@@ -377,15 +377,19 @@
     let saved = ''; try { saved = localStorage.getItem('casino.ref') || ''; } catch (e) { /* ignore */ }
     const ref = h('input', { placeholder: 'Referral code (optional)', autocapitalize: 'characters', autocomplete: 'off', value: saved, style: 'display:none' });
     const invite = h('input', { placeholder: 'Invite code', autocomplete: 'off', style: 'display:none' });
+    const ageBox = h('input', { type: 'checkbox' });
+    const age = h('label', { class: 'age', style: 'display:none' }, ageBox, h('span', null, 'I am 18 or older, gambling is legal where I live, and I am not in a country where real-money play is not offered.'));
     const title = h('h2', null, 'Log in');
     const btn = h('button', { class: 'btn big', type: 'submit' }, 'Log in');
-    const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; ref.style.display = mode === 'login' ? 'none' : ''; invite.style.display = mode === 'login' || !S.config.inviteOnly ? 'none' : ''; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');
+    const sw = h('a', { href: '#login', onclick: (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; title.textContent = mode === 'login' ? 'Log in' : 'Create account'; ref.style.display = age.style.display = mode === 'login' ? 'none' : ''; invite.style.display = mode === 'login' || !S.config.inviteOnly ? 'none' : ''; btn.textContent = mode === 'login' ? 'Log in' : 'Create account'; sw.textContent = mode === 'login' ? 'New here? Create an account' : 'Have an account? Log in'; pass.autocomplete = mode === 'login' ? 'current-password' : 'new-password'; } }, 'New here? Create an account');
     const form = h('form', { class: 'panel auth', onsubmit: async (e) => {
-      e.preventDefault(); btn.disabled = true;
-      const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim(), inviteCode: mode === 'login' ? undefined : invite.value.trim() }));
+      e.preventDefault();
+      if (mode !== 'login' && !ageBox.checked) return C.toast('Please confirm you are 18 or older', 'err');
+      btn.disabled = true;
+      const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim(), inviteCode: mode === 'login' ? undefined : invite.value.trim(), ageConfirm: mode === 'login' ? undefined : ageBox.checked }));
       btn.disabled = false;
       if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : `Account created — ${demoStart()} demo credits added`, 'win'); location.hash = '#lobby'; }
-    } }, title, user, pass, invite, ref, btn, sw,
+    } }, title, user, pass, invite, ref, age, btn, sw,
     h('p', { class: 'muted small' }, 'You must be 18+ and allowed to gamble where you live. Gambling can be addictive — set limits and never deposit more than you can afford to lose.'));
     return h('div', { class: 'auth-wrap' }, form);
   }
@@ -403,6 +407,7 @@
     const open = (tab) => () => C.openWallet && C.openWallet(tab);
     wrap.append(
       cfg.testnet && cfg.chainEnabled ? h('div', { class: 'notice' }, 'Test networks are on (Solana devnet, Ethereum Sepolia, Litecoin testnet). Coins here have no value.') : null,
+      w.depositBlock ? h('div', { class: 'notice warn' }, w.depositBlock, ' ', h('a', { href: '#rg' }, 'Responsible gambling')) : null,
       h('div', { class: 'kpis' }, kpi('Real balance', C.money(real)), ...cfg.coins.filter((c) => w.prices[c.id]).map((c) => kpi(`1 ${c.id}`, C.money(w.prices[c.id])))),
       h('div', { class: 'row', style: 'gap:10px;margin-bottom:16px' }, h('button', { class: 'btn', onclick: open('deposit') }, 'Deposit'), h('button', { class: 'btn ghost', onclick: open('withdraw') }, 'Withdraw')),
       h('div', { class: 'panel' }, h('h3', null, 'Deposits'),
@@ -459,6 +464,7 @@
       btn.disabled = false;
       if (r) { cur.value = nx.value = nx2.value = ''; C.toast('Password changed. Other devices have been signed out.', 'win'); }
     } }, h('h2', null, 'Account'), h('p', { class: 'muted' }, 'Signed in as ', h('b', null, S.user.username), S.user.role === 'admin' ? ' (admin)' : ''),
+    h('h3', null, 'Responsible gambling'), h('p', { class: 'muted' }, 'Set deposit limits, take a break or self-exclude.'), h('a', { class: 'btn ghost', href: '#rg' }, 'Limits & self-exclusion'),
     h('h3', null, 'Change password'), cur, nx, nx2, btn,
     h('button', { class: 'btn ghost', type: 'button', onclick: async () => { await C.try(() => C.api('POST', '/api/logout')); S.user = null; emit(); C.reconnect(); location.hash = '#login'; } }, 'Log out')));
   }
@@ -578,9 +584,10 @@
   }
 
   function applyMe(r) {
-    S.user = r.user || null; S.config = r.config || {};
+    S.user = r.user || null; S.config = r.config || {}; S.rg = r.rg || null;
     if (r.balances) S.units = r.balances;
     applyOdds(S.config.odds); paintBanner(); connectStream();
+    const lic = document.getElementById('licence'); if (lic) { lic.textContent = S.config.licenseText || ''; lic.hidden = !S.config.licenseText; }
     emit();
   }
 

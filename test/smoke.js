@@ -24,6 +24,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.click('text=New here? Create an account');
   await page.fill('input[autocomplete=username]', 'smoketest');
   await page.fill('input[type=password]', 'password123');
+  await page.check('.auth .age input');
   await page.click('button[type=submit]');
   await page.waitForSelector('.tile');
   const tiles = await page.locator('.tile').count();

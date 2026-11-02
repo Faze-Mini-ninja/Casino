@@ -13,6 +13,7 @@ const { q, tx, credit, debit, balances } = require('./db');
 const bus = require('./bus');
 const prices = require('./prices');
 const C = require('./chains');
+const compliance = require('./compliance');
 
 const today = () => new Date().toISOString().slice(0, 10);
 const log = (...a) => console.log(new Date().toISOString(), '[payments]', ...a);
@@ -84,7 +85,7 @@ async function scanRow(m, row) {
       const ins = q('INSERT OR IGNORE INTO deposits (txid, address_id, asset, user_id, base, units, price, kind, ts) VALUES (?,?,?,?,?,?,?,?,?)')
         .run(f.txid, row.id, f.asset, row.user_id, f.base, units, px[f.asset], ok ? 'deposit' : 'below-minimum', Date.now());
       if (!ins.changes) continue;
-      if (units > 0) credit(row.user_id, 'real', units, 'deposit', `${f.asset}:${f.txid}`);
+      if (units > 0) { credit(row.user_id, 'real', units, 'deposit', `${f.asset}:${f.txid}`); compliance.onDeposit(row.user_id, units, f.asset, f.txid); }
       log(`${ok ? 'credited' : 'below minimum:'} ${coin} ${f.asset} ($${(units / 100).toFixed(2)}) to user ${row.user_id} (${f.txid})`);
       notes.push({ to: row.user_id, asset: f.asset, coin, usd: units / 100, credits: units / 100, belowMinimum: !ok, signature: f.txid });
     }
@@ -149,7 +150,8 @@ async function requestWithdrawal(userId, asset, address, credits) {
     if (q("SELECT 1 FROM rounds WHERE user_id = ? AND mode = 'real' AND status = 'active'").get(userId)) throw new Error('Finish your open real-money game first');
     debit(userId, 'real', units, 'withdrawal');
     const day = q("SELECT COALESCE(SUM(units),0) s FROM withdrawals WHERE user_id = ? AND created > ? AND status NOT IN ('rejected','failed')").get(userId, Date.now() - 86400000).s;
-    const auto = units <= cfg.AUTO_APPROVE_USD * 100 && day + units <= cfg.AUTO_APPROVE_DAILY_USD * 100;
+    const review = compliance.withdrawalReview(userId, units); // AML: open flags or little wagering since depositing
+    const auto = !review && units <= cfg.AUTO_APPROVE_USD * 100 && day + units <= cfg.AUTO_APPROVE_DAILY_USD * 100;
     const id = q('INSERT INTO withdrawals (user_id, dest, units, lamports, status, created, updated, asset, base, price) VALUES (?,?,?,?,?,?,?,?,?,?)')
       .run(userId, address, units, base, auto ? 'approved' : 'pending', Date.now(), Date.now(), asset, base, price).lastInsertRowid;
     q("UPDATE ledger SET ref = ? WHERE id = (SELECT MAX(id) FROM ledger WHERE user_id = ? AND reason = 'withdrawal')").run('withdrawal:' + id, userId);

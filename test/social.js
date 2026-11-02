@@ -32,9 +32,9 @@ function listen(cookie) {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
   const A = client(), P = client(), M = client(), X = client();
   await A('POST', '/api/login', { username: 'boss', password: 'boss-password-1' });
-  await P('POST', '/api/register', { username: 'player1', password: 'password123' });
-  await M('POST', '/api/register', { username: 'moddy', password: 'password123' });
-  await X('POST', '/api/register', { username: 'xavier', password: 'password123' });
+  await P('POST', '/api/register', { username: 'player1', password: 'password123', ageConfirm: true });
+  await M('POST', '/api/register', { username: 'moddy', password: 'password123', ageConfirm: true });
+  await X('POST', '/api/register', { username: 'xavier', password: 'password123', ageConfirm: true });
   const id = (n) => q('SELECT id FROM users WHERE username = ?').get(n).id;
 
   console.log('roles');

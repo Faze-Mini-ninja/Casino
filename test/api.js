@@ -15,7 +15,7 @@ const ok = (cond, msg) => { if (!cond) { fails++; console.log('  FAIL:', msg); }
 const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', { game, action, params, mode });
 (async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
-  let r = await api('POST', '/api/register', { username: 'tester', password: 'password123' });
+  let r = await api('POST', '/api/register', { username: 'tester', password: 'password123', ageConfirm: true });
   ok(r.user && r.user.role === 'player' && r.balances.demo === 10000000, 'register gives DEMO_START_CREDITS demo credits; first user is NOT admin when ADMIN_USERNAME is set');
   ok((await api('GET', '/api/me')).config.showOdds === false, 'odds hidden by default');
   ok((await api('POST', '/api/demo/refill'))._status === 400, 'no demo top-up while above 10% of the starting amount');

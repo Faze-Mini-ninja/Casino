@@ -37,6 +37,9 @@ if (!/^[0-9a-f]{64,128}$/i.test(seedHex)) {
 if (cluster === 'mainnet-beta' && env('REAL_MONEY_ACKNOWLEDGED', '') !== 'yes') {
   throw new Error('Refusing to start on mainnet: set REAL_MONEY_ACKNOWLEDGED=yes only once you hold a gambling licence (or legal sign-off) for every jurisdiction you accept players from, with KYC/AML and geo-blocking in place.');
 }
+if (cluster === 'mainnet-beta' && env('GEO_BLOCKING', 'true') !== 'true' && env('GEO_BLOCKING_OFF_ACKNOWLEDGED', '') !== 'yes') {
+  throw new Error('Refusing to start on mainnet with GEO_BLOCKING=false. Set GEO_BLOCKING_OFF_ACKNOWLEDGED=yes only if your licence covers every country.');
+}
 
 module.exports = {
   ROOT, DATA_DIR,
@@ -82,4 +85,18 @@ module.exports = {
   SHOW_ODDS: env('SHOW_ODDS', 'false') === 'true', // show house edges / RTP / win probabilities to players
   TRUST_PROXY: env('TRUST_PROXY', 'false') === 'true', // set true behind a reverse proxy (for per-IP rate limits)
   COOKIE_SECURE: env('COOKIE_SECURE', cluster === 'mainnet-beta' ? 'true' : 'false') === 'true',
+  LICENSE_TEXT: env('LICENSE_TEXT', ''), // shown in the site footer, e.g. your licence holder, number and regulator
+  PROXY_HOPS: num('PROXY_HOPS', 1), // with TRUST_PROXY: reverse proxies in front of the server (the client IP is read this far from the right of X-Forwarded-For)
+
+  /* ----- compliance (server/compliance.js) ----- */
+  GEO_BLOCKING: env('GEO_BLOCKING', 'true') === 'true',
+  // Default list for an Anjouan licence plus FATF "call for action" countries. Check it against your licence terms.
+  BLOCKED_COUNTRIES: env('BLOCKED_COUNTRIES', 'US,GB,FR,NL,ES,AU,KM,KP,IR,MM,CU,SY').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean),
+  GEO_HEADER: env('GEO_HEADER', '').toLowerCase(), // e.g. cf-ipcountry when every request comes through Cloudflare; empty = built-in GeoIP lookup
+  GEO_UNKNOWN: env('GEO_UNKNOWN', cluster === 'mainnet-beta' ? 'block' : 'allow'), // when the country can't be found: block or allow real money
+  RG_INCREASE_DELAY_HOURS: num('RG_INCREASE_DELAY_HOURS', 24), // raising or removing a deposit limit waits this long
+  AML_DEPOSIT_FLAG_USD: num('AML_DEPOSIT_FLAG_USD', 2000), // flag any single deposit of this size or more
+  AML_DAILY_FLAG_USD: num('AML_DAILY_FLAG_USD', 5000), // flag a player whose deposits in 24 h reach this
+  AML_MIN_TURNOVER: num('AML_MIN_TURNOVER', 1), // withdrawals before wagering this multiple of recent deposits wait for review (0 = off)
 };
+if (!['block', 'allow'].includes(module.exports.GEO_UNKNOWN)) throw new Error('GEO_UNKNOWN must be block or allow');

@@ -19,11 +19,11 @@ function client() {
 (async () => {
   await new Promise((r) => server.listen(0, '127.0.0.1', r)); base = 'http://127.0.0.1:' + server.address().port;
   const A = client(), B = client(), X = client();
-  await A('POST', '/api/register', { username: 'alice', password: 'password123' });
+  await A('POST', '/api/register', { username: 'alice', password: 'password123', ageConfirm: true });
   const ra = await A('GET', '/api/referrals');
   ok(/^[A-Z2-9]{7}$/.test(ra.code) && ra.share === 0.1, 'referrer gets a 7-character code, share 10%');
-  ok((await X('POST', '/api/register', { username: 'xx1', password: 'password123', refCode: 'NOPE123' }))._status === 400, 'unknown code rejected at sign-up');
-  await B('POST', '/api/register', { username: 'bob', password: 'password123', refCode: ra.code.toLowerCase() });
+  ok((await X('POST', '/api/register', { username: 'xx1', password: 'password123', ageConfirm: true, refCode: 'NOPE123' }))._status === 400, 'unknown code rejected at sign-up');
+  await B('POST', '/api/register', { username: 'bob', password: 'password123', ageConfirm: true, refCode: ra.code.toLowerCase() });
   ok((await B('GET', '/api/referrals')).referredBy === 'alice', 'bob is linked to alice (code is case-insensitive)');
   ok((await A('POST', '/api/referrals/code', { code: ra.code }))._status === 400, 'cannot use your own code');
   ok((await B('POST', '/api/referrals/code', { code: ra.code }))._status === 400, 'cannot set a second code');
