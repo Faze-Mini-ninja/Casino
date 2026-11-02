@@ -27,6 +27,9 @@ q(`CREATE TABLE IF NOT EXISTS deposits (
 q(`CREATE TABLE IF NOT EXISTS chain_sweeps (
   id INTEGER PRIMARY KEY, address_id INTEGER NOT NULL REFERENCES addresses(id), asset TEXT NOT NULL, dest TEXT NOT NULL, base INTEGER NOT NULL,
   txid TEXT, status TEXT NOT NULL, meta TEXT, note TEXT, ts INTEGER NOT NULL)`).run();
+q(`CREATE TABLE IF NOT EXISTS cashouts (
+  id INTEGER PRIMARY KEY, admin_id INTEGER NOT NULL, asset TEXT NOT NULL, dest TEXT NOT NULL, base INTEGER NOT NULL, status TEXT NOT NULL,
+  txid TEXT, meta TEXT, note TEXT, created INTEGER NOT NULL, updated INTEGER NOT NULL)`).run();
 for (const [col, def] of [['asset', "TEXT NOT NULL DEFAULT 'SOL'"], ['base', 'INTEGER'], ['price', 'REAL'], ['meta', 'TEXT']]) { try { q(`ALTER TABLE withdrawals ADD COLUMN ${col} ${def}`).run(); } catch { /* exists */ } }
 try { q('ALTER TABLE deposit_addresses ADD COLUMN last_sig TEXT').run(); } catch { /* exists */ }
 if (!q('SELECT 1 FROM addresses LIMIT 1').get() && q('SELECT 1 FROM deposit_addresses LIMIT 1').get()) {
@@ -153,6 +156,28 @@ async function requestWithdrawal(userId, asset, address, credits) {
     return { id: Number(id), status: auto ? 'approved' : 'pending', asset, coin: C.toCoin(asset, base), sol: asset === 'SOL' ? C.toCoin(asset, base) : undefined, balances: balances(userId) };
   });
 }
+/* ---------- owner cash-outs (hot wallet → any address the admin enters) ---------- */
+const LTC_FEE_RESERVE = 50_000; // litoshi kept back for the network fee when cashing out "max"
+/** Queue a transfer of `amount` coins (or 'max') from a hot wallet. Sent by the watcher, in the same queue as withdrawals. */
+async function requestCashout(adminId, asset, address, amount) {
+  if (!cfg.CHAIN_ENABLED) throw new Error('Deposits and withdrawals are switched off on this server');
+  asset = String(asset || '').toUpperCase();
+  if (!C.enabled().includes(asset)) throw new Error('That coin is not available');
+  const a = C.ASSETS[asset], m = C.mod(a.chain);
+  address = String(address || '').trim();
+  if (!m.isValidAddress(address)) throw new Error(`That is not a valid ${a.network} address`);
+  if (ownAddresses(a.chain).has(address.toLowerCase())) throw new Error('That is one of the casino\'s own addresses');
+  const bal = await m.hotBalance(asset), reserve = (m.FEE_BASE[asset] || 0) + (asset === 'LTC' ? LTC_FEE_RESERVE : 0);
+  const queued = ['withdrawals', 'cashouts'].reduce((s, t) => s + q(`SELECT COALESCE(SUM(base),0) s FROM ${t} WHERE asset = ? AND status = 'approved'`).get(asset).s, 0);
+  const base = amount === 'max' ? bal - reserve - queued : C.toBase(asset, Number(amount));
+  if (!(base > 0)) throw new Error(amount === 'max' ? `Nothing to cash out: the ${asset} hot wallet is empty` : 'Enter an amount');
+  if (base + reserve + queued > bal) throw new Error(`The ${asset} hot wallet has ${C.toCoin(asset, bal)} ${asset}${queued ? `, of which ${C.toCoin(asset, queued)} is waiting to go out to players` : ''}`);
+  const id = Number(q("INSERT INTO cashouts (admin_id, asset, dest, base, status, created, updated) VALUES (?,?,?,?,'approved',?,?)").run(adminId, asset, address, base, Date.now(), Date.now()).lastInsertRowid);
+  setTimeout(() => runOnce().catch(() => {}), 50); // send it now rather than on the next tick
+  return { id, asset, coin: C.toCoin(asset, base), dest: address, status: 'approved' };
+}
+const cashouts = () => q('SELECT * FROM cashouts ORDER BY id DESC LIMIT 20').all().map((c) => ({ id: c.id, asset: c.asset, dest: c.dest, coin: C.toCoin(c.asset, c.base), status: c.status, note: c.note, created: c.created, url: c.txid ? explorer(c.asset, c.txid) : null }));
+
 function refundWithdrawal(w, status, note) {
   tx(() => {
     const r = q("UPDATE withdrawals SET status = ?, note = ?, updated = ? WHERE id = ? AND status IN ('pending','approved','sending')").run(status, note, Date.now(), w.id);
@@ -168,6 +193,11 @@ async function processWithdrawals(m) {
     const st = await m.txStatus(w.signature, JSON.parse(w.meta || '{}'));
     if (st.state === 'failed' || st.state === 'expired') refundWithdrawal(w, 'failed', st.note || 'Transaction did not land');
     else if (st.state === 'sent') { q("UPDATE withdrawals SET status = 'sent', updated = ? WHERE id = ?").run(Date.now(), w.id); log(`withdrawal ${w.id} confirmed ${w.signature}`); }
+  }
+  for (const c of q(`SELECT * FROM cashouts WHERE status = 'sending' AND asset IN (${inList})`).all(...assets)) {
+    const st = await m.txStatus(c.txid, JSON.parse(c.meta || '{}'));
+    if (st.state === 'failed' || st.state === 'expired') q("UPDATE cashouts SET status = 'failed', note = ?, updated = ? WHERE id = ?").run(st.note || 'Did not land', Date.now(), c.id);
+    else if (st.state === 'sent') q("UPDATE cashouts SET status = 'sent', updated = ? WHERE id = ?").run(Date.now(), c.id);
   }
   // 2) send approved ones from the hot wallet
   const ctx = {}, committed = {};
@@ -186,6 +216,22 @@ async function processWithdrawals(m) {
       // a node that refuses for lack of funds never relayed the transaction: put it back in the queue
       if (/insufficient funds|insufficient lamports|insufficient balance/i.test(e.message)) { q("UPDATE withdrawals SET status = 'approved', signature = NULL, meta = NULL, note = 'Waiting for hot wallet funds' WHERE id = ? AND status = 'sending'").run(w.id); committed[w.asset] -= w.base + (m.FEE_BASE[w.asset] || 0); continue; }
       log(`withdrawal ${w.id} broadcast error (will verify on-chain before any refund): ${e.message}`);
+    }
+  }
+  // 3) owner cash-outs, after player withdrawals and with the same nonce/coin bookkeeping
+  for (const c of q(`SELECT * FROM cashouts WHERE status = 'approved' AND asset IN (${inList}) ORDER BY id`).all(...assets)) {
+    const bal = await m.hotBalance(c.asset) - (committed[c.asset] || 0);
+    if (bal < c.base + (m.FEE_BASE[c.asset] || 0)) { q('UPDATE cashouts SET note = ? WHERE id = ?').run('Waiting: hot wallet balance is lower than the amount', c.id); continue; }
+    let t;
+    try { t = await m.buildSend(c.asset, c.dest, c.base, ctx); }
+    catch (e) { q('UPDATE cashouts SET note = ? WHERE id = ?').run((e.funds ? 'Waiting for hot wallet funds' : 'Could not build transaction: ' + e.message).slice(0, 200), c.id); continue; }
+    const r = q("UPDATE cashouts SET status = 'sending', txid = ?, meta = ?, note = NULL, updated = ? WHERE id = ? AND status = 'approved'").run(t.txid, JSON.stringify(t.meta || {}), Date.now(), c.id);
+    if (!r.changes) continue;
+    committed[c.asset] = (committed[c.asset] || 0) + c.base + (m.FEE_BASE[c.asset] || 0);
+    try { await m.broadcast(t.raw); log(`cash-out ${c.id}: ${C.toCoin(c.asset, c.base)} ${c.asset} -> ${c.dest}`); }
+    catch (e) {
+      if (/insufficient funds|insufficient lamports|insufficient balance/i.test(e.message)) { q("UPDATE cashouts SET status = 'approved', txid = NULL, meta = NULL, note = 'Waiting for hot wallet funds' WHERE id = ? AND status = 'sending'").run(c.id); committed[c.asset] -= c.base + (m.FEE_BASE[c.asset] || 0); continue; }
+      log(`cash-out ${c.id} broadcast error (checked on-chain next pass): ${e.message}`);
     }
   }
 }
@@ -234,4 +280,4 @@ const explorer = (asset, txid) => {
   return C.mod(a.chain).explorer(txid);
 };
 
-module.exports = { depositAddress, depositAddresses, requestWithdrawal, refundWithdrawal, startWatcher, runOnce, watcherStatus, treasury, explorer, today };
+module.exports = { requestCashout, cashouts, depositAddress, depositAddresses, requestWithdrawal, refundWithdrawal, startWatcher, runOnce, watcherStatus, treasury, explorer, today };

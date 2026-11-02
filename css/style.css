@@ -529,3 +529,6 @@ body .vp-cards .card { font-size: 19px; } body .he-seat .card, body .he-board .c
 
 .edge-game { display: inline-flex; align-items: center; gap: 10px; } .edge-game img { width: 30px; height: 40px; border-radius: 5px; object-fit: cover; }
 .g-cell .g-thumb { width: 22px; height: 29px; border-radius: 4px; object-fit: cover; flex: none; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.cashout-grid .row { flex-wrap: nowrap; gap: 6px; } .cashout-grid .row input { flex: 1; min-width: 0; }
+.cashout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; align-items: end; margin-bottom: 12px; } .cashout-grid .wide { grid-column: 1 / -1; } .cashout-grid select, .cashout-grid input { width: 100%; }
+@media (max-width: 700px) { .cashout-grid { grid-template-columns: 1fr; } }

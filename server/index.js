@@ -174,7 +174,7 @@ const routes = {
     const liab = q('SELECT COALESCE(SUM(real_units),0) s FROM users').get().s;
     const sweeps = q('SELECT s.*, a.address FROM chain_sweeps s JOIN addresses a ON a.id = s.address_id ORDER BY s.id DESC LIMIT 20').all()
       .map((s) => ({ id: s.id, ts: s.ts, asset: s.asset, address: s.address, dest: s.dest, coin: chains.toCoin(s.asset, s.base), status: s.status, note: s.note, url: s.txid ? pay.explorer(s.asset, s.txid) : null }));
-    return { cluster: cfg.cluster, testnet: cfg.TESTNET, wallets, hotFloatUsd: cfg.HOT_FLOAT_USD, playerBalancesUsd: usdOf(liab), days, house, sweeps,
+    return { cluster: cfg.cluster, testnet: cfg.TESTNET, wallets, hotFloatUsd: cfg.HOT_FLOAT_USD, playerBalancesUsd: usdOf(liab), days, house, sweeps, cashouts: pay.cashouts(),
       watcher: pay.watcherStatus(), users: q('SELECT COUNT(*) n FROM users').get().n,
       referrals: (() => { const t = referrals.totals(); return { share: referrals.SHARE, referredPlayers: t.referred, pendingUsd: usdOf(t.pending / 1000), paidUsd: usdOf(t.paid / 1000) }; })() };
   },
@@ -237,6 +237,17 @@ const routes = {
   'GET /api/admin/withdrawals': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');
     return { withdrawals: q('SELECT w.*, u.username FROM withdrawals w JOIN users u ON u.id = w.user_id ORDER BY w.id DESC LIMIT 100').all().map((w) => ({ ...w, meta: undefined, coin: chains.toCoin(w.asset, w.base), usd: usdOf(w.units), url: w.signature ? pay.explorer(w.asset, w.signature) : null })) };
+  },
+  'POST /api/admin/cashout': async (req, res, body, ip, u) => {
+    need(u && u.role === 'admin', 403, 'Admins only');
+    need(!limited('cashout:' + u.id, 5, 60000), 429, 'Too many cash-outs, wait a minute');
+    const me = q('SELECT pass_hash, salt FROM users WHERE id = ?').get(u.id);
+    need(crypto.timingSafeEqual(Buffer.from(hash(String(body.password || ''), me.salt), 'hex'), Buffer.from(me.pass_hash, 'hex')), 403, 'Wrong password');
+    let r;
+    try { r = await pay.requestCashout(u.id, body.asset, body.address, body.amount === 'max' ? 'max' : Number(body.amount)); }
+    catch (e) { throw new HttpError(400, e.message); }
+    audit(u, 'cashout', null, `${r.coin} ${r.asset} -> ${r.dest}`);
+    return r;
   },
   'POST /api/admin/withdrawal': async (req, res, body, ip, u) => {
     need(u && u.role === 'admin', 403, 'Admins only');

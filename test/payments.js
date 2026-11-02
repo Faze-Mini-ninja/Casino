@@ -103,6 +103,24 @@ const pay = require('../server/payments');
   const w4 = await pay.requestWithdrawal(uid, 'SOL', 'ext-sol', 150);
   ok(w4.status === 'pending', 'over the $100 auto-approve limit → waits for admin approval');
 
+  console.log('owner cash-out');
+  sol.st.hot.SOL = 2_000_000_000; // 2 SOL in the hot wallet
+  const reject2 = async (args, msg) => { try { await pay.requestCashout(1, ...args); ok(false, msg); } catch (e) { ok(true, msg + ' (' + e.message + ')'); } };
+  await reject2(['SOL', 'not-an-address', 1], 'invalid address refused');
+  await reject2(['SOL', A.SOL.address, 1], 'casino deposit address refused');
+  await reject2(['SOL', 'ext-owner', 5], 'more than the hot wallet holds refused');
+  const before3 = sol.st.sends.length;
+  const co = await pay.requestCashout(1, 'SOL', 'ext-owner', 1.5);
+  ok(co.status === 'approved' && co.coin === 1.5, 'cash-out of 1.5 SOL queued');
+  await pay.runOnce();
+  ok(sol.st.sends.length === before3 + 1 && sol.st.sends.at(-1).dest === 'ext-owner' && sol.st.sends.at(-1).base === 1_500_000_000, 'sent from the hot wallet to the address entered');
+  ok(pay.cashouts()[0].status === 'sending', 'shown as sending');
+  sol.st.statuses['wd-SOL-' + sol.st.sends.length] = { state: 'sent', final: true };
+  await pay.runOnce();
+  ok(pay.cashouts()[0].status === 'sent', 'confirmed → sent');
+  const balBefore = balances(uid).real;
+  ok(balances(uid).real === balBefore, 'player balances untouched by a cash-out');
+
   fs.rmSync(dir, { recursive: true, force: true });
   if (fails) { console.log(`PAYMENTS TEST FAILED (${fails})`); process.exit(1); }
   console.log('PAYMENTS TEST OK');

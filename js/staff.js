@@ -277,6 +277,32 @@
       h('td', null, h('span', { class: 'tag-s ' + x.status }, x.status), x.note ? h('div', { class: 'muted small' }, x.note) : null),
       h('td', { class: 'nowrap' }, x.status === 'pending' ? h('button', { class: 'btn small', onclick: () => act(x.id, 'approve') }, 'Approve') : null, ' ', ['pending', 'approved'].includes(x.status) ? h('button', { class: 'btn small red', onclick: () => act(x.id, 'reject') }, 'Reject') : null))), 'No withdrawals yet.'));
   }
+  /** Owner cash-out: send coins from a hot wallet to any address (admin password required every time). */
+  function cashoutPanel(o, coin) {
+    if (!o.wallets.length) return null;
+    const asset = h('select', null, o.wallets.map((w) => h('option', { value: w.asset }, `${w.asset} — hot wallet ${coin(w.balance, w.asset)}`)));
+    const amount = h('input', { type: 'number', min: '0', step: 'any', placeholder: 'Amount in coins', inputmode: 'decimal' });
+    const addr = h('input', { placeholder: 'Wallet address to send to', autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' });
+    const pw = h('input', { type: 'password', placeholder: 'Your admin password', autocomplete: 'current-password' });
+    let max = false;
+    const maxBtn = h('button', { class: 'btn small ghost', type: 'button', onclick: () => { max = true; const w = o.wallets.find((x) => x.asset === asset.value); amount.value = ''; amount.placeholder = `Max (${coin(w && w.balance, asset.value)} minus network fee)`; } }, 'Max');
+    amount.oninput = () => { max = false; amount.placeholder = 'Amount in coins'; };
+    asset.onchange = () => { max = false; amount.value = ''; amount.placeholder = 'Amount in coins'; };
+    const go = h('button', { class: 'btn', type: 'button', onclick: async () => {
+      if (!addr.value.trim() || (!max && !(+amount.value > 0)) || !pw.value) return C.toast('Fill in the amount, address and password', 'err');
+      if (!confirm(`Send ${max ? 'everything' : amount.value} ${asset.value} from the hot wallet to\n${addr.value.trim()}?\n\nCrypto transfers cannot be reversed.`)) return;
+      go.disabled = true;
+      const r = await C.try(() => C.api('POST', '/api/admin/cashout', { asset: asset.value, amount: max ? 'max' : +amount.value, address: addr.value.trim(), password: pw.value }));
+      go.disabled = false; pw.value = '';
+      if (r) { C.toast(`Sending ${coin(r.coin, r.asset)} to your wallet`, 'win'); setTimeout(() => C.route(), 1500); }
+    } }, 'Cash out');
+    return h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Cash out'),
+      h('p', { class: 'muted small' }, 'Send coins from a hot wallet to any wallet you choose. Coins waiting to go out to players are kept back. ', h('b', null, `Players are owed ${C.money(o.playerBalancesUsd)}`), ' — keep enough to pay withdrawals.'),
+      h('div', { class: 'cashout-grid' }, h('div', { class: 'field' }, h('label', null, 'Coin'), asset), h('div', { class: 'field' }, h('label', null, 'Amount'), h('div', { class: 'row' }, amount, maxBtn)),
+        h('div', { class: 'field wide' }, h('label', null, 'Send to'), addr), h('div', { class: 'field' }, h('label', null, 'Admin password'), pw), h('div', { class: 'field' }, h('label', null, '\u00a0'), go)),
+      o.cashouts.length ? tbl(['Time', 'Amount', 'To', 'Status'], o.cashouts.map((c) => h('tr', null, h('td', { class: 'muted' }, ago(c.created)), h('td', null, coin(c.coin, c.asset), c.url ? [' ', h('a', { href: c.url, target: '_blank', rel: 'noopener' }, '↗')] : null),
+        h('td', { class: 'mono' }, short(c.dest)), h('td', null, h('span', { class: 'tag-s ' + c.status }, c.status), c.note ? h('div', { class: 'muted small' }, c.note) : null)))) : null);
+  }
   async function treasury() {
     const o = await C.try(() => C.api('GET', '/api/admin/overview')); if (!o) return h('div');
     const coin = (x, a) => (x == null ? 'unavailable' : `${(+x).toLocaleString(undefined, { maximumFractionDigits: a === 'USDC' ? 2 : 6 })} ${a}`);
@@ -285,6 +311,7 @@
       h('div', { class: 'kpis' }, C.kpi('Networks', o.testnet ? 'Test networks' : 'Mainnet'), C.kpi('Hot wallets', C.money(o.wallets.reduce((s, w) => s + (w.usd || 0), 0))), C.kpi('Owed to players', C.money(o.playerBalancesUsd)),
         C.kpi(`Referral commission (${Math.round(o.referrals.share * 100)}%)`, `${C.money(o.referrals.pendingUsd)} owed`), C.kpi('Deposit watcher', errs.length ? 'error' : o.watcher.lastRun ? 'ok' : 'starting', errs.length ? 'bad' : 'good')),
       errs.map(([chain, e]) => h('div', { class: 'notice err' }, `Cannot reach ${chain}: ${e}`)),
+      cashoutPanel(o, coin),
       h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Hot wallets'),
         tbl(['Coin', 'Balance', 'Value', 'Hot wallet address', 'Treasury'], o.wallets.map((w) => h('tr', null, h('td', null, h('b', null, w.asset), h('div', { class: 'muted small' }, w.network)), h('td', null, coin(w.balance, w.asset)), h('td', null, w.usd == null ? '—' : C.money(w.usd)),
           h('td', { class: 'mono small' }, w.hot, ' ', h('button', { class: 'btn small ghost', onclick: () => C.copy(w.hot) }, 'Copy')), h('td', { class: 'mono small' }, w.treasury || h('span', { class: 'muted' }, 'not set')))), 'Deposits are switched off (CHAIN_ENABLED=false).'),

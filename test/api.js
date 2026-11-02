@@ -97,6 +97,7 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
   // stats & wallet endpoint
   ok((await api('GET', '/api/stats?mode=demo')).games.length >= 25, 'stats aggregate');
   ok(Object.keys((await api('GET', '/api/wallet')).addresses).length === 0, 'wallet works with chain disabled');
+  ok((await api('POST', '/api/admin/cashout', { asset: 'SOL', amount: 1, address: 'x', password: 'x' }))._status === 403, 'players cannot cash out the hot wallet');
   // ledger reconciles with balance
   const { q } = require('../server/db');
   const led = q("SELECT SUM(delta) s FROM ledger WHERE user_id = (SELECT id FROM users WHERE username = 'tester') AND mode = 'demo'").get().s;
@@ -112,6 +113,8 @@ const play = (game, action, params, mode = 'demo') => api('POST', '/api/play', {
   cookie = ''; r = await api('POST', '/api/login', { username: 'owner', password: 'owner-password-1' });
   ok(r.user && r.user.role === 'admin', 'configured admin can sign in');
   ok((await api('GET', '/api/admin/overview'))._status === 200, 'admin sees admin overview');
+  ok((await api('POST', '/api/admin/cashout', { asset: 'SOL', amount: 1, address: 'x', password: 'wrong-password' }))._status === 403, 'cash-out needs the admin password');
+  ok((await api('POST', '/api/admin/cashout', { asset: 'SOL', amount: 1, address: 'x', password: 'owner-password-1' }))._status === 400, 'cash-out refused while the chain is off');
   // admin user management
   ok((await api('POST', '/api/admin/users/create', { username: 'Brandon', password: 'brandon123', demo: 10000, real: 10000 })).ok, 'admin creates Brandon with 10,000 real credits');
   const bl = (await api('GET', '/api/admin/users?q=Brandon')).users[0];
