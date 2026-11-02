@@ -254,6 +254,7 @@ js/chat.js          chat panel and tip dialog
 js/support.js       player support page
 js/rg.js            responsible-gambling page and the break/blocked notice
 js/loader.js        full-screen loading screen shown when a game opens
+js/cards.js         playing cards for every card game (classic deck art in img/cards/, SVG-cards by David Bellot, LGPL-2.1)
 js/multi.js         PvP Arena, Blackjack Duel and Live Blackjack pages
 js/lib.js           shared paytables, RNG, card evaluators (used by server and browser)
 js/core.js          client: API, login, wallet & admin pages, lobby

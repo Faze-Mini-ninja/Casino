@@ -645,10 +645,17 @@ body.is-loading { overflow: hidden; }
 @media (max-width: 860px) { .mp-cols, .mp-strip { grid-template-columns: 1fr; } .mp-hero-art { display: none; } }
 @media (max-width: 600px) { .bjt-seats { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; } .bjt-seat .card { width: 32px; height: 46px; font-size: 10px; margin-left: -16px; } .bjt-felt { border-radius: 16px 16px 60px 60px; padding: 14px 6px; } .bjt-name, .bjt-chip { font-size: 10px; } }
 
-/* ---------- playing cards (js/cards.js draws each card as one SVG) ---------- */
-.card { background: #fffefb; border: 1px solid rgba(20, 24, 32, .22); border-radius: 6.5% / 4.6%; overflow: hidden; container-type: size; box-shadow: 0 1px 1px rgba(0, 0, 0, .25), 0 6px 14px rgba(0, 0, 0, .35); }
-.card .kc { display: block; width: 100%; height: 100%; }
-.card .kc-mini { display: none; }
-@container (max-width: 48px) { .card .kc-full { display: none; } .card .kc-mini { display: inline; } }
-.card.back { border: 0; background: #fffefb; }
+/* ---------- playing cards (js/cards.js: classic deck images) ---------- */
+.card { background: transparent; border: 0; border-radius: 7% / 5%; overflow: visible; container-type: size; box-shadow: 0 2px 3px rgba(0, 0, 0, .3), 0 8px 16px rgba(0, 0, 0, .28); }
+.card .card-img { display: block; width: 100%; height: 100%; object-fit: fill; border-radius: inherit; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.card .card-mini { display: none; }
+.card.back { border: 0; background: transparent; }
 .card.back::before { display: none; }
+@container (max-width: 40px) {
+  .card .card-img { display: none; }
+  .card .card-mini { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: #fff; border: 1px solid #222; border-radius: inherit;
+    font-family: Georgia, 'Times New Roman', serif; color: #16181d; line-height: 1; }
+  .card.red .card-mini { color: #d4142d; }
+  .card .card-mini b { font-size: 46cqw; font-weight: 700; letter-spacing: -.06em; } .card .card-mini i { font-style: normal; font-size: 42cqw; }
+  .card.back .card-img { display: block; }
+}
