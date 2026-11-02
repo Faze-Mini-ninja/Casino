@@ -92,8 +92,16 @@ async function scanRow(m, row) {
 }
 
 /* ---------- sweeps ---------- */
+const badTreasury = new Set();
+/** The treasury address for a chain, or null if unset or not valid on this network (warned once). */
+function treasuryFor(m) {
+  const t = C.TREASURY[m.chain];
+  if (!t) return null;
+  if (!m.isValidAddress(t)) { if (!badTreasury.has(m.chain)) { badTreasury.add(m.chain); log(`treasury address for ${m.chain} is not valid on ${cfg.TESTNET ? 'the test network' : 'mainnet'}; keeping funds in the hot wallet`); } return null; }
+  return t;
+}
 async function sweepDest(m, asset) {
-  const treasury = C.TREASURY[m.chain];
+  const treasury = treasuryFor(m);
   if (!treasury) return m.hotAddress(asset);
   try { const usdHeld = C.toCoin(asset, await m.hotBalance(asset)) * (await prices.usd(asset)); return usdHeld >= cfg.HOT_FLOAT_USD ? treasury : m.hotAddress(asset); }
   catch { return m.hotAddress(asset); }
@@ -216,7 +224,7 @@ async function treasury() {
     const a = C.ASSETS[asset], m = C.mod(a.chain);
     let bal = null, usd = null;
     try { bal = C.toCoin(asset, await m.hotBalance(asset)); usd = bal * (await prices.usd(asset)); } catch { /* network down */ }
-    out.push({ asset, name: a.name, network: a.network, hot: m.hotAddress(asset), treasury: C.TREASURY[a.chain] || null, balance: bal, usd });
+    out.push({ asset, name: a.name, network: a.network, hot: m.hotAddress(asset), treasury: treasuryFor(m) || (C.TREASURY[a.chain] ? 'invalid for this network: ' + C.TREASURY[a.chain] : null), balance: bal, usd });
   }
   return out;
 }

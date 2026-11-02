@@ -51,7 +51,7 @@ const pay = require('../server/payments');
   eth.st.incoming[A.ETH.address] = [{ asset: 'ETH', txid: 'e1', base: 10_000_000 }]; // 0.01 ETH in gwei
   ltc.st.incoming[A.LTC.address] = [{ asset: 'LTC', txid: 'l1', base: 50_000_000 }]; // 0.5 LTC
   await pay.runOnce();
-  const b1 = balances(uid).real;
+  let b1 = balances(uid).real;
   ok(b1 - b0 === 7500 + 2000 + 3000 + 4000, `credited $75 SOL + $20 USDC + $30 ETH + $40 LTC (got $${(b1 - b0) / 100})`);
   ok(q("SELECT kind FROM deposits WHERE txid = 's3'").get().kind === 'below-minimum', '0.001 SOL is below the minimum and not credited');
   ok(events.length === 5 && events.some((e) => e.belowMinimum) && events.find((e) => e.asset === 'ETH').usd === 30, 'player is notified for every deposit');
@@ -59,6 +59,16 @@ const pay = require('../server/payments');
   ok(balances(uid).real === b1 && events.length === 5, 'second pass credits nothing twice');
   ok(sol.st.sweeps.length === 2 && eth.st.sweeps.length === 1 && ltc.st.sweeps.length === 1, 'deposit addresses swept to the hot wallets');
   ok(sol.st.sweeps.every((s) => s.dest === 'solana-hot'), 'no treasury set: sweeps stay in the hot wallet');
+  // treasury: above the hot-wallet float, sweeps go to the owner's main wallet; an address invalid for the network is ignored
+  C.TREASURY.litecoin = 'ext-ltc-main'; C.TREASURY.ethereum = 'not-valid';
+  ltc.st.hot.LTC = 1e10; eth.st.hot.ETH = 1e12;
+  ltc.st.incoming[A.LTC.address].push({ asset: 'LTC', txid: 'l2', base: 20_000_000 });
+  q("UPDATE chain_sweeps SET status = 'done'").run(); // earlier sweeps confirmed
+  await pay.runOnce();
+  ok(ltc.st.sweeps.at(-1).dest === 'ext-ltc-main', 'hot wallet above HOT_FLOAT_USD: deposits swept to the main (treasury) wallet');
+  ok(!eth.st.sweeps.some((s) => s.dest === 'not-valid'), 'an invalid treasury address is never used');
+  C.TREASURY.litecoin = ''; C.TREASURY.ethereum = ''; ltc.st.hot.LTC = 0; eth.st.hot.ETH = 0;
+  b1 = balances(uid).real;
 
   console.log('withdrawals');
   const reject = async (args, msg) => { try { await pay.requestWithdrawal(uid, ...args); ok(false, msg); } catch (e) { ok(true, msg + ' (' + e.message + ')'); } };
