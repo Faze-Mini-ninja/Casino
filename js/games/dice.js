@@ -45,7 +45,7 @@
         marker.className = 'dice-marker ' + (win ? 'w' : 'l');
         const pay = res.payout;
         C.settle(res);
-        msg.set(win ? `${r.toFixed(2)} — win ${C.fmt(pay)}` : `${r.toFixed(2)} — lose`, win ? 'win' : 'lose');
+        msg.set(win ? `${r.toFixed(2)}: win ${C.fmt(pay)}` : `${r.toFixed(2)}: lose`, win ? 'win' : 'lose');
         hist.prepend(h('span', { class: 'pill ' + (win ? 'g' : 'r') }, r.toFixed(2)));
         while (hist.children.length > 16) hist.lastChild.remove();
         busy = false; btn.disabled = false;

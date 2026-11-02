@@ -58,7 +58,7 @@
       h('div', { class: 'row' }, r.cooloffDays.map((d) => h('button', { class: 'btn ghost', disabled: r.block ? true : null, onclick: async () => {
         if (!confirm(`Take a ${label(d)} break from real-money play? This cannot be undone.`)) return;
         const res = await C.try(() => C.api('POST', '/api/rg/cooloff', { days: d }));
-        if (res) { S.rg = res; paintStrip(); C.toast(`Break started — ${until(res.block.until)}`, 'win'); C.route(); }
+        if (res) { S.rg = res; paintStrip(); C.toast(`Break started: ${until(res.block.until)}`, 'win'); C.route(); }
       } }, label(d)))));
 
     // self-exclusion
@@ -66,18 +66,18 @@
     const pw = h('input', { type: 'password', placeholder: 'Your password', autocomplete: 'current-password' });
     const exBtn = h('button', { class: 'btn red', disabled: r.block && r.block.kind === 'exclusion' && r.block.until == null ? true : null, onclick: async () => {
       if (!pw.value) return C.toast('Enter your password to confirm', 'err');
-      if (!confirm('Self-exclude? You will not be able to play any game until it ends, and it cannot be lifted early — not even by support.')) return;
+      if (!confirm('Self-exclude? You will not be able to play any game until it ends, and it cannot be lifted early, not even by support.')) return;
       exBtn.disabled = true;
       const res = await C.try(() => C.api('POST', '/api/rg/exclude', { months: +months.value, password: pw.value }));
       exBtn.disabled = false;
       if (res) { S.rg = res; paintStrip(); C.toast('Self-exclusion is active', 'win'); C.route(); }
     } }, 'Self-exclude');
     const exclusion = h('div', { class: 'panel' }, h('h3', null, 'Self-exclusion'),
-      h('p', { class: 'muted' }, 'Close your account to all gambling — real money and demo — for at least six months. You can still log in to withdraw your balance. We recommend also blocking gambling sites on your devices (e.g. Gamban, BetBlocker).'),
+      h('p', { class: 'muted' }, 'Close your account to all gambling, real money and demo, for at least six months. You can still log in to withdraw your balance. We recommend also blocking gambling sites on your devices (e.g. Gamban, BetBlocker).'),
       h('div', { class: 'row' }, months, pw, exBtn));
 
     // help
-    const link = (name, href, note) => h('li', null, h('a', { href, target: '_blank', rel: 'noopener' }, name), ' — ', note);
+    const link = (name, href, note) => h('li', null, h('a', { href, target: '_blank', rel: 'noopener' }, name), ': ', note);
     const help = h('div', { class: 'panel' }, h('h3', null, 'Getting help'),
       h('p', null, 'Gambling should be entertainment, not a way to make money. Warning signs: chasing losses, spending more than you planned, borrowing to gamble, or hiding it from people close to you.'),
       h('ul', { class: 'rg-links' },

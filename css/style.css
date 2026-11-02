@@ -659,3 +659,35 @@ body.is-loading { overflow: hidden; }
   .card .card-mini b { font-size: 46cqw; font-weight: 700; letter-spacing: -.06em; } .card .card-mini i { font-style: normal; font-size: 42cqw; }
   .card.back .card-img { display: block; }
 }
+
+/* ---------- restraint pass: flat panels with one accent colour, no decorative glows or floating art ---------- */
+.promo { background: var(--panel) !important; border: 1px solid var(--line); border-top: 3px solid var(--accent, var(--brand)); color: var(--text); }
+.promo h3 { color: var(--text); } .promo p { color: var(--muted); opacity: 1; }
+.promo .kicker { color: var(--accent, var(--brand)); opacity: 1; letter-spacing: .06em; }
+.promo .btn { background: var(--panel3); color: var(--text); }
+.promo:hover { border-color: var(--panel3); border-top-color: var(--accent, var(--brand)); }
+.promo svg.deco { display: none; }
+.mp-hero, .mp-hero.pvp, .mp-hero.bjt, .mp-hero.bjduel { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--brand); color: var(--text); }
+.mp-hero.pvp { border-left-color: #e0525f; }
+.mp-hero h2 { font: 800 26px/1.15 -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Arial, sans-serif; color: var(--text); letter-spacing: -.01em; }
+.mp-hero p, .mp-hero .muted { color: var(--muted); opacity: 1; } .mp-hero .kicker { color: var(--muted); }
+.mp-hero-art .mp-glyph, .mp-entry-art .mp-glyph { animation: none; filter: none; }
+.mp-entry, .mp-entry.pvp, .mp-entry.bjt { background: var(--panel); border: 1px solid var(--line); color: var(--text); }
+.mp-entry:hover { border-color: var(--panel3); transform: none; }
+.mp-entry b { font: 800 18px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Arial, sans-serif; } .mp-entry span { color: var(--muted); opacity: 1; }
+.mp-entry .kicker { color: var(--brand); }
+.mp-stake, .mp-rolls b, .mp-verdict, .duel-vs { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Arial, sans-serif; font-weight: 800; }
+.mp-hand { font: 800 26px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; min-width: 120px; padding: 18px 10px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); text-align: center; }
+.mp-hand.flip { transform: none; } .mp-hand.shake { animation: rps-bob .43s ease-in-out 3; } @keyframes rps-bob { 50% { transform: translateY(-10px); } }
+.mp-card { animation: none; }
+/* loading screen: quiet and simple */
+.game-loader .ld-bg { animation: none; filter: blur(30px) brightness(.35); }
+.game-loader .ld-glow { background: linear-gradient(180deg, rgba(5, 11, 18, .3), rgba(5, 11, 18, .85)); }
+.game-loader .ld-ring { display: none; }
+.game-loader .ld-cover, .game-loader .ld-icon { animation: none; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.game-loader .ld-art { width: auto; height: auto; margin-bottom: 18px; }
+.game-loader .ld-title { font: 700 22px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Arial, sans-serif; text-shadow: none; margin: 4px 0 16px; }
+.game-loader .ld-kicker { color: rgba(234, 240, 247, .6); letter-spacing: .1em; }
+.game-loader .ld-bar { height: 4px; background: rgba(255, 255, 255, .12); box-shadow: none; }
+.game-loader .ld-bar i { background: var(--brand); animation: none; box-shadow: none; }
+.game-loader .ld-box { animation-duration: .2s; }

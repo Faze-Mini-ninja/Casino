@@ -39,7 +39,7 @@
         ui(false);
         const v = r.view;
         dEl.innerHTML = ''; v.D.forEach((c) => dEl.appendChild(C.cardEl(c)));
-        dLbl.innerHTML = `DEALER <span class="tag">${v.dName}${v.qual ? '' : ' — does not qualify'}</span>`;
+        dLbl.innerHTML = `DEALER <span class="tag">${v.dName}${v.qual ? '' : ': does not qualify'}</span>`;
         if (v.cat != null) { const row = pt.querySelector(`[data-c="${v.cat}"]`); if (row) row.classList.add('hit'); }
         C.settle(r);
         const net = C.net(r);

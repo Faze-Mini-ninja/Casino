@@ -4,7 +4,7 @@
   C.register({
     n: 28, id: 'fish', name: 'Fish Table', icon: '🐟', cat: 'originals', edge: (E * 100) + '%',
     blurb: 'Arcade shooter: each shot costs a bet, catch fish for multipliers.',
-    rules: `<p>Click or tap the water to fire the cannon. Every shot costs your bet. Bullets bounce off the walls until they hit a fish; a hit fish is caught with probability ${(1 - E).toFixed(2)} ÷ its multiplier, paying bet × multiplier. That makes every fish worth the same ${((1 - E) * 100).toFixed(0)}% return per shot — a ${(E * 100).toFixed(0)}% house edge regardless of aim. A bullet that hits nothing within 8 seconds is refunded.</p>`,
+    rules: `<p>Click or tap the water to fire the cannon. Every shot costs your bet. Bullets bounce off the walls until they hit a fish; a hit fish is caught with probability ${(1 - E).toFixed(2)} ÷ its multiplier, paying bet × multiplier. That makes every fish worth the same ${((1 - E) * 100).toFixed(0)}% return per shot: a ${(E * 100).toFixed(0)}% house edge regardless of aim. A bullet that hits nothing within 8 seconds is refunded.</p>`,
     edges: L.FISH.map((f) => [f.name, f.m + '×', `catch ${((1 - E) / f.m * 100).toFixed(1)}%`]).concat([['Every shot', '', (E * 100).toFixed(2) + '%']]),
     mount(root) {
       const bet = C.betInput({ value: 1, label: 'Bet per shot' });

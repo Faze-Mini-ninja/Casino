@@ -41,7 +41,7 @@
           h('div', null, h('div', { class: 'muted center' }, 'Low hand (2)'), h('div', { class: 'cards' }, low.map(mk))));
         if (low.length === 2) {
           const ok = L.pgValid(high, low);
-          info.innerHTML = `High: <span class="tag">${L.handName(L.eval5(high))}</span> Low: <span class="tag">${lowName(low)}</span> ${ok ? '' : '<span class="tag" style="color:#ff8fa3">FOUL — high must beat low</span>'}`;
+          info.innerHTML = `High: <span class="tag">${L.handName(L.eval5(high))}</span> Low: <span class="tag">${lowName(low)}</span> ${ok ? '' : '<span class="tag" style="color:#ff8fa3">FOUL: high must beat low</span>'}`;
         } else info.textContent = `Select ${2 - low.length} more card${low.length === 1 ? '' : 's'} for the low hand`;
       }
       function toggle(i) { if (!st || busy) return; if (st.low.has(i)) st.low.delete(i); else if (st.low.size < 2) st.low.add(i); else return; render(); }

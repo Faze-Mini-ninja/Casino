@@ -22,6 +22,9 @@ const W = 480, H = 640; // stored size (3:4); rendered at 2× and downscaled for
     await page.addScriptTag({ path: path.join(ROOT, 'js', 'covers.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'js', 'slot-assets.js') });
     await page.evaluate(async () => {
+      // the covers draw cards from the real deck: have every card image decoded before any snapshot
+      const deck = ['back-red', ...['spade', 'heart', 'diamond', 'club'].flatMap((s) => ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king'].map((r) => `${s}_${r}`))];
+      await Promise.all(deck.map((n) => { const i = new Image(); i.src = `img/cards/${n}.webp`; return i.decode().catch(() => {}); }));
       const fams = ['Lilita One', 'Bungee', 'Luckiest Guy', 'Rye', 'Russo One', 'Monoton', 'Pirata One', 'Titan One', 'Righteous', 'Anton', 'Fredoka'];
       await Promise.all([...fams.map((f) => document.fonts.load(`40px "${f}"`)), document.fonts.load('900 40px "Cinzel Decorative"')]);
       const el = document.createElement('div'); el.id = 'cover-stage';
@@ -32,7 +35,7 @@ const W = 480, H = 640; // stored size (3:4); rendered at 2× and downscaled for
     const ids = (await page.evaluate(() => Covers.ids())).filter((x) => !want.length || want.includes(x));
     for (const id of ids) {
       await page.evaluate((gid) => { const el = document.getElementById('cover-stage'); el.innerHTML = Covers.svg(gid); Covers.fit(el); }, id);
-      await page.waitForTimeout(60);
+      await page.evaluate(() => Promise.all([...document.querySelectorAll('#cover-stage image')].map((im) => new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = im.getAttribute('href'); })))); await page.waitForTimeout(120);
       const png = await page.locator('#cover-stage').screenshot({ type: 'png', omitBackground: true });
       const webp = await page.evaluate(async ({ b64, w, h }) => {
         const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();

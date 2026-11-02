@@ -72,14 +72,14 @@
         st.cp = r.view.cp; st.cashed = r.view.cashed; st.r = r;
         C.settle(r);
         if (st.cashed) {
-          msg.set(`Cashed out at ${st.cashed.toFixed(2)}× — +${C.fmt(r.payout - r.wager)}`, 'win'); btn.disabled = true;
+          msg.set(`Cashed out at ${st.cashed.toFixed(2)}×: +${C.fmt(r.payout - r.wager)}`, 'win'); btn.disabled = true;
           setTimeout(() => { if (st && st.r === r && raf) { draw(st.cp, Math.log(st.cp) / RATE * 1000, true); finishAnim(); } }, 3000); // don't make the player wait for a huge crash point
         }
         if (!raf || st.cp <= 1) { draw(st.cp, 0, true); finishAnim(); }
       }
       function finishAnim() {
         cancelAnimationFrame(raf); raf = 0;
-        if (!st.cashed) msg.set(`Crashed at ${st.cp.toFixed(2)}× — lost ${C.fmt(st.b)}`, 'lose');
+        if (!st.cashed) msg.set(`Crashed at ${st.cp.toFixed(2)}×: lost ${C.fmt(st.b)}`, 'lose');
         hist.prepend(h('span', { class: 'pill ' + (st.cp >= 2 ? 'g' : 'r') }, st.cp.toFixed(2) + '×'));
         while (hist.children.length > 16) hist.lastChild.remove();
         st = null; bet.disable(false); autoIn.disabled = false; autoChk.disabled = false; btn.disabled = false; btn.textContent = 'BET'; btn.className = 'btn big';

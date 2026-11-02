@@ -30,7 +30,7 @@
             h('div', { class: 'bc-head' }, [...'BINGO'].map((x) => h('div', null, x))),
             h('div', { class: 'bc-grid' }, cd.grid.flatMap((row, r) => row.map((n, c) =>
               h('div', { class: 'bc-cell' + (n === 0 || drawn.has(n) ? ' marked' : '') + (inLine(r, c) ? ' line' : '') }, n === 0 ? '★' : String(n))))),
-            h('div', { class: 'bc-foot' }, lines.length ? `${lines.length} line${lines.length > 1 ? 's' : ''} — ${L.bingoPay(lines.length)}×` : '')));
+            h('div', { class: 'bc-foot' }, lines.length ? `${lines.length} line${lines.length > 1 ? 's' : ''}: ${L.bingoPay(lines.length)}×` : '')));
         });
       }
       newCards();
@@ -52,7 +52,7 @@
         }
         const per = r.result.lines, pay = r.payout;
         C.settle(r);
-        msg.set(pay ? `BINGO! ${per.reduce((a, x) => a + x, 0)} line(s) — win ${C.fmt(pay)}` : 'No lines this time', pay > total ? 'win' : pay ? 'push' : 'lose');
+        msg.set(pay ? `BINGO! ${per.reduce((a, x) => a + x, 0)} line(s): win ${C.fmt(pay)}` : 'No lines this time', pay > total ? 'win' : pay ? 'push' : 'lose');
         busy = false; playBtn.disabled = false; bet.disable(false); ncSel.sel.disabled = false;
       }
       return () => { alive = false; };

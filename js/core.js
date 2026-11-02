@@ -32,7 +32,7 @@
   C.api = async (method, path, body) => {
     let res;
     try { res = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined }); }
-    catch (e) { C.toast('Connection problem — check your network', 'err'); throw e; }
+    catch (e) { C.toast('Connection problem. Check your network.', 'err'); throw e; }
     let j = {}; try { j = await res.json(); } catch (e) { /* empty */ }
     if (!res.ok) {
       if (res.status === 401 && S.user) { S.user = null; emit(); C.reconnect(); location.hash = '#login'; }
@@ -103,7 +103,7 @@
     setTimeout(() => t.classList.add('out'), 2600);
     setTimeout(() => t.remove(), 3100);
   };
-  C.copy = async (text) => { try { await navigator.clipboard.writeText(text); C.toast('Copied', 'win'); } catch (e) { C.toast('Copy failed — select and copy manually', 'err'); } };
+  C.copy = async (text) => { try { await navigator.clipboard.writeText(text); C.toast('Copied', 'win'); } catch (e) { C.toast("Couldn't copy. Select the text and copy it yourself.", 'err'); } };
 
   C.betInput = (opts = {}) => {
     const input = h('input', { type: 'number', min: '0', step: '0.01', value: opts.value || 10, class: 'bet-amt', inputmode: 'decimal' });
@@ -191,7 +191,7 @@
   const app = () => document.getElementById('app');
   // multiplayer games (js/multi.js) are not lobby tiles, but appear in history, stats and the live feed
   C.EXTRA_GAMES = { 'pvp-coinflip': ['PvP Coin Flip', '#pvp'], 'pvp-dice': ['PvP Dice Duel', '#pvp'], 'pvp-rps': ['PvP Rock Paper Scissors', '#pvp'], 'pvp-bj': ['PvP Blackjack Duel', '#pvp'], bjt: ['Live Blackjack', '#tables'] };
-  const names = () => ({ ...Object.fromEntries(Object.entries(C.EXTRA_GAMES).map(([k, v]) => [k, v[0]])), ...Object.fromEntries(C.games.map((g) => [g.statId || g.id, g.name.replace(/ — .*/, '')])) });
+  const names = () => ({ ...Object.fromEntries(Object.entries(C.EXTRA_GAMES).map(([k, v]) => [k, v[0]])), ...Object.fromEntries(C.games.map((g) => [g.statId || g.id, g.name.replace(/: .*/, '')])) });
 
   /* ---------------- icons (24×24 line icons) ---------------- */
   const ICONS = {
@@ -272,11 +272,11 @@
   const sorted = () => C.games.slice().sort((a, b) => a.n - b.n);
 
   function promo(kicker, title, text, cta, href, from, to, deco, covers) {
-    return h('a', { class: 'promo' + (covers ? ' with-covers' : ''), href, style: `background:linear-gradient(120deg, ${from}, ${to})` },
+    return h('a', { class: 'promo' + (covers ? ' with-covers' : ''), href, style: `--accent:${from}` },
       h('div', null, h('div', { class: 'kicker' }, kicker), h('h3', null, title), h('p', null, text)),
       h('span', { class: 'btn small' }, cta),
       covers ? h('div', { class: 'promo-covers' }, covers.map((id) => h('img', { src: `img/covers/${id}.webp`, alt: '', loading: 'lazy', onerror: (e) => e.target.remove() })))
-        : h('span', { html: `<svg class="deco" viewBox="0 0 24 24">${ICONS[deco]}</svg>` }));
+        : null);
   }
 
   const byServerId = () => Object.fromEntries(C.games.map((g) => [g.statId || g.round || g.id, g]));
@@ -392,9 +392,9 @@
       btn.disabled = true;
       const r = await C.try(() => C.api('POST', mode === 'login' ? '/api/login' : '/api/register', { username: user.value, password: pass.value, refCode: mode === 'login' ? undefined : ref.value.trim(), inviteCode: mode === 'login' ? undefined : invite.value.trim(), ageConfirm: mode === 'login' ? undefined : ageBox.checked }));
       btn.disabled = false;
-      if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : `Account created — ${demoStart()} demo credits added`, 'win'); location.hash = '#lobby'; }
+      if (r) { if (mode !== 'login') { try { localStorage.removeItem('casino.ref'); } catch (e2) { /* ignore */ } } applyMe(r); C.toast(mode === 'login' ? `Welcome back, ${r.user.username}` : `Account created: ${demoStart()} demo credits added`, 'win'); location.hash = '#lobby'; }
     } }, title, user, pass, invite, ref, age, btn, sw,
-    h('p', { class: 'muted small' }, 'You must be 18+ and allowed to gamble where you live. Gambling can be addictive — set limits and never deposit more than you can afford to lose.'));
+    h('p', { class: 'muted small' }, 'You must be 18+ and allowed to gamble where you live. Gambling can be addictive. Set limits and never deposit more than you can afford to lose.'));
     return h('div', { class: 'auth-wrap' }, form);
   }
 
@@ -522,7 +522,7 @@
     if (hash === 'account' && S.user) return a.appendChild(accountPage());
     if (needLogin && !S.user) { location.hash = '#login'; return; }
     const g = C.games.find((x) => x.id === hash);
-    if (g) { document.title = g.name + ' — Krush Casino'; return a.appendChild(gamePage(g)); }
+    if (g) { document.title = g.name + ' | Krush Casino'; return a.appendChild(gamePage(g)); }
     const ext = Object.keys(pages).find((k) => hash === k || hash.startsWith(k + '-'));
     if (ext) {
       const pg = pages[ext];

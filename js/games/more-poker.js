@@ -49,7 +49,7 @@
         for (let i = 3; i < 5; i++) { await C.sleep(220); bEl.children[i].replaceWith(C.cardEl(v.B[i], { cls: 'deal' })); C.sfx && C.sfx('card'); }
         await C.sleep(250);
         dEl.innerHTML = ''; v.D.forEach((c) => dEl.appendChild(C.cardEl(c, { cls: 'deal' })));
-        dLbl.innerHTML = `DEALER <span class="tag">${v.dName}${v.qual ? '' : ' — does not qualify'}</span>`;
+        dLbl.innerHTML = `DEALER <span class="tag">${v.dName}${v.qual ? '' : ': does not qualify'}</span>`;
         pLbl.innerHTML = `YOU <span class="tag">${v.pName}</span>`;
         const cat = Object.entries(CHE_NAMES).find(([, n]) => n === v.pName);
         if (cat && r.payout > 0) { const row = pt.querySelector(`[data-c="${cat[0]}"]`); if (row) row.classList.add('hit'); }
@@ -89,7 +89,7 @@
         if (k >= 0) { pt.querySelector(`[data-k="${k}"]`).classList.add('hit'); const c = {}; r.result.dice.forEach((x) => (c[x] = (c[x] || 0) + 1)); [...dice.children].forEach((d, i) => d.classList.toggle('lit', k === 3 || c[r.result.dice[i]] > 1)); }
         C.settle(r);
         hist.prepend(h('span', { class: 'pill' + (r.payout > r.wager ? ' g' : '') }, k >= 0 ? L.POKERDICE[k][0] : '—')); while (hist.children.length > 8) hist.lastChild.remove();
-        msg.set(k >= 0 ? `${L.POKERDICE[k][0]} — ${r.payout > r.wager ? 'pays ' + C.fmt(r.payout) : r.payout ? 'returns ' + C.fmt(r.payout) : ''}` : 'No hand', r.payout > r.wager ? 'win' : 'lose');
+        msg.set(k >= 0 ? `${L.POKERDICE[k][0]}: ${r.payout > r.wager ? 'pays ' + C.fmt(r.payout) : r.payout ? 'returns ' + C.fmt(r.payout) : ''}` : 'No hand', r.payout > r.wager ? 'win' : 'lose');
         busy = false; btn.disabled = false; bet.disable(false);
       }
     },

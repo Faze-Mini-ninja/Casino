@@ -8,7 +8,7 @@
     n: 53, id: 'pick3', name: 'Pick 3', icon: '3', cat: 'lottery', edge: '30%',
     blurb: 'Choose three digits. Straight pays 700×.',
     rules: '<p>Pick three digits from 0 to 9, then three balls are drawn. <b>Straight</b> wins if the draw matches your digits in exact order. <b>Box</b> wins if the draw contains your digits in any order (needs at least two different digits).</p>',
-    edges: [['Straight (exact order)', '700×', '30%'], ['Box — 3 different digits (6 ways)', '115×', '30.8%'], ['Box — one pair (3 ways)', '230×', '30.8%']],
+    edges: [['Straight (exact order)', '700×', '30%'], ['Box: 3 different digits (6 ways)', '115×', '30.8%'], ['Box: one pair (3 ways)', '230×', '30.8%']],
     mount(root) {
       const bet = C.betInput({ value: 1 });
       let mode = 'straight', digits = [1, 2, 3], busy = false;
@@ -18,7 +18,7 @@
         const set = (x) => { if (busy) return; digits[i] = (x + 10) % 10; v.textContent = digits[i]; paintMode(); };
         return h('div', { class: 'p3-col' }, h('button', { class: 'btn small ghost', onclick: () => set(digits[i] + 1) }, '▲'), v, h('button', { class: 'btn small ghost', onclick: () => set(digits[i] - 1) }, '▼'));
       });
-      const modeSel = C.select('Bet type', [['straight', 'Straight — exact order'], ['box', 'Box — any order']], mode, (v) => { mode = v; paintMode(); });
+      const modeSel = C.select('Bet type', [['straight', 'Straight: exact order'], ['box', 'Box: any order']], mode, (v) => { mode = v; paintMode(); });
       const payInfo = h('div', { class: 'p3-pay' });
       const quick = h('button', { class: 'btn ghost small', onclick: () => { if (busy) return; digits = digits.map(() => Math.floor(Math.random() * 10)); dEls.forEach((c, i) => (c.children[1].textContent = digits[i])); paintMode(); } }, 'Quick pick');
       function paintMode() {
@@ -46,7 +46,7 @@
         }
         C.settle(r);
         hist.prepend(h('span', { class: 'pill' + (r.payout ? ' g' : '') }, r.result.draw.join(''))); while (hist.children.length > 12) hist.lastChild.remove();
-        msg.set(r.payout ? `Winner! Pays ${C.fmt(r.payout)} (${r.result.mult}×)` : `Drew ${r.result.draw.join(' ')} — no win`, r.payout ? 'win' : 'lose');
+        msg.set(r.payout ? `Winner! Pays ${C.fmt(r.payout)} (${r.result.mult}×)` : `Drew ${r.result.draw.join(' ')}: no win`, r.payout ? 'win' : 'lose');
         busy = false; btn.disabled = false; bet.disable(false);
       }
     },

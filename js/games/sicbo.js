@@ -40,7 +40,7 @@
         const t = d[0] + d[1] + d[2], triple = d[0] === d[1] && d[1] === d[2];
         hist.prepend(h('span', { class: 'pill ' + (triple ? 'g' : t <= 10 ? '' : 'r') }, `${d.join('')} ${t}`));
         while (hist.children.length > 12) hist.lastChild.remove();
-        msg.set(`${d.join(' · ')} = ${t}${triple ? ' TRIPLE!' : t <= 10 ? ' Small' : ' Big'} — ` + (pay ? `pays ${C.fmt(pay)}` : 'no win'), pay > wager ? 'win' : pay ? 'push' : 'lose');
+        msg.set(`${d.join(' · ')} = ${t}${triple ? ' TRIPLE!' : t <= 10 ? ' Small' : ' Big'}: ` + (pay ? `pays ${C.fmt(pay)}` : 'no win'), pay > wager ? 'win' : pay ? 'push' : 'lose');
         busy = false; T.lock(false); rollBtn.disabled = false;
       }
     },

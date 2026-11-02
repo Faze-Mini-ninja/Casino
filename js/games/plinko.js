@@ -5,7 +5,7 @@
   C.register({
     n: 14, id: 'plinko', name: 'Plinko', icon: '🔻', cat: 'originals', edge: '12–40%',
     blurb: 'Drop balls through pegs. Higher risk, bigger multipliers.',
-    rules: '<p>Each ball bounces left or right with equal probability at every row and lands in a multiplier slot. Choose 8, 12 or 16 rows and a risk level. Low risk RTP 88%, medium 78%, high 60% — exact, from the binomial distribution.</p>',
+    rules: '<p>Each ball bounces left or right with equal probability at every row and lands in a multiplier slot. Choose 8, 12 or 16 rows and a risk level. Low risk RTP 88%, medium 78%, high 60%: exact, from the binomial distribution.</p>',
     edges,
     mount(root) {
       const bet = C.betInput({ value: 1 });
@@ -73,7 +73,7 @@
         const m = b.r.result.mult, pay = b.r.payout;
         C.settle(b.r);
         flash[b.k] = performance.now();
-        msg.set(`${m}× — ${pay ? 'returned ' + C.fmt(pay) : 'lost'}`, m >= 1 ? 'win' : 'lose');
+        msg.set(`${m}×: ${pay ? 'returned ' + C.fmt(pay) : 'lost'}`, m >= 1 ? 'win' : 'lose');
         lastEl.prepend(h('span', { class: 'pill', style: `background:${slotColor(m)};color:#111` }, m + '×'));
         while (lastEl.children.length > 12) lastEl.lastChild.remove();
       }

@@ -4,9 +4,9 @@
     n: 3, id: 'blackjack', name: 'Blackjack + Side Bets', icon: '🃏', cat: 'cards', edge: '17–21% (sides)',
     blurb: '6-deck blackjack with Perfect Pairs and 21+3 side bets.',
     rules: `<p>6 decks, dealer stands on all 17s, dealer peeks for blackjack. Blackjack pays 3:2. Double on any first two cards, split once (split aces get one card), double after split allowed. No insurance or surrender.
-      The main game edge is ≈0.5% with basic strategy — the house makes its money on the side bets:</p>
-      <p><b>Perfect Pairs</b> — your first two cards: Perfect pair (same suit) ${L.PERFECT_PAIRS.perfect}:1, Colored pair ${L.PERFECT_PAIRS.colored}:1, Mixed pair ${L.PERFECT_PAIRS.mixed}:1.<br>
-      <b>21+3</b> — your two cards + dealer up-card as a 3-card poker hand: Suited trips ${L.P21_3.suitedTrips}:1, Straight flush ${L.P21_3.straightFlush}:1, Three of a kind ${L.P21_3.trips}:1, Straight ${L.P21_3.straight}:1, Flush ${L.P21_3.flush}:1.</p>`,
+      The main game edge is ≈0.5% with basic strategy. The house makes its money on the side bets.</p>
+      <p><b>Perfect Pairs</b> pays on your first two cards. Perfect pair (same suit) ${L.PERFECT_PAIRS.perfect}:1, Colored pair ${L.PERFECT_PAIRS.colored}:1, Mixed pair ${L.PERFECT_PAIRS.mixed}:1.<br>
+      <b>21+3</b> uses your two cards and the dealer's up-card as a 3-card poker hand. Suited trips ${L.P21_3.suitedTrips}:1, Straight flush ${L.P21_3.straightFlush}:1, Three of a kind ${L.P21_3.trips}:1, Straight ${L.P21_3.straight}:1, Flush ${L.P21_3.flush}:1.</p>`,
     edges: [['Main bet (basic strategy)', '1:1, BJ 3:2', '≈0.5%'], ['Perfect Pairs', '20/10/5 : 1', '≈21%'], ['21+3', '100/40/25/9/4 : 1', '≈17%']],
     round: 'blackjack',
     mount(root) {
@@ -45,7 +45,7 @@
         render(r.view); showActions(false);
         C.settle(r);
         const net = C.net(r);
-        msg.set(net > 0 ? `You win ${C.fmt(net)}` : net === 0 ? 'Push — even' : `You lose ${C.fmt(-net)}`, net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
+        msg.set(net > 0 ? `You win ${C.fmt(net)}` : net === 0 ? 'Push' : `You lose ${C.fmt(-net)}`, net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
       }
       async function deal() {
         if (busy) return; busy = true;

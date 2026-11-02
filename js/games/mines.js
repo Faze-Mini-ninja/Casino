@@ -61,7 +61,7 @@
         const r = await C.try(() => C.play('mines', 'cashout', {}));
         busy = false; if (r) cashed(r);
       }
-      function cashed(r) { reveal(r.view.mines, -1); C.settle(r); msg.set(`Cashed out ${r.view.mult.toFixed(2)}× — won ${C.fmt(r.payout)}`, 'win'); finish(); }
+      function cashed(r) { reveal(r.view.mines, -1); C.settle(r); msg.set(`Cashed out ${r.view.mult.toFixed(2)}×: won ${C.fmt(r.payout)}`, 'win'); finish(); }
       function finish() { st = null; bet.disable(false); minesSel.sel.disabled = false; btn.textContent = 'BET'; btn.className = 'btn big'; btn.disabled = false; preview(); }
     },
   });

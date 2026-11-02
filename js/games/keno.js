@@ -60,7 +60,7 @@
         const m = r.result.mult, pay = r.payout;
         C.settle(r);
         paint(hits);
-        msg.set(m ? `${hits} hits — WIN ${C.fmt(pay)} (${m}×)` : `${hits} hit${hits === 1 ? '' : 's'} — no win`, m ? 'win' : 'lose');
+        msg.set(m ? `${hits} hits: WIN ${C.fmt(pay)} (${m}×)` : `${hits} hit${hits === 1 ? '' : 's'}: no win`, m ? 'win' : 'lose');
         busy = false; playBtn.disabled = false; bet.disable(false);
       }
       return () => { alive = false; };

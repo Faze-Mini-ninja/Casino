@@ -5,10 +5,10 @@
   'use strict';
   const C = Casino, h = C.h;
   const TIPS = [
-    'Every result is decided on our server — the animation just shows it.',
+    'Every result is decided on our server. The animation only shows it.',
     'Set deposit limits or take a break any time on the Responsible Gambling page.',
     'Switch between demo credits and real money from the balance menu.',
-    'Challenge other players in the PvP Arena — winner takes the pot.',
+    'In the PvP Arena, the winner takes the pot.',
     'Live Blackjack: up to five players against one dealer.',
     'Your bet history and stats are under Account.',
     'Gamble for fun. Never bet more than you can afford to lose.',

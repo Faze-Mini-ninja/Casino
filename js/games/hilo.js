@@ -45,10 +45,10 @@
         if (!st || busy) return; busy = true;
         const r = await C.try(() => C.play('hilo', a, {}));
         busy = false; if (!r) return;
-        if (a === 'cashout') { C.settle(r); msg.set(`Cashed out ${r.view.mult.toFixed(2)}× — ${C.fmt(r.payout)}`, 'win'); return end(); }
+        if (a === 'cashout') { C.settle(r); msg.set(`Cashed out ${r.view.mult.toFixed(2)}×: ${C.fmt(r.payout)}`, 'win'); return end(); }
         card = r.view.card; trail.appendChild(C.cardEl(card, { cls: 'dim' }));
         if (a === 'skip') return paint();
-        if (r.done) { C.settle(r); msg.set(`Wrong — lost ${C.fmt(st.b)}`, 'lose'); return end(); }
+        if (r.done) { C.settle(r); msg.set(`Wrong: lost ${C.fmt(st.b)}`, 'lose'); return end(); }
         st.mult = r.view.mult; st.n = r.view.n; msg.set(`Correct! ${st.mult.toFixed(2)}×`, 'win'); paint();
       }
       function end() { st = null; bet.disable(false); mainBtn.textContent = 'BET'; mainBtn.className = 'btn big'; paint(); }

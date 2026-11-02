@@ -40,7 +40,7 @@
         await new Promise((done) => { (function f(t) { const p = Math.min(1, (t - t0) / 3000); rot = s0 + (e - s0) * (1 - Math.pow(1 - p, 3)); draw(); if (p < 1) requestAnimationFrame(f); else done(); })(t0); });
         draw(k); C.settle(r); T.mark(['n:' + r.result.n, ...r.result.winners]);
         hist.prepend(h('span', { class: 'pill ' + (r.result.n === 0 ? 'g' : L.MINI_REDS.has(r.result.n) ? 'r' : 'b') }, String(r.result.n))); strip(hist);
-        msg.set(`${r.result.n} — ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
+        msg.set(`${r.result.n}: ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
         busy = false; T.lock(false); btn.disabled = false;
       }
     },
@@ -81,7 +81,7 @@
         }
         C.settle(r); T.mark([r.result.winner]);
         hist.prepend(h('span', { class: 'pill ' + (r.result.winner === 'andar' ? 'bl' : 'r') }, r.result.winner[0].toUpperCase())); strip(hist, 24);
-        msg.set(`${r.result.winner === 'andar' ? 'Andar' : 'Bahar'} wins after ${r.result.dealt} cards — ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
+        msg.set(`${r.result.winner === 'andar' ? 'Andar' : 'Bahar'} wins after ${r.result.dealt} cards: ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
         busy = false; T.lock(false); btn.disabled = false;
       }
     },
@@ -153,7 +153,7 @@
         T.mark([]); await C.rollDice(dice, r.result.dice, 'red'); C.settle(r); T.mark([r.result.hit]);
         const t = r.result.dice[0] + r.result.dice[1];
         hist.prepend(h('span', { class: 'pill ' + (t === 7 ? 'g' : t < 7 ? 'bl' : 'r') }, String(t))); strip(hist);
-        msg.set(`${t} — ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
+        msg.set(`${t}: ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
         busy = false; T.lock(false); btn.disabled = false;
       }
     },
@@ -183,7 +183,7 @@
         await C.rollDice(dealer, r.result.dealer, 'red'); dT.textContent = r.result.dealer[0] + r.result.dealer[1];
         await C.rollDice(you, r.result.you); yT.textContent = r.result.you[0] + r.result.you[1];
         C.settle(r); T.mark(r.result.res === 'dealer' ? [] : [r.result.res]);
-        msg.set(r.result.res === 'player' ? `You win — ${C.fmt(r.payout)}` : r.result.res === 'tie' ? (r.payout ? `Tie! Pays ${C.fmt(r.payout)}` : 'Tie — dealer wins') : 'Dealer wins', r.payout > r.wager ? 'win' : 'lose');
+        msg.set(r.result.res === 'player' ? `You win ${C.fmt(r.payout)}` : r.result.res === 'tie' ? (r.payout ? `Tie! Pays ${C.fmt(r.payout)}` : 'Tie: dealer wins') : 'Dealer wins', r.payout > r.wager ? 'win' : 'lose');
         busy = false; T.lock(false); btn.disabled = false;
       }
     },

@@ -286,7 +286,7 @@
         if (!r) { busy = false; choices.classList.remove('disabled'); return; }
         for (let i = 0; i < 9; i++) { house.innerHTML = ''; house.append(C.artEl(['rock', 'paper', 'scissors'][i % 3])); await C.sleep(70); }
         house.innerHTML = ''; house.append(C.artEl(r.result.house)); C.settle(r);
-        msg.set(r.result.res === 'win' ? `You win ${C.fmt(r.payout)}` : r.result.res === 'tie' ? 'Tie — bet returned' : 'House wins', r.result.res === 'win' ? 'win' : r.result.res === 'tie' ? 'push' : 'lose');
+        msg.set(r.result.res === 'win' ? `You win ${C.fmt(r.payout)}` : r.result.res === 'tie' ? 'Tie: bet returned' : 'House wins', r.result.res === 'win' ? 'win' : r.result.res === 'tie' ? 'push' : 'lose');
         busy = false; choices.classList.remove('disabled');
       }
     },
@@ -331,7 +331,7 @@
         if (!st || busy) return; busy = true;
         const r = await C.try(() => C.play('redblack', 'guess', { guess })); busy = false; if (!r) return;
         cardWrap.innerHTML = ''; cardWrap.append(C.cardEl(r.view.card)); trail.append(C.cardEl(r.view.card, { cls: 'dim' }));
-        if (!r.view.ok) { C.settle(r); msg.set('Wrong — stake lost', 'lose'); return end(); }
+        if (!r.view.ok) { C.settle(r); msg.set('Wrong: stake lost', 'lose'); return end(); }
         st.mult = r.view.mult; st.n = r.view.n; C.sfx && C.sfx('cash');
         if (r.done) { C.settle(r); msg.set(`Ten in a row! ${C.fmt(r.payout)}`, 'win'); return end(); }
         msg.set(`Correct! ${st.mult.toFixed(2)}×`, 'win'); paint();
@@ -371,7 +371,7 @@
         await C.sleep(3700); C.settle(r); T.mark([r.result.color]);
         const c = r.result.color;
         hist.prepend(h('span', { class: 'pill ' + (c === 'red' ? 'r' : c === 'green' ? 'g' : 'b') }, String(r.result.n))); while (hist.children.length > 16) hist.lastChild.remove();
-        msg.set(`${c.toUpperCase()} ${r.result.n} — ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
+        msg.set(`${c.toUpperCase()} ${r.result.n}: ` + (r.payout ? `pays ${C.fmt(r.payout)}` : 'no win'), r.payout > r.wager ? 'win' : 'lose');
         busy = false; T.lock(false); btn.disabled = false; void pos;
       }
     },

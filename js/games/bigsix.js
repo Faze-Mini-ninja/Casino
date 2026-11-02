@@ -60,7 +60,7 @@
         T.mark([id]);
         hist.prepend(h('span', { class: 'pill', style: `background:${S[id].color};color:#111` }, S[id].label));
         while (hist.children.length > 14) hist.lastChild.remove();
-        msg.set(`${S[id].label} — ` + (pay ? `win ${C.fmt(pay)}` : 'no win'), pay ? 'win' : 'lose');
+        msg.set(`${S[id].label}: ` + (pay ? `win ${C.fmt(pay)}` : 'no win'), pay ? 'win' : 'lose');
         busy = false; T.lock(false); spinBtn.disabled = false;
       }
       return () => { alive = false; cancelAnimationFrame(raf); };

@@ -4,7 +4,7 @@
   C.register({
     n: 26, id: 'tower', name: 'Tower', icon: '🗼', cat: 'originals', edge: (E * 100) + '%',
     blurb: 'Climb 8 floors picking safe tiles. Cash out any time.',
-    rules: `<p>Each floor hides traps. Pick a safe tile to climb; hit a trap and the bet is lost. Cash out after any floor. Difficulty: Easy 4 tiles/1 trap, Medium 3/1, Hard 2/1, Expert 3/2. Multiplier for floor k = ${(1 - E).toFixed(2)} ÷ P(safe)^k — a flat ${(E * 100).toFixed(0)}% house edge.</p>`,
+    rules: `<p>Each floor hides traps. Pick a safe tile to climb; hit a trap and the bet is lost. Cash out after any floor. Difficulty: Easy 4 tiles/1 trap, Medium 3/1, Hard 2/1, Expert 3/2. Multiplier for floor k = ${(1 - E).toFixed(2)} ÷ P(safe)^k: a flat ${(E * 100).toFixed(0)}% house edge.</p>`,
     edges: Object.keys(L.TOWER).map((d) => [d[0].toUpperCase() + d.slice(1), Array.from({ length: FLOORS }, (_, k) => L.towerMult(d, k + 1) + '×').join(' → '), (E * 100).toFixed(2) + '%']),
     round: 'tower',
     mount(root) {
@@ -57,7 +57,7 @@
         const r = await C.try(() => C.play('tower', 'cashout', {}));
         busy = false; if (r) cashed(r);
       }
-      function cashed(r) { revealAll(r.view.traps); C.settle(r); msg.set(`Cashed out at floor ${st.floor}: ${r.view.mult.toFixed(2)}× — ${C.fmt(r.payout)}`, 'win'); end(); }
+      function cashed(r) { revealAll(r.view.traps); C.settle(r); msg.set(`Cashed out at floor ${st.floor} (${r.view.mult.toFixed(2)}×): ${C.fmt(r.payout)}`, 'win'); end(); }
       function end() { st = null; bet.disable(false); dSel.sel.disabled = false; btn.textContent = 'BET'; btn.className = 'btn big'; btn.disabled = false; setActive(); }
     },
   });

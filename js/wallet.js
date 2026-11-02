@@ -15,7 +15,7 @@
   const WARN = {
     SOL: (n) => `Send SOL on ${n} only.`,
     USDC: (n) => `Send USDC on ${n} only. USDC sent from Ethereum or another chain will be lost.`,
-    ETH: (n) => `Send ETH on ${n} only — not tokens, and not from Base, Arbitrum, BSC or other networks.`,
+    ETH: (n) => `Send ETH on ${n} only. Not tokens, and not from Base, Arbitrum, BSC or other networks.`,
     LTC: (n) => `Send LTC on ${n} only.`,
   };
   const PLACEHOLDER = { SOL: 'Your Solana wallet address', USDC: 'Your Solana wallet address (not a token account)', ETH: 'Your Ethereum address (0x…)', LTC: 'Your Litecoin address (ltc1… / L… / M…)' };
@@ -47,7 +47,7 @@
     const balV = h('b');
     const paintBal = () => { balV.textContent = C.money(C.balanceOf('real')); };
     const head = h('div', { class: 'wl-bal' }, h('div', { class: 'wl-coins-ico' }, coins.slice(0, 4).map((c) => h('span', { html: ICON[c.id] || '' }))),
-      h('div', null, h('span', { class: 'wl-k' }, 'Real balance'), balV, h('div', { class: 'wl-sub' }, 'Deposit any coin — it is credited in dollars at the market price.')));
+      h('div', null, h('span', { class: 'wl-k' }, 'Real balance'), balV, h('div', { class: 'wl-sub' }, 'Deposit any coin. It is credited in dollars at the market price.')));
 
     /* coin picker shared by deposit and withdraw */
     const pickers = [];
@@ -73,7 +73,7 @@
         const a = +amt.value; out.innerHTML = '';
         if (!(a > 0)) { out.append(h('span', { class: 'muted' }, `1 ${cur} ≈ ${C.money(p)}${fee ? ` · ${fee}% deposit fee` : ''}`)); return; }
         const gross = Math.floor(a * p * 100) / 100, f = Math.round(gross * fee) / 100;
-        if (a < info[cur].minDeposit) { out.append(h('span', { class: 'neg' }, `Below the ${info[cur].minDeposit} ${cur} minimum — it would not be credited`)); return; }
+        if (a < info[cur].minDeposit) { out.append(h('span', { class: 'neg' }, `Below the ${info[cur].minDeposit} ${cur} minimum, so it would not be credited`)); return; }
         out.append(h('span', null, 'Worth ', h('b', null, C.money(gross))), fee ? h('span', { class: 'muted' }, `Fee ${fee}%: −${C.money(f)}`) : null, h('span', null, 'You get ', h('b', { class: 'pos' }, C.money(gross - f))));
       };
       amt.addEventListener('input', paint); paint();
@@ -119,7 +119,7 @@
       wNotes.innerHTML = '';
       wNotes.append(h('li', null, `Minimum withdrawal ${C.money(cfg.minWithdrawUsd)}. Network fee ${info[cur].withdrawFee} ${cur}, paid from the amount.`),
         h('li', null, `Up to ${C.money(cfg.autoApproveUsd)} is sent automatically, usually within minutes; larger withdrawals are reviewed first.`),
-        h('li', null, `Paid out as ${cur} on ${info[cur].network}${cur === 'USDC' ? ' — use a Solana wallet address' : ''}.`));
+        h('li', null, `Paid out as ${cur} on ${info[cur].network}${cur === 'USDC' ? ', to a Solana wallet address' : ''}.`));
     };
     amount.addEventListener('input', paintReceive);
     const setPct = (f) => () => { amount.value = Math.floor(C.balanceOf('real') * f * 100) / 100; paintReceive(); };
@@ -128,7 +128,7 @@
       wBtn.disabled = true;
       const r = await C.try(() => C.api('POST', '/api/withdraw', { asset: cur, address: dest.value.trim(), amount: +amount.value }));
       wBtn.disabled = false;
-      if (r) { C.setUnits(r.balances); paintBal(); amount.value = ''; paintReceive(); C.sfx && C.sfx('cash'); C.toast(r.status === 'approved' ? `Sending ${fmtCoin(r.asset, r.coin)} ${r.asset} to your wallet` : 'Withdrawal requested — it will be reviewed shortly', 'win'); }
+      if (r) { C.setUnits(r.balances); paintBal(); amount.value = ''; paintReceive(); C.sfx && C.sfx('cash'); C.toast(r.status === 'approved' ? `Sending ${fmtCoin(r.asset, r.coin)} ${r.asset} to your wallet` : 'Withdrawal requested: it will be reviewed shortly', 'win'); }
     } }, 'Withdraw');
 
     /* buy */
@@ -155,7 +155,7 @@
 
     openState.onDeposit = (d) => {
       status.className = 'wl-status ' + (d.belowMinimum ? 'bad' : 'ok');
-      status.lastChild.textContent = d.belowMinimum ? `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} — below the minimum, not credited` : `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} (${C.money(d.grossUsd)})${d.feeUsd ? ` — ${C.money(d.feeUsd)} fee` : ''} — +${C.money(d.usd)} added`;
+      status.lastChild.textContent = d.belowMinimum ? `Received ${fmtCoin(d.asset, d.coin)} ${d.asset}: below the minimum, not credited` : `Received ${fmtCoin(d.asset, d.coin)} ${d.asset} (${C.money(d.grossUsd)})${d.feeUsd ? `: ${C.money(d.feeUsd)} fee` : ''}: +${C.money(d.usd)} added`;
       w.deposits.unshift({ ts: Date.now(), asset: d.asset, coin: d.coin, usd: d.usd, grossUsd: d.grossUsd, feeUsd: d.feeUsd, kind: d.belowMinimum ? 'below-minimum' : 'deposit' }); paintRecent();
       setTimeout(paintBal, 400);
     };

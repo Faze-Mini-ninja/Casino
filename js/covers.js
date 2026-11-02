@@ -32,23 +32,11 @@
     c: 'M50 8 a20 20 0 0 1 17 30 a20 20 0 1 1 -11 34 C57 82 62 88 68 92 H32 C38 88 43 82 44 72 a20 20 0 1 1 -11 -34 A20 20 0 0 1 50 8z',
   };
   const suitPath = (s, x, y, sz, col) => `<path d="${SUIT[s]}" fill="${col}" transform="translate(${x - sz / 2} ${y - sz / 2}) scale(${sz / 100})"/>`;
-  /** Playing card centred at (x,y), width w. rank: 'A','K','Q','J','10'…, suit: s h d c. */
+  /** Playing card centred at (x,y), width w, drawn from the real deck in img/cards. rank: 'A','K','Q','J','10'…, suit: s h d c. */
+  const SUIT_FILE = { s: 'spade', h: 'heart', d: 'diamond', c: 'club' }, RANK_FILE = { A: '1', K: 'king', Q: 'queen', J: 'jack' };
   function card(x, y, w, rank, suit, rot = 0, back = false) {
-    const hgt = w * 1.4, col = suit === 'h' || suit === 'd' ? '#d32f2f' : '#16181d', g = id('cd');
-    if (back) { const p = id('pt'); return shadow(`<g transform="translate(${x} ${y}) rotate(${rot})"><defs>${lin(g, ['#c62828', '#7f0000'])}<pattern id="${p}" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="8" fill="#fff" opacity=".12"/></pattern></defs>
-      <rect x="${-w / 2}" y="${-hgt / 2}" width="${w}" height="${hgt}" rx="${w * 0.08}" fill="#fff"/><rect x="${-w / 2 + w * 0.06}" y="${-hgt / 2 + w * 0.06}" width="${w * 0.88}" height="${hgt - w * 0.12}" rx="${w * 0.05}" fill="url(#${g})"/>
-      <rect x="${-w / 2 + w * 0.06}" y="${-hgt / 2 + w * 0.06}" width="${w * 0.88}" height="${hgt - w * 0.12}" rx="${w * 0.05}" fill="url(#${p})"/>
-      <text x="0" y="${w * 0.16}" text-anchor="middle" font-family="Lilita One" font-size="${w * 0.42}" fill="#fff" opacity=".9">K</text></g>`, 5, 5, 0.5); }
-    const face = ['J', 'Q', 'K'].includes(rank), fs = rank === '10' ? w * 0.2 : w * 0.24;
-    const centre = face ? `<rect x="${-w * 0.3}" y="${-hgt * 0.3}" width="${w * 0.6}" height="${hgt * 0.6}" rx="${w * 0.04}" fill="${col === '#d32f2f' ? '#fdecea' : '#eceff1'}" stroke="${col}" stroke-width="${w * 0.015}"/>
-        <text x="0" y="${w * 0.17}" text-anchor="middle" font-family="Cinzel Decorative, Georgia, serif" font-weight="900" font-size="${w * 0.5}" fill="${col}">${rank}</text>${suitPath(suit, w * 0.17, -hgt * 0.19, w * 0.14, col)}`
-      : suitPath(suit, 0, 0, rank === 'A' ? w * 0.52 : w * 0.38, col);
-    return shadow(`<g transform="translate(${x} ${y}) rotate(${rot})"><defs>${lin(g, ['#ffffff', '#f1f1ee'])}</defs>
-      <rect x="${-w / 2}" y="${-hgt / 2}" width="${w}" height="${hgt}" rx="${w * 0.08}" fill="url(#${g})" stroke="#000" stroke-opacity=".15"/>
-      <text x="${-w / 2 + w * 0.13}" y="${-hgt / 2 + fs * 1.05}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${fs}" fill="${col}" letter-spacing="${rank === '10' ? -1 : 0}">${rank}</text>
-      ${suitPath(suit, -w / 2 + w * 0.13, -hgt / 2 + fs * 1.55, w * 0.13, col)}
-      <g transform="rotate(180)"><text x="${-w / 2 + w * 0.13}" y="${-hgt / 2 + fs * 1.05}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${fs}" fill="${col}" letter-spacing="${rank === '10' ? -1 : 0}">${rank}</text>${suitPath(suit, -w / 2 + w * 0.13, -hgt / 2 + fs * 1.55, w * 0.13, col)}</g>
-      ${centre}</g>`, 6, 6, 0.5);
+    const hgt = w * 1.45, src = back ? 'img/cards/back-red.webp' : `img/cards/${SUIT_FILE[suit]}_${RANK_FILE[rank] || rank}.webp`;
+    return shadow(`<g transform="translate(${x} ${y}) rotate(${rot})"><image href="${src}" x="${-w / 2}" y="${-hgt / 2}" width="${w}" height="${hgt}" preserveAspectRatio="none"/></g>`, 6, 6, 0.5);
   }
   const CHIP = { red: ['#e53935', '#8e0000'], blue: ['#1e88e5', '#0d3c7a'], green: ['#2e9d57', '#0b4d27'], black: ['#3a3f47', '#0c0e11'], purple: ['#8e24aa', '#3d0a52'], gold: ['#ffcf3f', '#a86b00'], white: ['#f5f5f5', '#9e9e9e'], orange: ['#fb8c00', '#8a3d00'] };
   /** Top-down chip. */

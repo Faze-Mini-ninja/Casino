@@ -3,7 +3,7 @@
   C.register({
     n: 10, id: 'videopoker', name: 'Video Poker', icon: '🂡', cat: 'cards', edge: '≈6.5%',
     blurb: 'Jacks or Better with a short 6/5 paytable.',
-    rules: '<p>Single-deck draw poker. You are dealt 5 cards, click cards to HOLD, then draw replacements. Paid on the final hand. This is a "6/5" Jacks or Better table with a reduced 250× royal — about 93.5% RTP with perfect strategy (a full-pay 9/6 machine is 99.5%). Typical play loses more.</p>',
+    rules: '<p>Single-deck draw poker. You are dealt 5 cards, click cards to HOLD, then draw replacements. Paid on the final hand. This is a "6/5" Jacks or Better table with a reduced 250× royal: about 93.5% RTP with perfect strategy (a full-pay 9/6 machine is 99.5%). Typical play loses more.</p>',
     edges: L.VP_PAYS.map(([n, p]) => [n, p + '× bet', '']).concat([['Overall (optimal strategy)', '', '≈6.5%']]),
     round: 'videopoker',
     mount(root) {
@@ -42,7 +42,7 @@
         busy = false; if (!r) return;
         hand = r.view.hand; phase = 'idle'; bet.disable(false); btn.textContent = 'DEAL';
         C.settle(r);
-        msg.set(r.view.pays ? `${r.view.name} — WIN ${C.fmt(r.payout)}` : `${r.view.name} — no win`, r.view.pays ? 'win' : 'lose');
+        msg.set(r.view.pays ? `${r.view.name}: WIN ${C.fmt(r.payout)}` : `${r.view.name}: no win`, r.view.pays ? 'win' : 'lose');
         render(r.view.pays ? r.view.name : null);
       }
     },

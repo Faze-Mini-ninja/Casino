@@ -7,12 +7,12 @@
   const GLYPH = {
     coinflip: () => svg('<circle cx="32" cy="32" r="26" fill="#f5b72f" stroke="#a87400" stroke-width="4"/><circle cx="32" cy="32" r="18" fill="none" stroke="#fff3c4" stroke-width="2" opacity=".7"/><text x="32" y="41" text-anchor="middle" font-family="Lilita One,sans-serif" font-size="24" fill="#7a5200">K</text>'),
     dice: () => svg('<rect x="6" y="14" width="30" height="30" rx="7" fill="#fff" stroke="#c9d6e3" stroke-width="2" transform="rotate(-12 21 29)"/><g fill="#0b1622" transform="rotate(-12 21 29)"><circle cx="14" cy="22" r="3"/><circle cx="21" cy="29" r="3"/><circle cx="28" cy="36" r="3"/></g><rect x="28" y="22" width="30" height="30" rx="7" fill="#ff4d63" stroke="#b3122a" stroke-width="2" transform="rotate(10 43 37)"/><g fill="#fff" transform="rotate(10 43 37)"><circle cx="36" cy="30" r="3"/><circle cx="50" cy="30" r="3"/><circle cx="36" cy="44" r="3"/><circle cx="50" cy="44" r="3"/></g>'),
-    rps: () => svg('<text x="32" y="44" text-anchor="middle" font-size="34">✊</text>'),
+    rps: () => svg('<rect x="6" y="10" width="52" height="44" rx="10" fill="#22384e" stroke="#8197ad" stroke-width="2"/><text x="32" y="39" text-anchor="middle" font-family="Arial,sans-serif" font-weight="800" font-size="16" fill="#eaf0f7">RPS</text>'),
     bj: () => svg('<rect x="8" y="10" width="28" height="40" rx="5" fill="#fff" stroke="#c9d6e3" stroke-width="2" transform="rotate(-10 22 30)"/><text x="20" y="36" font-family="Georgia,serif" font-weight="700" font-size="16" fill="#0b1622" transform="rotate(-10 22 30)">A♠</text><rect x="26" y="14" width="28" height="40" rx="5" fill="#fff" stroke="#c9d6e3" stroke-width="2" transform="rotate(10 40 34)"/><text x="31" y="40" font-family="Georgia,serif" font-weight="700" font-size="16" fill="#d61f3a" transform="rotate(10 40 34)">K♥</text>'),
   };
   const GAMES = [['coinflip', 'Coin Flip', 'Call heads or tails. Your opponent gets the other side.'], ['dice', 'Dice Duel', 'Both roll 1–100. Higher roll wins.'],
-    ['rps', 'Rock Paper Scissors', 'Pick in secret. Rock beats scissors, scissors beat paper, paper beats rock. Same hand = refund.'], ['bj', 'Blackjack Duel', 'Same shoe, one hand each. Hit or stand — closest to 21 wins. Blackjack beats 21. Both bust = refund.']];
-  const RPS = { R: ['✊', 'Rock'], P: ['✋', 'Paper'], S: ['✌️', 'Scissors'] };
+    ['rps', 'Rock Paper Scissors', 'Pick in secret. Rock beats scissors, scissors beat paper, paper beats rock. Same hand = refund.'], ['bj', 'Blackjack Duel', 'Same shoe, one hand each. Hit or stand: closest to 21 wins. Blackjack beats 21. Both bust = refund.']];
+  const RPS = { R: ['Rock', 'Rock'], P: ['Paper', 'Paper'], S: ['Scissors', 'Scissors'] };
   const money = (x, md) => (md === 'real' ? C.money(x) : C.fmt(x) + ' cr');
   const me = () => (S.user ? S.user.id : 0);
   const refreshBal = async () => { const r = await C.try(() => C.api('GET', '/api/me')); if (r && r.balances) C.setUnits(r.balances); };
@@ -49,7 +49,7 @@
       roll();
     } else if (m.game === 'rps') {
       const mineH = r[mine], theirs = r[mine === 'c' ? 'j' : 'c'];
-      const a = h('div', { class: 'mp-hand shake' }, '✊'), b = h('div', { class: 'mp-hand shake flip' }, '✊');
+      const a = h('div', { class: 'mp-hand shake' }, '?'), b = h('div', { class: 'mp-hand shake' }, '?');
       stage.append(h('div', { class: 'mp-rolls' }, h('div', null, h('span', { class: 'muted small' }, 'You'), a), h('div', { class: 'vs' }, 'vs'), h('div', null, h('span', { class: 'muted small' }, other), b)));
       setTimeout(() => { a.classList.remove('shake'); b.classList.remove('shake'); a.textContent = RPS[mineH][0]; b.textContent = RPS[theirs][0]; }, 1300);
     }
@@ -57,7 +57,7 @@
     setTimeout(() => {
       if (!alive(stage)) return;
       verdict.className = 'mp-verdict ' + (tie ? 'tie' : won ? 'win' : 'lose');
-      verdict.textContent = tie ? `Tie — stake refunded (${r.text})` : won ? `You win ${money(m.prize, m.mode)}!` : `${m.winner} wins (${r.text})`;
+      verdict.textContent = tie ? `Tie: stake refunded (${r.text})` : won ? `You win ${money(m.prize, m.mode)}!` : `${m.winner} wins (${r.text})`;
       C.sfx && C.sfx(tie ? 'pop' : won ? 'win' : 'lose');
       refreshBal();
     }, delay);
@@ -100,13 +100,13 @@
       createBtn.disabled = true;
       const r = await C.try(() => C.api('POST', '/api/pvp/create', { game: curGame, mode: md, stake: stake.value, choice: choice[curGame] }));
       createBtn.disabled = false;
-      if (r) { C.setUnits(r.balances); C.toast('Challenge created — waiting for an opponent', 'win'); C.sfx && C.sfx('bet'); reload(); }
+      if (r) { C.setUnits(r.balances); C.toast('Challenge created. Waiting for an opponent.', 'win'); C.sfx && C.sfx('bet'); reload(); }
     } }, 'Create challenge');
 
     const paintChoice = () => {
       choiceBox.innerHTML = '';
       if (curGame === 'coinflip') choiceBox.append(h('div', { class: 'field' }, h('label', null, 'Your side'), seg([['H', 'Heads'], ['T', 'Tails']], choice.coinflip, (v) => { choice.coinflip = v; })));
-      if (curGame === 'rps') choiceBox.append(h('div', { class: 'field' }, h('label', null, 'Your hand (kept secret)'), seg(Object.entries(RPS).map(([k, v]) => [k, `${v[0]} ${v[1]}`]), choice.rps, (v) => { choice.rps = v; })));
+      if (curGame === 'rps') choiceBox.append(h('div', { class: 'field' }, h('label', null, 'Your hand (kept secret)'), seg(Object.entries(RPS).map(([k, v]) => [k, v[1]]), choice.rps, (v) => { choice.rps = v; })));
     };
     const card = (m) => {
       const mineM = m.creatorId === me();
@@ -114,14 +114,14 @@
       return h('div', { class: 'mp-card' + (mineM ? ' mine' : '') },
         h('div', { class: 'mp-card-top' }, GLYPH[m.game](), h('div', null, h('b', null, m.creator), h('div', { class: 'muted small' }, m.gameName))),
         h('div', { class: 'mp-stake' }, money(m.stake, m.mode)),
-        h('div', { class: 'muted small' }, m.game === 'coinflip' ? `Picked ${m.creatorChoice === 'H' ? 'heads' : 'tails'} — you get ${m.creatorChoice === 'H' ? 'tails' : 'heads'}` : m.game === 'rps' ? (mineM ? `Your hand: ${RPS[m.yourChoice] ? RPS[m.yourChoice][1] : '?'}` : 'Hand hidden') : `Prize ${money(m.prize, m.mode)}`),
+        h('div', { class: 'muted small' }, m.game === 'coinflip' ? `They picked ${m.creatorChoice === 'H' ? 'heads' : 'tails'}, you get ${m.creatorChoice === 'H' ? 'tails' : 'heads'}` : m.game === 'rps' ? (mineM ? `Your hand: ${RPS[m.yourChoice] ? RPS[m.yourChoice][1] : '?'}` : 'Hand hidden') : `Prize ${money(m.prize, m.mode)}`),
         mineM ? h('button', { class: 'btn small ghost', onclick: async () => { const r = await C.try(() => C.api('POST', '/api/pvp/cancel', { id: m.id })); if (r) { C.setUnits(r.balances); reload(); } } }, 'Cancel') : joinBtn);
     };
     async function join(m) {
       let pick = null;
       if (m.game === 'rps') {
         pick = await new Promise((res) => {
-          const body = h('div', { class: 'mp-pick' }, Object.entries(RPS).map(([k, v]) => h('button', { class: 'btn ghost big', onclick: () => { close(); res(k); } }, h('span', { style: 'font-size:28px' }, v[0]), ' ', v[1])));
+          const body = h('div', { class: 'mp-pick' }, Object.entries(RPS).map(([k, v]) => h('button', { class: 'btn ghost big', onclick: () => { close(); res(k); } }, v[1])));
           const close = C.modal(`Your hand vs ${m.creator}`, body);
         });
       }
@@ -145,7 +145,7 @@
       openBox.innerHTML = '';
       const list = data.open.filter((m) => m.game === curGame);
       if (list.length) list.forEach((m) => openBox.append(card(m)));
-      else openBox.append(h('div', { class: 'empty' }, 'No open challenges yet — create one and wait for an opponent.'));
+      else openBox.append(h('div', { class: 'empty' }, 'No open challenges yet. Create one and wait for an opponent.'));
       mineBox.innerHTML = '';
       const live = data.mine.filter((m) => m.status === 'playing');
       if (live.length) mineBox.append(h('div', { class: 'panel' }, h('h3', null, 'Your duels in progress'), live.map((m) => h('a', { class: 'mp-live', href: '#bjduel-' + m.id }, GLYPH[m.game](), `${m.gameName} vs ${m.creatorId === me() ? m.joiner : m.creator} · ${money(m.stake, m.mode)}`, h('span', { class: 'btn small' }, 'Open')))));
@@ -205,7 +205,7 @@
         controls.style.display = 'none'; timer.style.display = 'none';
         const won = m.winnerId === me();
         msg.className = 'mp-verdict ' + (!m.winner ? 'tie' : won ? 'win' : 'lose');
-        msg.textContent = !m.winner ? `Tie — stakes refunded (${r.text})` : won ? `You win ${money(m.prize, m.mode)}! (${r.text})` : `${m.winner} wins (${r.text})`;
+        msg.textContent = !m.winner ? `Tie: stakes refunded (${r.text})` : won ? `You win ${money(m.prize, m.mode)}! (${r.text})` : `${m.winner} wins (${r.text})`;
         if (!finishedShown) { finishedShown = true; C.sfx && C.sfx(!m.winner ? 'pop' : won ? 'win' : 'lose'); refreshBal(); }
         return;
       }
@@ -294,7 +294,7 @@
       seatsBox.innerHTML = ''; t.seats.forEach((s, i) => seatsBox.append(seatEl(s, i)));
       const i = myIdx(), mine = i >= 0 ? t.seats[i] : null;
       controls.innerHTML = '';
-      if (!mine) controls.append(h('p', { class: 'muted' }, t.seats.some((s) => !s) ? 'Pick an empty seat to join the table.' : 'The table is full — you can watch.'));
+      if (!mine) controls.append(h('p', { class: 'muted' }, t.seats.some((s) => !s) ? 'Pick an empty seat to join the table.' : 'The table is full, but you can watch.'));
       else if (t.phase === 'betting' && !mine.bet) {
         bet.input.min = t.min; bet.input.max = t.max;
         controls.append(bet.el, h('div', { class: 'row' }, [t.min, t.min * 5, t.min * 25].filter((v) => v <= t.max).map((v) => h('button', { class: 'btn small ghost', onclick: () => bet.set(v) }, money(v, t.mode)))),
@@ -304,7 +304,7 @@
           h('button', { class: 'btn green big', onclick: () => call('/api/bjt/act', { action: 'hit' }) }, 'Hit'),
           h('button', { class: 'btn red big', onclick: () => call('/api/bjt/act', { action: 'stand' }) }, 'Stand'),
           mine.cards.length === 2 ? h('button', { class: 'btn blue big', onclick: () => call('/api/bjt/act', { action: 'double' }) }, 'Double') : null));
-      } else controls.append(h('p', { class: 'muted' }, t.phase === 'settled' ? 'Hand over — the next hand starts in a moment.' : mine.bet ? (t.phase === 'betting' ? 'Your bet is in — waiting for the others.' : 'Waiting for your turn…') : 'Sitting out this hand — bet when the next one opens.'));
+      } else controls.append(h('p', { class: 'muted' }, t.phase === 'settled' ? 'Hand over. The next hand starts in a moment.' : mine.bet ? (t.phase === 'betting' ? 'Your bet is in. Waiting for the others.' : 'Waiting for your turn…') : 'Sitting out this hand. You can bet when the next one opens.'));
       if (mine) controls.append(h('button', { class: 'btn small ghost', onclick: () => call('/api/bjt/leave', {}).then((r) => r && C.toast('You left the table')) }, 'Leave table'));
       paintStatus();
     }
@@ -312,8 +312,8 @@
       if (!t) return;
       const left = Math.max(0, Math.ceil((t.deadline - srvNow()) / 1000));
       const who = t.turn >= 0 && t.seats[t.turn] ? (t.seats[t.turn].userId === me() ? 'Your' : t.seats[t.turn].name + "'s") : '';
-      status.textContent = t.phase === 'betting' ? (t.deadline ? `Place your bets — dealing in ${left}s` : 'Place a bet to start the next hand')
-        : t.phase === 'playing' ? `${who} turn — ${left}s` : t.phase === 'settled' ? `Next hand in ${left}s` : 'Dealer plays';
+      status.textContent = t.phase === 'betting' ? (t.deadline ? `Place your bets. Dealing in ${left}s` : 'Place a bet to start the next hand')
+        : t.phase === 'playing' ? `${who} turn (${left}s)` : t.phase === 'settled' ? `Next hand in ${left}s` : 'Dealer plays';
       status.classList.toggle('mine', t.phase === 'playing' && t.seats[t.turn] && t.seats[t.turn].userId === me());
       wrap.querySelectorAll('[data-deadline]').forEach((el) => { const l = Math.max(0, +el.dataset.deadline - srvNow()) / ((window.__bjtTurn || 20) * 1000); el.style.width = (Math.min(1, l) * 100).toFixed(1) + '%'; el.parentNode.classList.toggle('low', l < 0.3); });
     }

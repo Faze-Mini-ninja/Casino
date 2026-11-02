@@ -4,7 +4,7 @@
   const odds = L.SCRATCH_PRIZES.reduce((s, [, p]) => s + p, 0);
   C.register({
     n: 27, id: 'scratch', name: 'Scratch Cards', icon: '🎟️', cat: 'lottery', edge: ((1 - rtp) * 100).toFixed(1) + '%',
-    blurb: 'Scratch 9 boxes — match three prize amounts to win.',
+    blurb: 'Scratch 9 boxes and match three prize amounts to win.',
     rules: `<p>Buy a ticket, scratch the 9 panels (drag with mouse or finger) or press Reveal. Find three matching multipliers and win ticket price × that multiplier. Overall odds of winning anything: 1 in ${(1 / odds).toFixed(2)}. RTP ${(rtp * 100).toFixed(2)}% (exact).</p>`,
     edges: L.SCRATCH_PRIZES.map(([m, p]) => [`3 × ${m}×`, `${m}× (1 in ${Math.round(1 / p).toLocaleString()})`, '']).concat([['Overall', '', ((1 - rtp) * 100).toFixed(2) + '%']]),
     mount(root) {
@@ -67,7 +67,7 @@
         const pay = st.r.payout;
         C.settle(st.r);
         if (st.prize) grid.querySelectorAll(`[data-v="${st.prize}"]`).forEach((c) => c.classList.add('hit'));
-        msg.set(st.prize ? `Three ${st.prize}× — you win ${C.fmt(pay)}!` : 'No match — better luck next ticket', st.prize ? 'win' : 'lose');
+        msg.set(st.prize ? `Three ${st.prize}×: you win ${C.fmt(pay)}!` : 'No match this time', st.prize ? 'win' : 'lose');
         revBtn.disabled = true; buyBtn.disabled = false; priceSel.sel.disabled = false;
       }
       return () => { window.removeEventListener('mouseup', stop); window.removeEventListener('touchend', stop); if (st && !st.done) reveal(); };

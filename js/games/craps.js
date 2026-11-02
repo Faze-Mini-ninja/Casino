@@ -53,7 +53,7 @@
         hist.prepend(h('span', { class: 'pill ' + (t === 7 ? 'r' : '') }, String(t)));
         while (hist.children.length > 16) hist.lastChild.remove();
         const net = pay - wager;
-        msg.set(`${t}${a === b ? ' (hard)' : ''} — ` + (net > 0 ? `win +${C.fmt(net)}` : net === 0 ? 'no action' : `lose ${C.fmt(-net)}`) + (notes.length ? ' • ' + notes.join(', ') : ''), net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
+        msg.set(`${t}${a === b ? ' (hard)' : ''}: ` + (net > 0 ? `win +${C.fmt(net)}` : net === 0 ? 'no action' : `lose ${C.fmt(-net)}`) + (notes.length ? ' • ' + notes.join(', ') : ''), net > 0 ? 'win' : net === 0 ? 'push' : 'lose');
         busy = false; T.lock(false); rollBtn.disabled = false;
       }
     },

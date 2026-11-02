@@ -3,7 +3,7 @@
   const M = L.COIN_MULT;
   C.register({
     n: 29, id: 'coinflip', name: 'Coin Flip', icon: '🪙', cat: 'originals', edge: (L.EDGE.coinflip * 100) + '%',
-    blurb: `Heads or tails — pays ${M.toFixed(2)}×.`,
+    blurb: `Call heads or tails. Pays ${M.toFixed(2)}×.`,
     rules: `<p>Call heads or tails. A correct call pays ${M.toFixed(2)}× your bet (a fair coin would pay 2×), so the house keeps ${(L.EDGE.coinflip * 100).toFixed(0)}% of every flip.</p>`,
     edges: [['Heads or Tails', M.toFixed(2) + '× (0.8:1)', (L.EDGE.coinflip * 100).toFixed(2) + '%']],
     mount(root) {
@@ -33,7 +33,7 @@
         const pay = r.payout;
         C.settle(r);
         streak = win ? streak + 1 : 0; paintStreak();
-        msg.set(`${res === 'H' ? 'Heads' : 'Tails'} — ` + (win ? `win ${C.fmt(pay)}` : 'lose'), win ? 'win' : 'lose');
+        msg.set(`${res === 'H' ? 'Heads' : 'Tails'}: ` + (win ? `win ${C.fmt(pay)}` : 'lose'), win ? 'win' : 'lose');
         hist.prepend(h('span', { class: 'pill ' + (res === 'H' ? '' : 'bl') }, res));
         while (hist.children.length > 20) hist.lastChild.remove();
         busy = false; hb.disabled = tb.disabled = false;

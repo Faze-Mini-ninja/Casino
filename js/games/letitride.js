@@ -2,7 +2,7 @@
   const C = Casino, L = Lib, h = C.h;
   C.register({
     n: 19, id: 'letitride', name: 'Let It Ride', icon: '🏇', cat: 'cards', edge: '3.51%',
-    blurb: 'Three equal bets — pull two back or let them ride.',
+    blurb: 'Three equal bets. Pull two back or let them ride.',
     rules: '<p>Place three equal bets. You get 3 cards plus 2 face-down community cards. After seeing your 3 cards you may pull back bet #1; after the first community card you may pull back bet #2. Bet #3 always plays. Every remaining bet is paid by the paytable on your final 5-card hand (pair of 10s or better). No dealer hand.</p>',
     edges: [...Object.entries(L.LIR_PAYS).reverse().map(([c, p]) => [L.HAND_NAMES[c], p + ':1', '']), ['Pair of 10s or better', '1:1', ''], ['Overall (optimal strategy)', '', '3.51%']],
     round: 'letitride',
@@ -47,7 +47,7 @@
         const v = r.view;
         if (v.cat != null) { const row = pt.querySelector(`[data-c="${v.cat}"]`); if (row) row.classList.add('hit'); }
         const net = C.net(r);
-        msg.set(`${v.name} — ${v.pays > 0 ? `${v.pays}:1 on ${v.riding} bet${v.riding > 1 ? 's' : ''}` : 'no win'} (${C.netMsg(net)})`, net > 0 ? 'win' : 'lose');
+        msg.set(`${v.name}: ${v.pays > 0 ? `${v.pays}:1 on ${v.riding} bet${v.riding > 1 ? 's' : ''}` : 'no win'} (${C.netMsg(net)})`, net > 0 ? 'win' : 'lose');
         st = null;
       }
     },

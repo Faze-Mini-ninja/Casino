@@ -10,7 +10,7 @@
     C.register({
       n: american ? 4 : 5, id, name: american ? 'American Roulette' : 'European Roulette', icon: american ? '🇺🇸' : '🇪🇺', cat: 'table', edge,
       blurb: american ? 'Double-zero wheel (0 and 00), 38 pockets.' : 'Single-zero wheel, 37 pockets.',
-      rules: `<p>${wheel.length} pockets. Place chips on numbers or outside bets, then spin. Bets stay on the layout between spins until you clear them.${american ? ' The 0-00-1-2-3 "Top Line" bet pays 6:1 and carries a 7.89% edge — the worst bet on the table.' : ''}</p>`,
+      rules: `<p>${wheel.length} pockets. Place chips on numbers or outside bets, then spin. Bets stay on the layout between spins until you clear them.${american ? ' The 0-00-1-2-3 "Top Line" bet pays 6:1 and carries a 7.89% edge: the worst bet on the table.' : ''}</p>`,
       edges: [['Straight up', '35:1', edge], ['Dozen / Column', '2:1', edge], ['Red/Black, Odd/Even, 1-18/19-36', '1:1', edge], ...(american ? [['Top Line (0,00,1,2,3)', '6:1', '7.89%']] : [])],
       mount(root) {
         const T = C.chipTable();
@@ -84,7 +84,7 @@
           const c = colorOf(n);
           hist.prepend(h('span', { class: 'pill ' + c }, String(n)));
           while (hist.children.length > 14) hist.lastChild.remove();
-          msg.set(`${n} ${c === 'r' ? 'Red' : c === 'b' ? 'Black' : 'Green'} — ` + (pay ? `you win ${C.fmt(pay)}` : 'no win'), pay ? 'win' : 'lose');
+          msg.set(`${n} ${c === 'r' ? 'Red' : c === 'b' ? 'Black' : 'Green'}: ` + (pay ? `you win ${C.fmt(pay)}` : 'no win'), pay ? 'win' : 'lose');
           T.lock(false); spinBtn.disabled = false;
         }
         return () => { alive = false; cancelAnimationFrame(raf); };

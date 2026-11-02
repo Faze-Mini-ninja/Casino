@@ -47,8 +47,8 @@
           paytable: () => {
             const t = L.slotTable(id), heads = T0.reels === 3 ? ['3×'] : ['5×', '4×', '3×'];
             const rows = Object.entries(t.pays).reverse().map(([s, p]) => ({ sym: s, title: SYM_NAME[s] + (ways ? ' · per way' : ''), pays: p.map((x, i) => [T0.reels === 3 ? '3×' : `${i + 3}×`, ways ? x : x / t.lines.length]).reverse() }));
-            if (t.scatter) rows.unshift({ sym: 'scatter', wide: true, title: 'BONUS — pays anywhere' + (T0.free ? ` · 3+ award ${Object.values(T0.free.spins).join('/')} free spins, wins ×${T0.free.mult}` : ''), pays: Object.entries(t.scatter).reverse().map(([k, v]) => [k + '×', v]) });
-            rows.splice(t.scatter ? 1 : 0, 0, { sym: 'wild', wide: true, title: 'WILD — substitutes for every paying symbol', pays: (t.pays.wild || []).map((x, i) => [T0.reels === 3 ? '3×' : `${i + 3}×`, x / t.lines.length]).reverse() });
+            if (t.scatter) rows.unshift({ sym: 'scatter', wide: true, title: 'BONUS: pays anywhere' + (T0.free ? ` · 3+ award ${Object.values(T0.free.spins).join('/')} free spins, wins ×${T0.free.mult}` : ''), pays: Object.entries(t.scatter).reverse().map(([k, v]) => [k + '×', v]) });
+            rows.splice(t.scatter ? 1 : 0, 0, { sym: 'wild', wide: true, title: 'WILD: substitutes for every paying symbol', pays: (t.pays.wild || []).map((x, i) => [T0.reels === 3 ? '3×' : `${i + 3}×`, x / t.lines.length]).reverse() });
             return rows.filter((r, i, a) => r.sym !== 'wild' || a.findIndex((x) => x.sym === 'wild') === i);
           },
         });

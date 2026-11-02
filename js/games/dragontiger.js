@@ -33,7 +33,7 @@
         T.mark(r.result.winners);
         hist.prepend(h('span', { class: 'pill ' + (res === 'Dragon' ? 'r' : res === 'Tiger' ? 'bl' : 'g') }, res[0]));
         while (hist.children.length > 24) hist.lastChild.remove();
-        msg.set(`${res}${res === 'Tie' ? '!' : ' wins'} — ` + (pay ? `pays ${C.fmt(pay)}` : 'no win'), pay > wager ? 'win' : pay ? 'push' : 'lose');
+        msg.set(`${res}${res === 'Tie' ? '!' : ' wins'}: ` + (pay ? `pays ${C.fmt(pay)}` : 'no win'), pay > wager ? 'win' : pay ? 'push' : 'lose');
         busy = false; T.lock(false); btn.disabled = false;
       }
     },

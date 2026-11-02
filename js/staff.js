@@ -159,7 +159,7 @@
     const months = h('select', null, h('option', { value: '6' }, '6 months'), h('option', { value: '12' }, '1 year'), h('option', { value: '60' }, '5 years'), h('option', { value: '0' }, 'Permanently'));
     return h('div', { class: 'panel' }, h('h3', null, 'Responsible gambling & AML'),
       h('p', null, r.rg.block ? h('span', { class: 'tag-s failed' }, `${r.rg.block.kind === 'exclusion' ? 'Self-excluded' : 'Cool-off'} ${untilText(r.rg.block.until)}`) : h('span', { class: 'muted' }, 'No break or self-exclusion.')),
-      h('p', { class: 'muted small' }, `Deposit limits — 24 h: ${lim('daily')} · 7 days: ${lim('weekly')} · 30 days: ${lim('monthly')}`),
+      h('p', { class: 'muted small' }, `Deposit limits. 24 h: ${lim('daily')} · 7 days: ${lim('weekly')} · 30 days: ${lim('monthly')}`),
       C.can('admin') && u.role !== 'admin' ? h('div', { class: 'row' }, months, h('button', { class: 'btn small red', onclick: async () => {
         if (!confirm(`Exclude ${u.username}? It cannot be lifted early.`)) return;
         if (await C.try(() => C.api('POST', '/api/admin/rg/exclude', { id: u.id, months: +months.value }))) { C.toast(`${u.username} is excluded`, 'win'); C.route(); }
@@ -328,7 +328,7 @@
   /** Owner cash-out: send coins from a hot wallet to any address (admin password required every time). */
   function cashoutPanel(o, coin) {
     if (!o.wallets.length) return null;
-    const asset = h('select', null, o.wallets.map((w) => h('option', { value: w.asset }, `${w.asset} — hot wallet ${coin(w.balance, w.asset)}`)));
+    const asset = h('select', null, o.wallets.map((w) => h('option', { value: w.asset }, `${w.asset}: hot wallet ${coin(w.balance, w.asset)}`)));
     const amount = h('input', { type: 'number', min: '0', step: 'any', placeholder: 'Amount in coins', inputmode: 'decimal' });
     const addr = h('input', { placeholder: 'Wallet address to send to', autocapitalize: 'off', autocomplete: 'off', spellcheck: 'false' });
     const pw = h('input', { type: 'password', placeholder: 'Your admin password', autocomplete: 'current-password' });
@@ -345,7 +345,7 @@
       if (r) { C.toast(`Sending ${coin(r.coin, r.asset)} to your wallet`, 'win'); setTimeout(() => C.route(), 1500); }
     } }, 'Cash out');
     return h('div', { class: 'panel' }, h('h3', { style: 'margin-top:0' }, 'Cash out'),
-      h('p', { class: 'muted small' }, 'Send coins from a hot wallet to any wallet you choose. Coins waiting to go out to players are kept back. ', h('b', null, `Players are owed ${C.money(o.playerBalancesUsd)}`), ' — keep enough to pay withdrawals.'),
+      h('p', { class: 'muted small' }, 'Send coins from a hot wallet to any wallet you choose. Coins waiting to go out to players are kept back. ', h('b', null, `Players are owed ${C.money(o.playerBalancesUsd)}`), ': keep enough to pay withdrawals.'),
       h('div', { class: 'cashout-grid' }, h('div', { class: 'field' }, h('label', null, 'Coin'), asset), h('div', { class: 'field' }, h('label', null, 'Amount'), h('div', { class: 'row' }, amount, maxBtn)),
         h('div', { class: 'field wide' }, h('label', null, 'Send to'), addr), h('div', { class: 'field' }, h('label', null, 'Admin password'), pw), h('div', { class: 'field' }, h('label', null, '\u00a0'), go)),
       o.cashouts.length ? tbl(['Time', 'Amount', 'To', 'Status'], o.cashouts.map((c) => h('tr', null, h('td', { class: 'muted' }, ago(c.created)), h('td', null, coin(c.coin, c.asset), c.url ? [' ', h('a', { href: c.url, target: '_blank', rel: 'noopener' }, '↗')] : null),
