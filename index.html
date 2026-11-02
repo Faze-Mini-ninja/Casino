@@ -53,11 +53,11 @@
         <a href="#lobby" class="brand"><span class="mark">K</span><span class="name">krush<b>.casino</b></span></a>
         <div class="top-center">
           <div class="wallet" id="walletbox" style="display:none">
-            <button class="bal-btn" id="bal-btn"><span class="cur demo" id="cur-ico">D</span><span id="balance" class="balance">0.00</span><span class="chev" id="chev"></span></button>
-            <a href="#wallet" class="btn" id="wallet-btn">Wallet</a>
+            <button class="bal-btn" id="bal-btn" aria-haspopup="true" aria-label="Balance"><span class="cur" id="cur-ico"></span><span class="bal-amt"><span class="bal-sym" id="bal-sym"></span><span id="balance" class="balance">0.00</span></span><span class="bal-tag" id="bal-tag">Demo</span><span class="chev" id="chev"></span></button>
+            <a href="#wallet" class="btn" id="wallet-btn" aria-label="Deposit"><svg class="i" viewBox="0 0 24 24"><path d="M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H3z"/><path d="M3 7l12-4v4"/><path d="M16 14h2"/></svg><span>Deposit</span></a>
             <div class="cur-menu" id="cur-menu">
-              <button class="cur-row" data-mode="real"><span class="cur usd">$</span><span>USD<span class="sub">Real money · SOL, USDC, ETH, LTC</span></span><span class="amt" id="amt-real">0.00</span></button>
-              <button class="cur-row" data-mode="demo"><span class="cur demo">D</span><span>Demo<span class="sub">Free play credits</span></span><span class="amt" id="amt-demo">0.00</span></button>
+              <button class="cur-row" data-mode="real"><span class="cur" data-ico="usd"></span><span>Real money<span class="sub">US dollars · deposit SOL, USDC, ETH, LTC</span></span><span class="amt" id="amt-real">0.00</span></button>
+              <button class="cur-row" data-mode="demo"><span class="cur" data-ico="demo"></span><span>Demo<span class="sub">Free credits, no withdrawals</span></span><span class="amt" id="amt-demo">0.00</span></button>
               <button class="btn small ghost refill" id="refill">Get free demo credits</button>
             </div>
           </div>

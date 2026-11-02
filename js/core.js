@@ -608,10 +608,26 @@
     document.getElementById('bal-btn').onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
     document.addEventListener('click', (e) => { if (!menu.contains(e.target)) menu.classList.remove('open'); });
     let shown = null;
+    // currency marks: a flat dollar coin for real money, a casino chip for demo credits
+    const CUR_ICO = {
+      usd: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#1f9d57"/><circle cx="10" cy="10" r="8.2" fill="none" stroke="#7be3a8" stroke-opacity=".45"/><text x="10" y="14.4" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="12.5" font-weight="700" fill="#fff">$</text></svg>',
+      demo: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="10" fill="#566a80"/><g fill="#dfe7ef">' + [0, 60, 120, 180, 240, 300].map((a) => `<rect x="8.6" y="0.6" width="2.8" height="3.4" rx=".6" transform="rotate(${a} 10 10)"/>`).join('') + '</g><circle cx="10" cy="10" r="5.6" fill="#3f5164" stroke="#dfe7ef" stroke-width="1"/></svg>',
+    };
+    document.querySelectorAll('.cur[data-ico]').forEach((e) => { e.innerHTML = CUR_ICO[e.dataset.ico]; });
+    const symEl = document.getElementById('bal-sym'), tagEl = document.getElementById('bal-tag');
+    let tween = 0, curShown = null;
+    const showBal = (v, from) => { // count up/down to the new balance, like a real cashier display
+      cancelAnimationFrame(tween);
+      if (from == null || from === v) { balEl.textContent = C.fmt(v); curShown = v; return; }
+      const t0 = performance.now(), d = Math.min(700, 250 + Math.abs(v - from) / Math.max(1, Math.abs(v)) * 1200);
+      const step = (t) => { const k = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - k, 3), x = from + (v - from) * e; balEl.textContent = C.fmt(Math.round(x * 100) / 100); curShown = x; if (k < 1) tween = requestAnimationFrame(step); };
+      tween = requestAnimationFrame(step);
+    };
     const paint = () => {
       const v = C.balance(), real = S.mode === 'real';
-      balEl.textContent = C.fmt(v);
-      ico.className = 'cur ' + (real ? 'usd' : 'demo'); ico.textContent = real ? '$' : 'D';
+      showBal(v, shown != null && shown.mode === S.mode ? (curShown == null ? shown.v : curShown) : null);
+      ico.innerHTML = CUR_ICO[real ? 'usd' : 'demo']; ico.className = 'cur ' + (real ? 'usd' : 'demo');
+      symEl.textContent = real ? '$' : ''; tagEl.style.display = real ? 'none' : '';
       document.getElementById('amt-real').textContent = C.money(S.units.real / 100);
       document.getElementById('amt-demo').textContent = C.fmt(S.units.demo / 100);
       balEl.classList.remove('up', 'down'); void balEl.offsetWidth;
