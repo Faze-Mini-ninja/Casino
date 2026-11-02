@@ -109,6 +109,11 @@ function listen(cookie) {
   await sleep(150);
   ok(sse.events.some((e) => e.type === 'announce'), 'announcement pushed live');
   ok((await A('POST', '/api/admin/announce', { text: 'x', link: 'javascript:alert(1)' })).announcement.link === '', 'unsafe links are dropped');
+  console.log('deposit alerts');
+  require('../server/bus').emit('deposit', { to: id('player1'), sol: 0.5, credits: 500, signature: 'sig-test' });
+  await sleep(150);
+  ok(sse.events.some((e) => e.type === 'deposit' && e.data.credits === 500), 'depositing player is told live');
+  ok(!sseStaff.events.some((e) => e.type === 'deposit'), 'other players are not told about the deposit');
 
   console.log('live odds');
   const cfg0 = (await P('GET', '/api/me')).config.odds;

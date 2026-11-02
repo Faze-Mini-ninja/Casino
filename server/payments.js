@@ -10,6 +10,7 @@
 'use strict';
 const cfg = require('./config');
 const { q, tx, credit, debit, balances, LAMPORTS_PER_UNIT, UNITS_PER_SOL } = require('./db');
+const bus = require('./bus');
 const { keypairAt, hotWallet } = require('./wallet');
 const chain = require('./chain');
 
@@ -40,15 +41,18 @@ async function scanAddress(row) {
     if (q('SELECT 1 FROM chain_txs WHERE signature = ? AND address_id = ?').get(s.signature, row.id)) continue;
     const ch = s.err ? { delta: 0, failed: true } : await chain.netChange(s.signature, row.address);
     if (!ch) return; // not readable yet; retry next pass without advancing last_sig
+    let note = null;
     tx(() => {
       const ins = q('INSERT OR IGNORE INTO chain_txs (signature, address_id, user_id, lamports, units, kind, ts) VALUES (?,?,?,?,?,?,?)');
       if (ch.delta > 0) {
         const units = Math.floor(ch.delta / LAMPORTS_PER_UNIT), ok = ch.delta >= cfg.MIN_DEPOSIT_SOL * SOL;
         const r = ins.run(s.signature, row.id, row.user_id, ch.delta, ok ? units : 0, ok ? 'deposit' : 'below-minimum', Date.now());
-        if (r.changes && ok && units > 0) { credit(row.user_id, 'real', units, 'deposit', s.signature); log(`credited ${ch.delta / SOL} SOL to user ${row.user_id} (${s.signature})`); }
+        if (r.changes && ok && units > 0) { credit(row.user_id, 'real', units, 'deposit', s.signature); log(`credited ${ch.delta / SOL} SOL to user ${row.user_id} (${s.signature})`); note = { to: row.user_id, sol: ch.delta / SOL, credits: units / 100, signature: s.signature }; }
+        else if (r.changes && !ok) note = { to: row.user_id, sol: ch.delta / SOL, credits: 0, belowMinimum: true, signature: s.signature };
       } else ins.run(s.signature, row.id, row.user_id, ch.delta, 0, ch.failed ? 'failed' : 'outgoing', Date.now());
       q('UPDATE deposit_addresses SET last_sig = ?, last_checked = ? WHERE id = ?').run(s.signature, Date.now(), row.id);
     });
+    if (note) bus.emit('deposit', note); // after commit: tell the player's open tabs
   }
   q('UPDATE deposit_addresses SET last_checked = ? WHERE id = ?').run(Date.now(), row.id);
 }

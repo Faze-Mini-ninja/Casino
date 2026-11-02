@@ -22,6 +22,8 @@
   const setUnits = (b) => { if (b) { S.units = { demo: b.demo, real: b.real }; emit(); } };
   C.odds = () => !!S.config.showOdds;
   C.config = () => S.config;
+  C.loggedIn = () => !!S.user;
+  C.balanceOf = (m) => S.units[m] / 100;
   const demoStart = () => Number((S.config && S.config.demoStart) || 1000).toLocaleString('en-US');
   C.solOf = (credits) => credits / (S.config.creditsPerSol || 1000);
 
@@ -557,7 +559,7 @@
   C.refreshMe = async () => { const r = await C.try(() => C.api('GET', '/api/me')); if (r) applyMe(r); };
 
   /* ---------------- live updates (Server-Sent Events) ---------------- */
-  const STREAM_TYPES = ['chat', 'chat-del', 'online', 'bet', 'round', 'announce', 'odds', 'ticket', 'tipped'];
+  const STREAM_TYPES = ['chat', 'chat-del', 'online', 'bet', 'round', 'announce', 'odds', 'ticket', 'tipped', 'deposit'];
   const globalStream = {};
   let pageStream = {}, es = null, esUser;
   /** Subscribe to a live event. Page subscriptions are dropped on navigation; pass global=true to keep it. */
